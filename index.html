@@ -182,14 +182,38 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 
 /* ---------- stats ---------- */
 .stat-row{margin-bottom:14px}
-.stat-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;letter-spacing:.14em;margin-bottom:6px}
-.stat-name{color:var(--text);font-weight:500}
-.stat-name i{font-style:normal;color:var(--cyan);margin-right:8px}
+.stat-top{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:12px;letter-spacing:.14em;margin-bottom:6px;
+  cursor:pointer;user-select:none;
+  padding:4px 0;
+  transition:.15s;
+}
+.stat-top:hover .stat-name{color:var(--cyan)}
+.stat-name{
+  color:var(--text);font-weight:500;
+  display:inline-flex;align-items:center;gap:11px;
+  transition:color .15s;
+}
+.stat-chevron{
+  display:inline-block;width:0;height:0;
+  border-left:6px solid var(--cyan);
+  border-top:4px solid transparent;
+  border-bottom:4px solid transparent;
+  transition:transform .2s ease;
+  flex-shrink:0;
+}
+.stat-top.open .stat-chevron{transform:rotate(90deg)}
 .stat-val{font-family:'Share Tech Mono',monospace;font-size:15px;color:#fff}
 .stat-val small{color:var(--dim);font-size:10px}
 .bar{height:8px;background:rgba(10,25,50,.9);border:1px solid rgba(47,143,255,.25);overflow:hidden;position:relative}
 .bar-fill{height:100%;background:linear-gradient(90deg,#1c5fd6,#4fd6ff);box-shadow:0 0 14px rgba(79,214,255,.7);transition:width .5s cubic-bezier(.2,.8,.3,1)}
-.stat-desc{font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.5}
+.stat-desc{
+  font-size:10.5px;color:var(--dim);margin-top:0;line-height:1.5;
+  max-height:0;opacity:0;overflow:hidden;
+  transition:max-height .28s ease, opacity .22s ease, margin-top .22s ease;
+}
+.stat-desc.open{max-height:160px;opacity:1;margin-top:8px}
 
 .assign-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
 .pts{font-family:'Share Tech Mono',monospace;font-size:26px;color:var(--gold);text-shadow:0 0 20px rgba(255,207,92,.7)}
@@ -439,6 +463,7 @@ input,textarea,select{font-size:15px}
 .stat-val{font-size:18px}
 .stat-val small{font-size:12.5px}
 .stat-desc{font-size:13px !important;line-height:1.6}
+.stat-desc.open{max-height:200px}
 .bar{height:9px}
 .pts{font-size:30px}
 .q-stat{font-size:12.5px}
@@ -606,7 +631,7 @@ function defaultState(){
 
 let state = defaultState();
 let activeTab = 'status';
-
+const expandedStats = new Set();  // which stat descriptions are expanded this session
 function save(){
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   catch(e){ console.error('save failed', e); }
@@ -1190,18 +1215,18 @@ function viewStatus(){
   const barrier = nextLevelBarrier();
   const low = lowestStat();
 
-  const statRows = STAT_KEYS.map(k => {
+    const statRows = STAT_KEYS.map(k => {
     const val = state.stats[k];
     const pct = clamp((val / barrier) * 100, 0, 100);
-    const lagging = val < barrier;
+    const isOpen = expandedStats.has(k);
     return `
       <div class="stat-row">
-        <div class="stat-top">
-          <span class="stat-name"><i>${STAT_META[k].icon}</i>${STAT_META[k].label}</span>
+        <div class="stat-top ${isOpen ? 'open' : ''}" data-act="toggle-stat" data-stat="${k}">
+          <span class="stat-name"><span class="stat-chevron"></span>${STAT_META[k].label}</span>
           <span class="stat-val">${val}<small> / ${barrier}</small></span>
         </div>
-                <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
-        <div class="stat-desc">${STAT_META[k].desc}</div>
+        <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+        <div class="stat-desc ${isOpen ? 'open' : ''}">${STAT_META[k].desc}</div>
       </div>`;
   }).join('');
 
@@ -1863,11 +1888,18 @@ document.addEventListener('click', (e) => {
   const act = el.dataset.act;
 
   switch(act){
-    case 'tab':
+        case 'tab':
       activeTab = el.dataset.tab;
       render();
       break;
 
+    case 'toggle-stat': {
+      const k = el.dataset.stat;
+      if (expandedStats.has(k)) expandedStats.delete(k);
+      else expandedStats.add(k);
+      render();
+      break;
+    }
     case 'close-modal':
       closeModal();
       break;
