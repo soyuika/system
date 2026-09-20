@@ -682,6 +682,10 @@ function hasFullWeekOfData(){
   created.setHours(0,0,0,0);
   return created <= weekStartDate;
 }
+function isWeeklyWindow(){
+  const now = new Date();
+  return now.getDay() === 0 && now.getHours() >= 19;
+}
 function lowestStat(){
   let k = STAT_KEYS[0];
   STAT_KEYS.forEach(s => { if (state.stats[s] < state.stats[k]) k = s; });
@@ -1288,16 +1292,23 @@ function viewQuests(){
   const floorDone = state.quests.filter(q => t.floor[q.id]).length;
   const ceilDone  = state.quests.filter(q => t.ceil[q.id]).length;
   const allCeil = ceilDone === total;
+  const canGrad = isWeeklyWindow();
 
   const quests = state.quests.map(q => {
     const f = !!t.floor[q.id], c = !!t.ceil[q.id];
+    const hasHistory = q.history.length > 0;
+    const gradDisabled = !hasHistory && !canGrad;
+    const gradLabel = hasHistory ? `Tree · ${q.history.length}` : 'Graduate';
+    const gradTitle = gradDisabled
+      ? 'Graduation unlocks Sunday 19:00–24:00'
+      : (hasHistory ? 'View quest tree' : 'Graduate this quest');
     return `
       <div class="quest panel ${f && c ? 'done' : ''}">
         <div class="q-head">
           <span class="q-stat">${STAT_META[q.stat].icon} ${STAT_META[q.stat].label}</span>
-                              <span class="row" style="gap:6px">
+                    <span class="row" style="gap:6px">
             <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
-            <button class="btn small ghost" data-act="view-tree" data-id="${q.id}">${q.history.length ? 'Tree ·' + q.history.length : 'Graduate'}</button>
+            <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
             <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}">Edit</button>
           </span>
         </div>
@@ -1440,30 +1451,23 @@ function openTreeModal(q){
       </div>`;
   }).join('');
 
-  openModal(`
-    <h2>Quest Tree — ${STAT_META[q.stat].label}</h2>
-    <div class="qtree">${treeHTML}</div>
+    const canGrad = isWeeklyWindow();
 
-    <hr style="border:none;border-top:1px solid rgba(47,143,255,.2);margin:18px 0">
-
+  const gradSection = canGrad ? `
     <div class="panel-title" style="margin-bottom:12px">Graduate Quest</div>
     <p style="font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:14px">
       Evolve this habit into a new version. The current version will be archived into the tree above.
     </p>
 
     <label class="fld"><span>Transition</span></label>
-    <div class="grad-modes" style="margin-bottom:14px">
+        <div class="grad-modes" style="margin-bottom:14px">
       <label class="grad-mode">
         <input type="radio" name="gradMode" value="extend" checked>
-        <div><b>Extend</b><span>Old habit stays, new one added on top</span></div>
+        <div><b>Extend</b><span>Keep the old one as is (only its ceiling) — add the new habit's floor + ceiling on top</span></div>
       </label>
       <label class="grad-mode">
         <input type="radio" name="gradMode" value="replace">
-        <div><b>Replace (graduated)</b><span>Old is automatic now, new one takes its place</span></div>
-      </label>
-      <label class="grad-mode">
-        <input type="radio" name="gradMode" value="obsolete">
-        <div><b>Obsolete</b><span>Old is no longer relevant, swap for something new</span></div>
+        <div><b>Replace</b><span>Retire the old one entirely — only the new habit is done going forward</span></div>
       </label>
     </div>
 
@@ -1484,15 +1488,37 @@ function openTreeModal(q){
       <button class="btn ghost" data-act="close-modal">Cancel</button>
       <button class="btn gold" data-act="save-graduation" data-id="${q.id}">Confirm Graduation</button>
     </div>
+  ` : `
+    <div class="panel-title" style="margin-bottom:12px;color:var(--dim)">Graduate Quest — LOCKED</div>
+    <p style="font-size:12.5px;color:var(--dim);line-height:1.8;margin-bottom:6px">
+      Graduation is only available during the weekly reset window.
+    </p>
+    <p style="font-size:12.5px;letter-spacing:.08em;line-height:1.8;margin-bottom:16px">
+      <span style="color:var(--gold)">Next window: Sunday 19:00 – 24:00</span>
+    </p>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn ghost" data-act="close-modal">Close</button>
+    </div>
+  `;
+
+  openModal(`
+    <h2>Quest Tree — ${STAT_META[q.stat].label}</h2>
+    <div class="qtree">${treeHTML}</div>
+
+    <hr style="border:none;border-top:1px solid rgba(47,143,255,.2);margin:18px 0">
+
+    ${gradSection}
   `);
 
-  // Prefill floor when user picks "Extend" so they just append the new bit.
+    // In Extend mode, the new habit builds on top of the old ceiling.
+  // In Replace mode, the new habit stands alone — clear the floor.
   document.querySelectorAll('input[name="gradMode"]').forEach(r => {
     r.addEventListener('change', () => {
       const floorInput = document.getElementById('gradFloor');
       if (!floorInput) return;
       if (r.checked && r.value === 'extend'){
-        floorInput.value = (q.floor ? q.floor + ' + ' : '');
+        const base = q.ceiling || q.floor || '';
+        floorInput.value = base ? base + ' + ' : '';
         floorInput.focus();
       } else if (r.checked){
         floorInput.value = '';
@@ -1895,7 +1921,11 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'save-graduation': {
+        case 'save-graduation': {
+      if (!isWeeklyWindow()){
+        toast('Graduation locked — Sunday 19:00–24:00 only.', 'bad');
+        break;
+      }
       const q = state.quests.find(x => x.id === el.dataset.id);
       if (!q) break;
       const mode = (document.querySelector('input[name="gradMode"]:checked') || {}).value || 'extend';
