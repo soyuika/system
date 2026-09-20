@@ -158,12 +158,13 @@ body::after{
   .tabs{flex-wrap:nowrap;gap:5px;overflow:hidden}
   .tab{flex:1 1 auto;min-width:0;text-align:center;font-size:11px !important;padding:9px 6px !important;letter-spacing:.12em !important}
   .tab-full{display:none}
-    .tab-icon{
+      .tab-icon{
     display:flex;align-items:center;justify-content:center;
     flex:0 0 42px;
     padding:9px 0 !important;
-    font-size:16px !important;
+    font-size:18px !important;
     letter-spacing:0 !important;
+    font-family:'Share Tech Mono',monospace !important;
   }
 
   /* unassigned points: stack the number above a 2-column grid of buttons */
@@ -875,7 +876,7 @@ footer{font-size:11px}
         <button class="tab" data-act="tab" data-tab="dungeons">Dungeons</button>
         <button class="tab" data-act="tab" data-tab="missions">Missions</button>
     <button class="tab tab-full" data-act="tab" data-tab="system">System</button>
-    <button class="tab tab-icon" data-act="tab" data-tab="system" aria-label="System">⚙</button>
+        <button class="tab tab-icon" data-act="tab" data-tab="system" aria-label="System">⊕</button>
   </nav>
   <main id="view"></main>
   <footer>Arise // System v1.0 — speak of this to no one</footer>
@@ -1891,7 +1892,7 @@ function viewQuests(){
     return `
       <div class="quest panel ${f && c ? 'done' : ''}">
         <div class="q-head">
-          <span class="q-stat">${STAT_META[q.stat].icon} ${STAT_META[q.stat].label}</span>
+                    <span class="q-stat">${STAT_META[q.stat].label}</span>
                     <span class="row" style="gap:6px">
             <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
                         <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
