@@ -1165,8 +1165,8 @@ function viewDungeons(){
             <div class="row">
               <button class="btn small" data-act="open-dungeon" data-id="${x.id}">${locked?'Sealed':'Open'}</button>
               <button class="btn small danger" data-act="del-dungeon" data-id="${x.id}">✕</button>
-            </div>
-          </div>
+                        </div>
+          </div>`;
       }).join('')
     : `<div class="empty">Inbox empty. Register a monster to hunt.</div>`;
 
