@@ -364,6 +364,15 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   box-shadow:0 0 12px rgba(56,255,176,.3);
 }
 .ceil-step .step-text{flex:1}
+.ceil-suspended{
+  display:inline-block;margin-left:8px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:10.5px;letter-spacing:.14em;
+  padding:1px 6px;
+  color:var(--gold);
+  border:1px solid rgba(255,207,92,.5);
+  text-transform:uppercase;vertical-align:middle;
+}
 .ceil-step.on .step-text{
   color:var(--green);
   text-decoration:line-through;
@@ -1098,22 +1107,50 @@ function checkDailyAwards(){
   const t = state.today;
   if (!t.ceilPaid) t.ceilPaid = {};
 
-  // Each ceiling gives +1 to its own stat, immediately, once.
-  state.quests.forEach(q => {
-    if (t.ceil[q.id] && !t.ceilPaid[q.id]){
-      t.ceilPaid[q.id] = true;
-      state.stats[q.stat] += 1;
-      toast(`+1 ${STAT_META[q.stat].label} — CEILING CLEARED`, 'gold');
-    }
-  });
-
-  // Floors stay all-or-nothing: +1 to every stat only when all five are done.
   const total = state.quests.length;
   const allFloor = state.quests.every(q => t.floor[q.id]);
+
+  // Floors: +1 to every stat when all five are done. Reversible.
   if (allFloor && !t.floorPointGiven){
     t.floorPointGiven = true;
     STAT_KEYS.forEach(k => { state.stats[k] += 1; });
     toast('+1 TO EVERY STAT — ALL FLOORS CLEARED', 'gold');
+  } else if (!allFloor && t.floorPointGiven){
+    t.floorPointGiven = false;
+    STAT_KEYS.forEach(k => { state.stats[k] = Math.max(0, state.stats[k] - 1); });
+    toast('−1 FROM EVERY STAT — FLOOR BONUS REVOKED', 'bad');
+  }
+
+  // Ceilings: awarded only while all floors are done.
+  // Ticked early → suspended until floors finish.
+  const awarded = [];
+  const revoked = [];
+
+  state.quests.forEach(q => {
+    const ceilOn = !!t.ceil[q.id];
+    const wasPaid = !!t.ceilPaid[q.id];
+    const shouldPay = ceilOn && allFloor;
+
+    if (shouldPay && !wasPaid){
+      t.ceilPaid[q.id] = true;
+      state.stats[q.stat] += 1;
+      awarded.push(q.stat);
+    } else if (!shouldPay && wasPaid){
+      delete t.ceilPaid[q.id];
+      state.stats[q.stat] = Math.max(0, state.stats[q.stat] - 1);
+      revoked.push(q.stat);
+    }
+  });
+
+  if (awarded.length === 1){
+    toast(`+1 ${STAT_META[awarded[0]].label} — CEILING CLEARED`, 'gold');
+  } else if (awarded.length > 1){
+    toast(`+${awarded.length} CEILING POINTS — SUSPENDED AWARDS RELEASED`, 'gold');
+  }
+  if (revoked.length === 1){
+    toast(`−1 ${STAT_META[revoked[0]].label} — CEILING REVOKED`, 'bad');
+  } else if (revoked.length > 1){
+    toast(`−${revoked.length} CEILING POINTS — SUSPENDED`, 'bad');
   }
 }
 
@@ -1818,17 +1855,20 @@ function viewQuests(){
           <button class="chk ${f?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="floor">${f?'✓ Floor':'Floor'}</button>
           <div class="q-text ${q.floor?'':'empty'}">${esc(q.floor || 'set a minimum that counts')}</div>
         </div>
-                        ${(() => {
+                                ${(() => {
           const rawCeil = t.ceil[q.id];
           const ceilCount = typeof rawCeil === 'number' ? rawCeil : (rawCeil ? 1 : 0);
           const cc = ceilCount > 0;
+          const allFloorsNow = state.quests.every(qq => t.floor[qq.id]);
+          const suspended = cc && !allFloorsNow;
           const label = q.ceilingRepeatable
             ? (cc ? `✓ Ceiling ×${ceilCount}` : 'Ceiling')
             : (cc ? '✓ Ceiling' : 'Ceiling');
+          const badge = suspended ? '<span class="ceil-suspended">suspended</span>' : '';
           return `
             <div class="q-line ${cc?'on':''}">
               <button class="chk ${cc?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="ceil">${label}</button>
-              <div class="q-text ${q.ceiling?'':'empty'}">${esc(q.ceiling || 'set an ideal outcome to strive for')}</div>
+              <div class="q-text ${q.ceiling?'':'empty'}">${esc(q.ceiling || 'set an ideal outcome to strive for')} ${badge}</div>
               ${q.ceilingRepeatable && ceilCount > 0 ? `<button class="chk-mini" data-act="dec-ceil" data-id="${q.id}" title="Decrease count">−</button>` : ''}
             </div>`;
         })()}
@@ -2721,17 +2761,11 @@ document.addEventListener('click', (e) => {
       closeModal();
       break;
 
-                case 'toggle': {
+                    case 'toggle': {
       const id = el.dataset.id, kind = el.dataset.kind;
       const q = state.quests.find(x => x.id === id);
       const map = kind === 'floor' ? state.today.floor : state.today.ceil;
       const isRepeatable = kind === 'ceil' && q && q.ceilingRepeatable;
-
-      // Was the ceiling already considered "on" before this click?
-      const wasOn = (() => {
-        const v = map[id];
-        return typeof v === 'number' ? v > 0 : !!v;
-      })();
 
       if (isRepeatable){
         const cur = map[id];
@@ -2742,36 +2776,19 @@ document.addEventListener('click', (e) => {
       }
       if (kind === 'ceil' && map[id]) state.today.floor[id] = true; // ceiling implies floor
 
-      // Refund the ceiling's stat point if it was paid and is now off.
-      const isOnNow = (() => {
-        const v = map[id];
-        return typeof v === 'number' ? v > 0 : !!v;
-      })();
-      if (kind === 'ceil' && wasOn && !isOnNow && q && state.today.ceilPaid && state.today.ceilPaid[q.id]){
-        state.stats[q.stat] = Math.max(0, state.stats[q.stat] - 1);
-        delete state.today.ceilPaid[q.id];
-        toast(`−1 ${STAT_META[q.stat].label} — CEILING REVOKED`, 'bad');
-      }
-
+      // checkDailyAwards() owns both the award and the refund now —
+      // ceiling points are conditional on floor state.
       checkDailyAwards();
       save(); render();
       break;
     }
 
-        case 'dec-ceil': {
+            case 'dec-ceil': {
       const id = el.dataset.id;
-      const q = state.quests.find(x => x.id === id);
       const cur = state.today.ceil[id];
       const n = typeof cur === 'number' ? cur : (cur ? 1 : 0);
-      const next = n <= 1 ? 0 : n - 1;
-      state.today.ceil[id] = next;
-
-      // Dropping to zero means the ceiling is no longer cleared — revoke its point.
-      if (next === 0 && q && state.today.ceilPaid && state.today.ceilPaid[q.id]){
-        state.stats[q.stat] = Math.max(0, state.stats[q.stat] - 1);
-        delete state.today.ceilPaid[q.id];
-        toast(`−1 ${STAT_META[q.stat].label} — CEILING REVOKED`, 'bad');
-      }
+      state.today.ceil[id] = n <= 1 ? 0 : n - 1;
+      checkDailyAwards();
       save(); render();
       break;
     }
