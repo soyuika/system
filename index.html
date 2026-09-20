@@ -935,7 +935,7 @@ function defaultState(){
     skips: 0,
     editTokens: 0,
         dungeons: {inbox:[], active:null, locked:{}, cleared:[]},
-    missions: {active:null, history:[]}
+        missions: {active:null, backlog:[], history:[]}
   };
 }
 
@@ -976,8 +976,9 @@ function migrate(raw){
     s.keys = (raw && raw.keys) || [];
     if (typeof s.editTokens !== 'number') s.editTokens = 0;
     if (typeof s.devMode !== 'boolean') s.devMode = false;
-  s.missions = Object.assign({active: null, history: []}, (raw && raw.missions) || {});
+    s.missions = Object.assign({active: null, backlog: [], history: []}, (raw && raw.missions) || {});
   if (!Array.isArray(s.missions.history)) s.missions.history = [];
+  if (!Array.isArray(s.missions.backlog)) s.missions.backlog = [];
   s.log = (raw && raw.log) || {};
   s.weekFails = (raw && raw.weekFails) || {};
   s.penalties = (raw && raw.penalties) || d.penalties;
@@ -1487,10 +1488,11 @@ function openWeeklyReview(){
       1–4 failures → hold. 5+ failures → difficulty decreases (phase −1). Adjust ceilings freely.
     </p>
     ${rows}
-    <div class="row" style="justify-content:flex-end;margin-top:16px">
-      <button class="btn ghost" data-act="close-modal">Later</button>
-      <button class="btn" data-act="apply-weekly">Confirm Reset</button>
-    </div>
+          <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px">
+        <button class="btn small ghost" data-act="hold-mission">Return to Backlog</button>
+        <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
+        ${allDone ? `<button class="btn gold" data-act="finish-mission">Finish Mission · +${m.bounty} pts</button>` : ''}
+      </div>
   `);
 }
 
@@ -2272,9 +2274,11 @@ function viewDungeons(){
    MISSIONS
    ========================================================= */
 function viewMissions(){
-  if (!state.missions) state.missions = {active: null, history: []};
-  if (state.missions.active) return viewActiveMission(state.missions.active) + viewMissionHistory();
-  return viewMissionForm() + viewMissionHistory();
+  if (!state.missions) state.missions = {active: null, backlog: [], history: []};
+  if (state.missions.active){
+    return viewActiveMission(state.missions.active) + viewMissionBacklog() + viewMissionHistory();
+  }
+  return viewMissionForm() + viewMissionBacklog() + viewMissionHistory();
 }
 
 function viewActiveMission(m){
@@ -2364,9 +2368,29 @@ function viewMissionForm(){
         </select>
       </label>
 
-      <label class="fld"><span>Deadline — minimum ${MISSION_MIN_DAYS} days from now</span>
-        <input id="msDeadline" type="date" min="${minDateStr}" value="${defaultDateStr}">
-      </label>
+            <div class="mission-section-label">Timing</div>
+      <div class="row" style="gap:16px;margin-bottom:14px">
+        <label class="row" style="gap:8px;font-size:13px;cursor:pointer">
+          <input type="radio" name="msMode" value="now" checked data-act="mission-mode" style="width:auto">
+          <span>Start now — set a deadline</span>
+        </label>
+        <label class="row" style="gap:8px;font-size:13px;cursor:pointer">
+          <input type="radio" name="msMode" value="later" data-act="mission-mode" style="width:auto">
+          <span>Store in backlog — just estimate duration</span>
+        </label>
+      </div>
+
+      <div id="msDeadlineWrap">
+        <label class="fld"><span>Deadline — minimum ${MISSION_MIN_DAYS} days from now</span>
+          <input id="msDeadline" type="date" min="${minDateStr}" value="${defaultDateStr}">
+        </label>
+      </div>
+
+      <div id="msDurationWrap" style="display:none">
+        <label class="fld"><span>Presumed duration (days) — minimum ${MISSION_MIN_DAYS}</span>
+          <input id="msDuration" type="number" min="${MISSION_MIN_DAYS}" value="30" inputmode="numeric">
+        </label>
+      </div>
 
       <div class="mission-section-label">Success Criteria — all three required</div>
       <label class="fld"><span>1</span>
@@ -2393,6 +2417,36 @@ function viewMissionForm(){
     </div>`;
 }
 
+  function viewMissionBacklog(){
+  const list = state.missions.backlog || [];
+  if (!list.length) return '';
+
+  const rows = list.map(m => `
+    <div class="mission-log-item">
+      <div style="min-width:0">
+        <div class="mission-log-name">
+          <span class="tag rank-${m.rank}">${m.rank}</span>${esc(m.name)}
+        </div>
+        <div class="mission-log-meta">
+          STORED · EST. ${m.presumedDuration} DAYS · ◆ +${m.bounty} PTS · ${m.criteria.length} CRITERIA
+        </div>
+      </div>
+      <div class="row" style="gap:6px;flex-shrink:0">
+        <button class="btn small gold" data-act="launch-backlog" data-id="${m.id}" ${state.missions.active ? 'disabled' : ''} title="${state.missions.active ? 'Finish or abandon your active mission first' : 'Start this mission now'}">Launch</button>
+        <button class="btn small danger" data-act="del-backlog-mission" data-id="${m.id}">✕</button>
+      </div>
+    </div>`).join('');
+
+  return `
+    <div class="panel mission-panel">
+      <div class="panel-title">Backlog — Stored Missions</div>
+      <div class="meta" style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
+        Stored missions aren't running yet — no deadline, no penalty. Launch one when you're ready to commit.
+      </div>
+      ${rows}
+    </div>`;
+}
+  
 function viewMissionHistory(){
   const log = state.missions.history || [];
   if (!log.length){
@@ -2886,33 +2940,21 @@ document.addEventListener('click', (e) => {
       toast('Developer mode off. Everything counts again.');
       break;
 
-        case 'start-mission': {
-      if (state.missions.active){
-        toast('You already have an active mission.', 'bad');
-        break;
-      }
+            case 'start-mission': {
       const name = $('#msName').value.trim();
       const rank = $('#msRank').value;
-      const deadlineStr = $('#msDeadline').value;
       const c1 = $('#msCrit1').value.trim();
       const c2 = $('#msCrit2').value.trim();
       const c3 = $('#msCrit3').value.trim();
       const encounter = $('#msEncounter').value.trim();
       const plan = $('#msPlan').value.trim();
+      const mode = (document.querySelector('input[name="msMode"]:checked') || {}).value || 'now';
 
       if (!name){ toast('Mission name is required.', 'bad'); break; }
       if (!c1 || !c2 || !c3){ toast('All 3 success criteria are required.', 'bad'); break; }
-      if (!deadlineStr){ toast('Deadline is required.', 'bad'); break; }
       if (!MISSION_BOUNTY[rank]){ toast('Invalid rank.', 'bad'); break; }
 
-      const deadline = new Date(deadlineStr + 'T23:59:59');
-      const minDeadline = new Date(Date.now() + MISSION_MIN_DAYS * 86400000);
-      if (deadline.getTime() < minDeadline.getTime()){
-        toast(`Deadline must be at least ${MISSION_MIN_DAYS} days from now.`, 'bad');
-        break;
-      }
-
-      state.missions.active = {
+      const base = {
         id: uid(),
         name, rank,
         bounty: MISSION_BOUNTY[rank],
@@ -2921,12 +2963,100 @@ document.addEventListener('click', (e) => {
           {id: uid(), text: c2, done: false},
           {id: uid(), text: c3, done: false}
         ],
-        startedAt: new Date().toISOString(),
-        deadline: deadline.toISOString(),
         encounter, plan
       };
+
+      if (mode === 'now'){
+        if (state.missions.active){
+          toast('You already have an active mission.', 'bad');
+          break;
+        }
+        const deadlineStr = $('#msDeadline').value;
+        if (!deadlineStr){ toast('Deadline is required.', 'bad'); break; }
+        const deadline = new Date(deadlineStr + 'T23:59:59');
+        const minDeadline = new Date(Date.now() + MISSION_MIN_DAYS * 86400000);
+        if (deadline.getTime() < minDeadline.getTime()){
+          toast(`Deadline must be at least ${MISSION_MIN_DAYS} days from now.`, 'bad');
+          break;
+        }
+        state.missions.active = Object.assign(base, {
+          startedAt: new Date().toISOString(),
+          deadline: deadline.toISOString(),
+          presumedDuration: null
+        });
+        save(); render();
+        toast(`MISSION STARTED — ${rank}-RANK`, 'gold');
+      } else {
+        const durRaw = parseInt($('#msDuration').value, 10);
+        if (!durRaw || durRaw < MISSION_MIN_DAYS){
+          toast(`Presumed duration must be at least ${MISSION_MIN_DAYS} days.`, 'bad');
+          break;
+        }
+        state.missions.backlog.push(Object.assign(base, {
+          presumedDuration: durRaw,
+          storedAt: new Date().toISOString()
+        }));
+        save(); render();
+        toast(`MISSION STORED — ${rank}-RANK (not yet started)`, 'gold');
+      }
+      break;
+    }
+
+    case 'mission-mode': {
+      const mode = el.value;
+      const dW = document.getElementById('msDeadlineWrap');
+      const uW = document.getElementById('msDurationWrap');
+      if (dW) dW.style.display = (mode === 'now') ? '' : 'none';
+      if (uW) uW.style.display = (mode === 'later') ? '' : 'none';
+      break;
+    }
+
+    case 'launch-backlog': {
+      if (state.missions.active){
+        toast('Finish or abandon your current mission first.', 'bad');
+        break;
+      }
+      const idx = state.missions.backlog.findIndex(m => m.id === el.dataset.id);
+      if (idx === -1) break;
+      const m = state.missions.backlog.splice(idx, 1)[0];
+      const deadline = new Date(Date.now() + m.presumedDuration * 86400000);
+      m.startedAt = new Date().toISOString();
+      m.deadline = deadline.toISOString();
+      state.missions.active = m;
       save(); render();
-      toast(`MISSION ACCEPTED — ${rank}-RANK`, 'gold');
+      toast(`MISSION LAUNCHED — ${m.rank}-RANK`, 'gold');
+      break;
+    }
+
+    case 'del-backlog-mission': {
+      const idx = state.missions.backlog.findIndex(m => m.id === el.dataset.id);
+      if (idx === -1) break;
+      if (!confirm('Remove this stored mission? It was never started — no penalty either way.')) break;
+      state.missions.backlog.splice(idx, 1);
+      save(); render();
+      toast('Stored mission removed.');
+      break;
+    }
+
+    case 'hold-mission': {
+      const m = state.missions.active;
+      if (!m) break;
+      if (!confirm('Return this mission to the backlog? The deadline resets from a fresh start when you re-launch it.')) break;
+      const durDefault = m.presumedDuration || Math.max(MISSION_MIN_DAYS, Math.ceil((new Date(m.deadline) - new Date(m.startedAt)) / 86400000));
+      state.missions.backlog.push({
+        id: m.id,
+        name: m.name,
+        rank: m.rank,
+        bounty: m.bounty,
+        criteria: m.criteria.map(c => ({...c, done: false})),
+        encounter: m.encounter,
+        plan: m.plan,
+        presumedDuration: durDefault,
+        storedAt: new Date().toISOString()
+      });
+      state.missions.active = null;
+      save(); render();
+      toast('Mission returned to backlog.');
       break;
     }
 
