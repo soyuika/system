@@ -1415,8 +1415,9 @@ function viewQuests(){
   const total = state.quests.length;
   const floorDone = state.quests.filter(q => t.floor[q.id]).length;
   const ceilDone  = state.quests.filter(q => t.ceil[q.id]).length;
-  const allCeil = ceilDone === total;
+    const allCeil = ceilDone === total;
   const canGrad = isWeeklyWindow();
+  const canEdit = isWeeklyWindow();
 
   const quests = state.quests.map(q => {
     const f = !!t.floor[q.id], c = !!t.ceil[q.id];
@@ -1432,8 +1433,8 @@ function viewQuests(){
           <span class="q-stat">${STAT_META[q.stat].icon} ${STAT_META[q.stat].label}</span>
                     <span class="row" style="gap:6px">
             <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
-            <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
-            <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}">Edit</button>
+                        <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
+            <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}" ${canEdit ? '' : 'disabled'} title="${canEdit ? 'Edit quest' : 'Editing unlocks Sunday 19:00–24:00'}">Edit</button>
           </span>
         </div>
         <div class="q-name">${esc(q.name || '— unnamed quest —')}</div>
@@ -1884,11 +1885,12 @@ function viewSystem(){
         </div>`).join('')
     : `<div class="empty">No custom rewards. The 50% custom slot will reroll into other rewards.</div>`;
 
+    const canEditLife = isWeeklyWindow();
   const lifestyleMgmt = state.lifestyle.length
     ? state.lifestyle.map(l => `
         <div class="item">
           <div style="font-size:12px">${esc(l.name)}</div>
-          <button class="btn small danger" data-act="del-lifestyle" data-id="${l.id}">✕</button>
+          <button class="btn small danger" data-act="del-lifestyle" data-id="${l.id}" ${canEditLife ? '' : 'disabled'} title="${canEditLife ? 'Remove' : 'Editing unlocks Sunday 19:00–24:00'}">✕</button>
         </div>`).join('')
     : `<div class="empty">No lifestyle upgrades defined.</div>`;
 
@@ -1944,16 +1946,19 @@ function viewSystem(){
       </div>
     </div>
 
-        <div class="panel life-panel">
+            <div class="panel life-panel">
       <div class="panel-title">Lifestyle Upgrades</div>
       <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:12px">
         Passive maintenance habits — not attached to any stat. Complete them daily to shift your reward table
         toward rarer drops and reduce the tier of penalties from missed quests.
+        ${canEditLife
+          ? '<br><span style="color:var(--cyan)">Editing unlocked — Sunday window active.</span>'
+          : '<br><span style="color:var(--gold)">Editing locked — unlocks Sunday 19:00–24:00.</span>'}
       </div>
       ${lifestyleMgmt}
       <div class="row" style="margin-top:10px">
-        <input id="lifeText" placeholder="New lifestyle upgrade..." style="flex:1;min-width:180px">
-        <button class="btn small" data-act="add-lifestyle">Add</button>
+        <input id="lifeText" placeholder="New lifestyle upgrade..." style="flex:1;min-width:180px" ${canEditLife ? '' : 'disabled'}>
+        <button class="btn small" data-act="add-lifestyle" ${canEditLife ? '' : 'disabled'} title="${canEditLife ? 'Add' : 'Editing unlocks Sunday 19:00–24:00'}">Add</button>
       </div>
     </div>
 
@@ -2068,7 +2073,11 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'edit-quest': {
+        case 'edit-quest': {
+      if (!isWeeklyWindow()){
+        toast('Quest editing locked — Sunday 19:00–24:00 only.', 'bad');
+        break;
+      }
       const q = state.quests.find(x => x.id === el.dataset.id);
       if (!q) break;
       openModal(`
@@ -2090,7 +2099,11 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-        case 'save-quest': {
+            case 'save-quest': {
+      if (!isWeeklyWindow()){
+        toast('Quest editing locked — Sunday 19:00–24:00 only.', 'bad');
+        break;
+      }
       const q = state.quests.find(x => x.id === el.dataset.id);
       if (!q) break;
       q.name = $('#eqName').value.trim();
@@ -2221,14 +2234,22 @@ document.addEventListener('click', (e) => {
       save(); render();
       break;
     }
-    case 'add-lifestyle': {
+        case 'add-lifestyle': {
+      if (!isWeeklyWindow()){
+        toast('Lifestyle editing locked — Sunday 19:00–24:00 only.', 'bad');
+        break;
+      }
       const t = $('#lifeText').value.trim();
       if (!t) break;
       state.lifestyle.push({id: uid(), name: t});
       save(); render();
       break;
     }
-    case 'del-lifestyle':
+        case 'del-lifestyle':
+      if (!isWeeklyWindow()){
+        toast('Lifestyle editing locked — Sunday 19:00–24:00 only.', 'bad');
+        break;
+      }
       state.lifestyle = state.lifestyle.filter(l => l.id !== el.dataset.id);
       if (state.today.lifestyle) delete state.today.lifestyle[el.dataset.id];
       save(); render();
