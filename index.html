@@ -1136,13 +1136,29 @@ function toggleTask(taskId){
   t.done = !t.done;
 
   if (a.tasks.every(x => x.done)){
-        state.dungeons.cleared.push({
+    state.dungeons.cleared.push({
       id: a.id, name: a.name, real: a.real || '', rank: a.rank,
       clearedAt: new Date().toISOString()
     });
+    state.unassigned += 1;
     state.dungeons.active = null;
     save(); render();
-    toast('DUNGEON CLEARED. The System registers your growth.', 'gold');
+    openModal(`
+      <h2>Dungeon Cleared</h2>
+      <div style="text-align:center;padding:10px 0 20px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:12px">
+          <span class="tag rank-${a.rank}" style="font-size:13px">${a.rank}</span>
+          ${esc(a.name)}
+        </div>
+        ${a.real ? `<div class="dungeon-real" style="margin-bottom:18px">${esc(a.real)}</div>` : ''}
+        <div style="font-size:11px;color:var(--dim);letter-spacing:.24em;text-transform:uppercase;margin-bottom:8px">Reward</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:22px;color:var(--gold);text-shadow:0 0 20px rgba(255,207,92,.7)">+1 STAT POINT</div>
+        <div style="font-size:12px;color:var(--dim);margin-top:10px">Assign it in the Status tab.</div>
+      </div>
+      <div class="row" style="justify-content:center">
+        <button class="btn" data-act="close-modal">Acknowledge</button>
+      </div>
+    `);
     return;
   }
   save(); render();
