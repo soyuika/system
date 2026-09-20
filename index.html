@@ -349,6 +349,41 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 /* ---------- quests ---------- */
 .quest{padding:14px 16px;margin-bottom:10px}
 .quest.done{border-color:rgba(56,255,176,.45);box-shadow:0 0 26px rgba(56,255,176,.12)}
+.q-summary{
+  display:flex;align-items:center;gap:12px;
+  cursor:pointer;user-select:none;
+  padding:2px 0;min-height:24px;
+}
+.q-summary .q-stat{
+  font-size:10.5px;letter-spacing:.24em;color:var(--cyan);
+  text-transform:uppercase;flex-shrink:0;
+}
+.q-summary .q-name{
+  flex:1;font-size:15px;font-weight:600;color:#eaf6ff;
+  margin:0;letter-spacing:.04em;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:color .15s;
+}
+.quest.open .q-summary .q-name{white-space:normal;overflow:visible;text-overflow:clip}
+.q-summary:hover .q-name{color:var(--cyan)}
+.q-summary-status{display:flex;gap:5px;align-items:center;flex-shrink:0}
+.q-dot{
+  width:8px;height:8px;border-radius:50%;
+  border:1px solid rgba(47,143,255,.3);display:inline-block;
+  transition:background .2s, box-shadow .2s, border-color .2s;
+}
+.q-dot.on{
+  background:var(--green);border-color:var(--green);
+  box-shadow:0 0 6px rgba(56,255,176,.6);
+}
+.q-toggle{
+  color:var(--dim);font-size:14px;
+  transition:transform .15s;flex-shrink:0;
+  display:inline-block;line-height:1;
+}
+.quest.open .q-toggle{transform:rotate(90deg)}
+.q-detail{display:none;margin-top:12px}
+.quest.open .q-detail{display:block}
 .q-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px}
 .q-stat{font-size:10.5px;letter-spacing:.24em;color:var(--cyan);text-transform:uppercase}
 .q-phase{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--cyan);border:1px solid rgba(79,214,255,.35);padding:1px 6px;letter-spacing:.1em}
@@ -1014,6 +1049,7 @@ function defaultState(){
 let state = defaultState();
 let activeTab = 'status';
 const expandedStats = new Set();  // which stat descriptions are expanded this session
+const expandedQuests = new Set();  // which quest cards are expanded this session
 let saveTimer = null, saveDirty = false;
 
 function save(){
@@ -1908,48 +1944,57 @@ function viewQuests(){
         const allCeil = ceilDone === total;
   const canEdit = canEditNow();
 
-  const quests = state.quests.map(q => {
+    const quests = state.quests.map(q => {
     const f = !!t.floor[q.id], c = !!t.ceil[q.id];
-        const hasHistory = q.history.length > 0;
+    const done = f && c;
+    const isOpen = expandedQuests.has(q.id);
+    const hasHistory = q.history.length > 0;
     const gradDisabled = !hasHistory && !canEdit;
     const gradLabel = hasHistory ? `Tree · ${q.history.length}` : 'Graduate';
     const gradTitle = gradDisabled
       ? 'Graduation unlocks Sunday 19:00–24:00'
       : (hasHistory ? 'View quest tree' : 'Graduate this quest');
+
+    const rawCeil = t.ceil[q.id];
+    const ceilCount = typeof rawCeil === 'number' ? rawCeil : (rawCeil ? 1 : 0);
+    const cc = ceilCount > 0;
+    const allFloorsNow = state.quests.every(qq => t.floor[qq.id]);
+    const suspended = cc && !allFloorsNow;
+    const ceilLabel = q.ceilingRepeatable
+      ? (cc ? `✓ Ceiling ×${ceilCount}` : 'Ceiling')
+      : (cc ? '✓ Ceiling' : 'Ceiling');
+    const suspendedBadge = suspended ? '<span class="ceil-suspended">suspended</span>' : '';
+
     return `
-      <div class="quest panel ${f && c ? 'done' : ''}">
-        <div class="q-head">
-                    <span class="q-stat">${STAT_META[q.stat].label}</span>
-                    <span class="row" style="gap:6px">
-            <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
-                        <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
-                        <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}" ${canEdit ? '' : 'disabled'} title="${isWeeklyWindow() ? 'Edit quest' : (state.editTokens > 0 ? 'Edit quest (uses 1 token — ' + state.editTokens + ' left)' : 'Editing unlocks Sunday 19:00–24:00')}">Edit</button>
+      <div class="quest panel ${done ? 'done' : ''} ${isOpen ? 'open' : ''}" data-qid="${q.id}">
+        <div class="q-summary" data-act="toggle-quest" data-id="${q.id}">
+          <span class="q-stat">${STAT_META[q.stat].label}</span>
+          <span class="q-name">${esc(q.name || '— unnamed quest —')}</span>
+          <span class="q-summary-status">
+            <span class="q-dot ${f?'on':''}" title="Floor ${f?'done':'pending'}"></span>
+            <span class="q-dot ${cc?'on':''}" title="Ceiling ${cc?'done':'pending'}"></span>
           </span>
+          <span class="q-toggle">▸</span>
         </div>
-        <div class="q-name">${esc(q.name || '— unnamed quest —')}</div>
-        <div class="q-line ${f?'on':''}">
-          <button class="chk ${f?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="floor">${f?'✓ Floor':'Floor'}</button>
-          <div class="q-text ${q.floor?'':'empty'}">${esc(q.floor || 'set a minimum that counts')}</div>
+        <div class="q-detail">
+          <div class="row" style="justify-content:flex-end;gap:6px;margin-bottom:10px">
+            <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
+            <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
+            <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}" ${canEdit ? '' : 'disabled'} title="${isWeeklyWindow() ? 'Edit quest' : (state.editTokens > 0 ? 'Edit quest (uses 1 token — ' + state.editTokens + ' left)' : 'Editing unlocks Sunday 19:00–24:00')}">Edit</button>
+          </div>
+          <div class="q-line ${f?'on':''}">
+            <button class="chk ${f?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="floor">${f?'✓ Floor':'Floor'}</button>
+            <div class="q-text ${q.floor?'':'empty'}">${esc(q.floor || 'set a minimum that counts')}</div>
+          </div>
+          <div class="q-line ${cc?'on':''}">
+            <button class="chk ${cc?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="ceil">${ceilLabel}</button>
+            <div class="q-text ${q.ceiling?'':'empty'}">${esc(q.ceiling || 'set an ideal outcome to strive for')} ${suspendedBadge}</div>
+            ${q.ceilingRepeatable && ceilCount > 0 ? `<button class="chk-mini" data-act="dec-ceil" data-id="${q.id}" title="Decrease count">−</button>` : ''}
+          </div>
+          ${renderCeilingSteps(q, t)}
         </div>
-                                ${(() => {
-          const rawCeil = t.ceil[q.id];
-          const ceilCount = typeof rawCeil === 'number' ? rawCeil : (rawCeil ? 1 : 0);
-          const cc = ceilCount > 0;
-          const allFloorsNow = state.quests.every(qq => t.floor[qq.id]);
-          const suspended = cc && !allFloorsNow;
-          const label = q.ceilingRepeatable
-            ? (cc ? `✓ Ceiling ×${ceilCount}` : 'Ceiling')
-            : (cc ? '✓ Ceiling' : 'Ceiling');
-          const badge = suspended ? '<span class="ceil-suspended">suspended</span>' : '';
-          return `
-            <div class="q-line ${cc?'on':''}">
-              <button class="chk ${cc?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="ceil">${label}</button>
-              <div class="q-text ${q.ceiling?'':'empty'}">${esc(q.ceiling || 'set an ideal outcome to strive for')} ${badge}</div>
-              ${q.ceilingRepeatable && ceilCount > 0 ? `<button class="chk-mini" data-act="dec-ceil" data-id="${q.id}" title="Decrease count">−</button>` : ''}
-            </div>`;
-        })()}
-        ${renderCeilingSteps(q, t)}
       </div>`;
+  }).join('');
   }).join('');
 
   const rewardPanel = `
@@ -2609,10 +2654,13 @@ function viewSystem(){
         <div class="meta" style="color:var(--dim);font-size:10px;letter-spacing:.2em;margin-bottom:6px">
           TIER ${tier} — ${tier===1?'EASIEST':tier===2?'MEDIUM':'HARDEST'} (${list.length})
         </div>
-        ${list.map(p => `
+                ${list.map(p => `
           <div class="item">
-            <div style="font-size:12px">${esc(p.text)}</div>
-            <button class="btn small danger" data-act="del-penalty" data-id="${p.id}">✕</button>
+            <div style="font-size:12px;flex:1;min-width:0">${esc(p.text)}</div>
+            <div class="row" style="gap:6px;flex-shrink:0">
+              <button class="btn small ghost" data-act="edit-penalty" data-id="${p.id}">Edit</button>
+              <button class="btn small danger" data-act="del-penalty" data-id="${p.id}">✕</button>
+            </div>
           </div>`).join('') || `<div class="empty" style="padding:4px 0">none</div>`}
       </div>`;
   }).join('');
@@ -2620,11 +2668,14 @@ function viewSystem(){
   const penValid = state.penalties.length >= 5 &&
     [1,2,3].every(t => state.penalties.some(p => p.tier === t));
 
-    const rewards = state.rewards.length
+        const rewards = state.rewards.length
     ? state.rewards.map(r => `
         <div class="item">
-          <div style="font-size:12px">${esc(r.text)}</div>
-          <button class="btn small danger" data-act="del-reward" data-id="${r.id}">✕</button>
+          <div style="font-size:12px;flex:1;min-width:0">${esc(r.text)}</div>
+          <div class="row" style="gap:6px;flex-shrink:0">
+            <button class="btn small ghost" data-act="edit-reward" data-id="${r.id}">Edit</button>
+            <button class="btn small danger" data-act="del-reward" data-id="${r.id}">✕</button>
+          </div>
         </div>`).join('')
     : `<div class="empty">No custom rewards. The 50% custom slot will reroll into other rewards.</div>`;
 
@@ -2844,6 +2895,15 @@ document.addEventListener('click', (e) => {
       if (desc) desc.classList.toggle('open', !open);
       break;
     }
+        case 'toggle-quest': {
+      const id = el.dataset.id;
+      if (expandedQuests.has(id)) expandedQuests.delete(id);
+      else expandedQuests.add(id);
+      const card = el.closest('.quest');
+      if (card) card.classList.toggle('open');
+      break;
+    }
+
     case 'close-modal':
       closeModal();
       break;
@@ -3270,6 +3330,42 @@ document.addEventListener('click', (e) => {
       save(); render();
       break;
     }
+        case 'edit-penalty': {
+      const p = state.penalties.find(x => x.id === el.dataset.id);
+      if (!p) break;
+      openModal(`
+        <h2>Edit Penalty</h2>
+        <label class="fld"><span>Penalty text</span>
+          <input id="penEditText" value="${esc(p.text)}">
+        </label>
+        <label class="fld"><span>Tier</span>
+          <select id="penEditTier">
+            <option value="1" ${p.tier===1?'selected':''}>Tier 1 — easiest</option>
+            <option value="2" ${p.tier===2?'selected':''}>Tier 2 — medium</option>
+            <option value="3" ${p.tier===3?'selected':''}>Tier 3 — hardest</option>
+          </select>
+        </label>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn ghost" data-act="close-modal">Cancel</button>
+          <button class="btn" data-act="save-penalty-edit" data-id="${p.id}">Save</button>
+        </div>
+      `);
+      break;
+    }
+    case 'save-penalty-edit': {
+      const p = state.penalties.find(x => x.id === el.dataset.id);
+      if (!p) break;
+      const t = $('#penEditText').value.trim();
+      const tier = parseInt($('#penEditTier').value, 10);
+      if (!t){ toast('Penalty text is required.', 'bad'); break; }
+      if (![1,2,3].includes(tier)){ toast('Invalid tier.', 'bad'); break; }
+      p.text = t;
+      p.tier = tier;
+      save(); closeModal(); render();
+      toast('Penalty updated.', 'gold');
+      break;
+    }
+
     case 'del-penalty':
       state.penalties = state.penalties.filter(p => p.id !== el.dataset.id);
       save(); render();
@@ -3282,6 +3378,32 @@ document.addEventListener('click', (e) => {
       save(); render();
       break;
     }
+            case 'edit-reward': {
+      const r = state.rewards.find(x => x.id === el.dataset.id);
+      if (!r) break;
+      openModal(`
+        <h2>Edit Reward</h2>
+        <label class="fld"><span>Reward text</span>
+          <input id="rwEditText" value="${esc(r.text)}">
+        </label>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn ghost" data-act="close-modal">Cancel</button>
+          <button class="btn" data-act="save-reward-edit" data-id="${r.id}">Save</button>
+        </div>
+      `);
+      break;
+    }
+    case 'save-reward-edit': {
+      const r = state.rewards.find(x => x.id === el.dataset.id);
+      if (!r) break;
+      const t = $('#rwEditText').value.trim();
+      if (!t){ toast('Reward text is required.', 'bad'); break; }
+      r.text = t;
+      save(); closeModal(); render();
+      toast('Reward updated.', 'gold');
+      break;
+    }
+
         case 'del-reward':
       state.rewards = state.rewards.filter(r => r.id !== el.dataset.id);
       save(); render();
