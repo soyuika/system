@@ -482,6 +482,13 @@ function getDayNumber(){
   today.setHours(0,0,0,0);
   return Math.floor((today - start) / 86400000) + 1;
 }
+function hasFullWeekOfData(){
+  const [y,m,d] = state.weekStart.split('-').map(Number);
+  const weekStartDate = new Date(y, m-1, d, 0, 0, 0, 0);
+  const created = new Date(state.createdAt);
+  created.setHours(0,0,0,0);
+  return created <= weekStartDate;
+}
 function lowestStat(){
   let k = STAT_KEYS[0];
   STAT_KEYS.forEach(s => { if (state.stats[s] < state.stats[k]) k = s; });
@@ -682,7 +689,11 @@ function checkWeeklyWindow(){
     if (state.lastWeeklyPrompt !== ws){
       state.lastWeeklyPrompt = ws;
       save();
-      openWeeklyReview();
+      if (hasFullWeekOfData()){
+        openWeeklyReview();
+      } else {
+        toast('FIRST WEEK — no reset. Full week of data required.', 'gold');
+      }
     }
   }
 }
@@ -1301,8 +1312,11 @@ function viewSystem(){
 
     <div class="panel">
       <div class="panel-title">Weekly Reset</div>
-      <div class="meta" style="color:var(--dim);font-size:11px;line-height:1.8;margin-bottom:10px">
+            <div class="meta" style="color:var(--dim);font-size:11px;line-height:1.8;margin-bottom:10px">
         Runs automatically Sunday 19:00–24:00. Window opens in-page; you can also trigger it manually here.
+        ${hasFullWeekOfData()
+          ? '<br>Status: <b style="color:var(--cyan)">full week of data — auto-reset active.</b>'
+          : '<br>Status: <b style="color:var(--gold)">first partial week — auto-reset will skip this Sunday.</b>'}
         <br>Failures this week: ${
           Object.entries(state.weekFails).map(([id,n]) => {
             const q = state.quests.find(x => x.id === id);
