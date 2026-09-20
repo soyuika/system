@@ -955,8 +955,11 @@ function migrate(raw){
     s.today.lifestyle = (raw && raw.today && raw.today.lifestyle) || {};
   // Ensure per-ceiling tracking exists. On first load after this update, mark
   // any already-ticked ceilings as paid so they aren't re-awarded retroactively.
-    s.today.ceilPaid = (raw && raw.today && raw.today.ceilPaid) || {};
-  if (s.today.ceil){
+      const hasCeilPaidField = raw && raw.today && typeof raw.today.ceilPaid === 'object';
+  s.today.ceilPaid = (raw && raw.today && raw.today.ceilPaid) || {};
+  if (!hasCeilPaidField && s.today.ceil){
+    // One-time migration from the pre-ceilPaid schema: mark today's existing
+    // ceiling ticks as already paid so they aren't retroactively awarded.
     Object.keys(s.today.ceil).forEach(id => {
       if (s.today.ceil[id]) s.today.ceilPaid[id] = true;
     });
