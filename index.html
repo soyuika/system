@@ -92,23 +92,25 @@ body::after{
   box-shadow:0 0 14px rgba(79,214,255,.08), inset 0 0 24px rgba(79,214,255,.03);
 }
 .panel-title::before{
-  content:'!';
-  display:grid;place-items:center;
+  content:'';
+  display:block;
   width:22px;height:22px;flex-shrink:0;
   border:1px solid var(--cyan);border-radius:50%;
-  font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:600;
-  color:var(--cyan);
-  background:radial-gradient(circle at 50% 50%, rgba(79,214,255,.18), transparent 72%);
+  background:
+    linear-gradient(var(--cyan),var(--cyan)) 50% 4px / 2px 7px no-repeat,
+    linear-gradient(var(--cyan),var(--cyan)) 50% 13px / 2px 2px no-repeat,
+    radial-gradient(circle at 50% 50%, rgba(79,214,255,.18), transparent 72%);
   box-shadow:0 0 10px rgba(79,214,255,.45), inset 0 0 8px rgba(79,214,255,.15);
-  text-shadow:0 0 6px rgba(79,214,255,.9);
-  padding-bottom:1px;
+  filter:drop-shadow(0 0 4px rgba(79,214,255,.9));
 }
 .warn .panel-title::before{
-  color:var(--danger);
   border-color:var(--danger);
-  background:radial-gradient(circle at 50% 50%, rgba(255,61,110,.20), transparent 72%);
+  background:
+    linear-gradient(var(--danger),var(--danger)) 50% 4px / 2px 7px no-repeat,
+    linear-gradient(var(--danger),var(--danger)) 50% 13px / 2px 2px no-repeat,
+    radial-gradient(circle at 50% 50%, rgba(255,61,110,.20), transparent 72%);
   box-shadow:0 0 10px rgba(255,61,110,.5), inset 0 0 8px rgba(255,61,110,.15);
-  text-shadow:0 0 6px rgba(255,61,110,.9);
+  filter:drop-shadow(0 0 4px rgba(255,61,110,.9));
 }
 .warn .panel-title{
   border-color:rgba(255,61,110,.4);
