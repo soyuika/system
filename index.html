@@ -219,8 +219,22 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 
 /* ---------- lifestyle upgrades ---------- */
 .life-panel{border-color:rgba(160,107,255,.4)}
-.life-panel .panel-title{color:var(--purple);text-shadow:0 0 12px rgba(160,107,255,.5)}
-.life-panel .panel-title::after{background:linear-gradient(90deg,rgba(160,107,255,.4),transparent)}
+.life-panel .panel-title{
+  color:var(--purple);
+  text-shadow:0 0 12px rgba(160,107,255,.55);
+  border-color:rgba(160,107,255,.4);
+  background:linear-gradient(90deg, rgba(160,107,255,.09), rgba(160,107,255,.01) 70%);
+  box-shadow:0 0 14px rgba(160,107,255,.1), inset 0 0 24px rgba(160,107,255,.04);
+}
+.life-panel .panel-title::before{
+  border-color:var(--purple);
+  background:
+    linear-gradient(var(--purple),var(--purple)) 50% 4px / 2px 7px no-repeat,
+    linear-gradient(var(--purple),var(--purple)) 50% 13px / 2px 2px no-repeat,
+    radial-gradient(circle at 50% 50%, rgba(160,107,255,.22), transparent 72%);
+  box-shadow:0 0 10px rgba(160,107,255,.55), inset 0 0 8px rgba(160,107,255,.18);
+  filter:drop-shadow(0 0 4px rgba(160,107,255,.95));
+}
 .life-grid{display:grid;grid-template-columns:1fr;gap:8px}
 .life-item{
   display:flex;align-items:center;gap:12px;padding:10px 13px;
