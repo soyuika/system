@@ -56,11 +56,17 @@ body::before{
 }
 body::after{
   content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
-  background:repeating-linear-gradient(180deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,20,60,.16) 3px, rgba(0,0,0,0) 4px);
-  mix-blend-mode:overlay;opacity:.5;
-  animation:scan 9s linear infinite;
+  background:repeating-linear-gradient(180deg,
+    rgba(0,0,0,0) 0px,
+    rgba(0,0,0,0) 4px,
+    rgba(79,214,255,.14) 5px,
+    rgba(79,214,255,.22) 6px,
+    rgba(79,214,255,.14) 7px,
+    rgba(0,0,0,0) 8px);
+  mix-blend-mode:screen;opacity:.7;
+  animation:scan 7s linear infinite;
 }
-@keyframes scan{from{background-position-y:0}to{background-position-y:100px}}
+@keyframes scan{from{background-position-y:0}to{background-position-y:96px}}
 
 .wrap{position:relative;z-index:2;max-width:1080px;margin:0 auto;padding:18px 14px 40px}
 
