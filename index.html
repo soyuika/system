@@ -580,7 +580,6 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 
 .warn{border-color:rgba(255,61,110,.5);box-shadow:0 0 30px rgba(255,61,110,.15)}
 .warn .panel-title{color:var(--danger);text-shadow:0 0 12px rgba(255,61,110,.5)}
-.warn .panel-title::after{background:linear-gradient(90deg,rgba(255,61,110,.4),transparent)}
 
 /* ---------- developer mode ---------- */
 .dev-banner{
@@ -970,7 +969,7 @@ function defaultState(){
       history: []
     })),
         lifestyle: [],
-            today: {date: localDateStr(), floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, ceilSteps:{}, floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null},
+            today: {date: localDateStr(), floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, ceilSteps:{}, floorPointGiven:false, rewardGiven:false, rewardText:null},
     log: {},
     weekFails: {},
     weekStart: weekStartStr(),
@@ -1406,7 +1405,7 @@ function rollover(){
 
       state.today = {
     date: nowStr, floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, ceilSteps:{},
-    floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null
+    floorPointGiven:false, rewardGiven:false, rewardText:null
   };
 }
 
@@ -1576,12 +1575,11 @@ function openWeeklyReview(){
             Sunday 19:00–24:00. Review your quests. 0 failures → difficulty increases (phase +1).
       1–4 failures → hold. 5+ failures → difficulty decreases (phase −1). Adjust ceilings freely.
     </p>
-    ${rows}
-          <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px">
-        <button class="btn small ghost" data-act="hold-mission">Return to Backlog</button>
-        <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
-        ${allDone ? `<button class="btn gold" data-act="finish-mission">Finish Mission · +${m.bounty} pts</button>` : ''}
-      </div>
+        ${rows}
+    <div class="row" style="justify-content:flex-end;margin-top:16px">
+      <button class="btn ghost" data-act="close-modal">Later</button>
+      <button class="btn" data-act="apply-weekly">Confirm Reset</button>
+    </div>
   `);
 }
 
@@ -2179,7 +2177,6 @@ function openTreeModal(q){
       <span style="color:var(--gold)">Next window: Sunday 19:00 – 24:00</span><br>
       <span style="color:var(--dim)">…or spend an instant edit token.</span>
     </p>
-    </p>
     <div class="row" style="justify-content:flex-end">
       <button class="btn ghost" data-act="close-modal">Close</button>
     </div>
@@ -2423,7 +2420,8 @@ function viewActiveMission(m){
 
       ${allDone ? `<div class="mission-ready">◆ All criteria met — ready to close</div>` : ''}
 
-      <div class="row" style="justify-content:flex-end;margin-top:16px">
+            <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px">
+        <button class="btn small ghost" data-act="hold-mission">Return to Backlog</button>
         <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
         ${allDone ? `<button class="btn gold" data-act="finish-mission">Finish Mission · +${m.bounty} pts</button>` : ''}
       </div>
