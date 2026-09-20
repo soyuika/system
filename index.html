@@ -294,6 +294,15 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 }
 .chk:hover{border-color:var(--cyan);color:var(--cyan)}
 .chk.on{background:linear-gradient(180deg,rgba(56,255,176,.35),rgba(10,80,55,.35));border-color:var(--green);color:#c9fff0;box-shadow:0 0 18px rgba(56,255,176,.35)}
+.chk-mini{
+  font-family:inherit;font-size:12px;letter-spacing:.06em;
+  padding:6px 10px;cursor:pointer;
+  background:rgba(8,18,36,.8);
+  border:1px solid rgba(47,143,255,.25);
+  color:var(--dim);
+  transition:.15s;
+}
+.chk-mini:hover{border-color:var(--danger);color:var(--danger);background:rgba(60,10,25,.5)}
 .q-line.on .q-text{color:var(--green);text-decoration:line-through;text-decoration-color:rgba(56,255,176,.4)}
 
 /* ---------- ceiling sub-steps ---------- */
@@ -818,10 +827,14 @@ function migrate(raw){
   if (!Array.isArray(s.quests) || s.quests.length !== 5){
     s.quests = d.quests;
   }
-                s.quests.forEach(q => {
+                        s.quests.forEach(q => {
     if (typeof q.phase !== 'number') q.phase = 1;
     if (!Array.isArray(q.history)) q.history = [];
     if (!Array.isArray(q.ceilingSteps)) q.ceilingSteps = [];
+    if (typeof q.ceilingRepeatable !== 'boolean') q.ceilingRepeatable = false;
+    q.ceilingSteps.forEach(st => {
+      if (typeof st.repeatable !== 'boolean') st.repeatable = false;
+    });
     if (!q.origin) q.origin = s.createdAt || new Date().toISOString();
     delete q.mult;
   });
@@ -1578,10 +1591,20 @@ function viewQuests(){
           <button class="chk ${f?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="floor">${f?'✓ Floor':'Floor'}</button>
           <div class="q-text ${q.floor?'':'empty'}">${esc(q.floor || 'set a minimum that counts')}</div>
         </div>
-                <div class="q-line ${c?'on':''}">
-          <button class="chk ${c?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="ceil">${c?'✓ Ceiling':'Ceiling'}</button>
-          <div class="q-text ${q.ceiling?'':'empty'}">${esc(q.ceiling || 'set an ideal outcome to strive for')}</div>
-        </div>
+                        ${(() => {
+          const rawCeil = t.ceil[q.id];
+          const ceilCount = typeof rawCeil === 'number' ? rawCeil : (rawCeil ? 1 : 0);
+          const cc = ceilCount > 0;
+          const label = q.ceilingRepeatable
+            ? (cc ? `✓ Ceiling ×${ceilCount}` : 'Ceiling')
+            : (cc ? '✓ Ceiling' : 'Ceiling');
+          return `
+            <div class="q-line ${cc?'on':''}">
+              <button class="chk ${cc?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="ceil">${label}</button>
+              <div class="q-text ${q.ceiling?'':'empty'}">${esc(q.ceiling || 'set an ideal outcome to strive for')}</div>
+              ${q.ceilingRepeatable && ceilCount > 0 ? `<button class="chk-mini" data-act="dec-ceil" data-id="${q.id}" title="Decrease count">−</button>` : ''}
+            </div>`;
+        })()}
         ${renderCeilingSteps(q, t)}
       </div>`;
   }).join('');
@@ -1623,12 +1646,18 @@ function renderCeilingSteps(q, t){
   if (!steps.length) return '';
   const done = t.ceilSteps[q.id] || {};
   const doneCount = steps.filter(s => done[s.id]).length;
-  const rows = steps.map(s => {
-    const on = !!done[s.id];
+    const rows = steps.map(s => {
+    const raw = done[s.id];
+    const count = typeof raw === 'number' ? raw : (raw ? 1 : 0);
+    const on = count > 0;
+    const btnLabel = s.repeatable
+      ? (on ? `×${count}` : '○')
+      : (on ? '✓' : '○');
     return `
       <div class="ceil-step ${on?'on':''}">
-        <button class="step-chk ${on?'on':''}" data-act="toggle-ceil-step" data-qid="${q.id}" data-sid="${s.id}">${on?'✓':'○'}</button>
+        <button class="step-chk ${on?'on':''}" data-act="toggle-ceil-step" data-qid="${q.id}" data-sid="${s.id}">${btnLabel}</button>
         <span class="step-text">${esc(s.text)}</span>
+        ${s.repeatable && on ? `<button class="chk-mini" data-act="dec-ceil-step" data-qid="${q.id}" data-sid="${s.id}" title="Decrease count">−</button>` : ''}
       </div>`;
   }).join('');
   return `
@@ -2253,21 +2282,58 @@ document.addEventListener('click', (e) => {
       closeModal();
       break;
 
-        case 'toggle': {
+            case 'toggle': {
       const id = el.dataset.id, kind = el.dataset.kind;
+      const q = state.quests.find(x => x.id === id);
       const map = kind === 'floor' ? state.today.floor : state.today.ceil;
-      map[id] = !map[id];
+      const isRepeatable = kind === 'ceil' && q && q.ceilingRepeatable;
+      if (isRepeatable){
+        const cur = map[id];
+        const n = typeof cur === 'number' ? cur : (cur ? 1 : 0);
+        map[id] = n + 1;
+      } else {
+        map[id] = !map[id];
+      }
       if (kind === 'ceil' && map[id]) state.today.floor[id] = true; // ceiling implies floor
       checkDailyAwards();
       save(); render();
       break;
     }
 
+    case 'dec-ceil': {
+      const id = el.dataset.id;
+      const cur = state.today.ceil[id];
+      const n = typeof cur === 'number' ? cur : (cur ? 1 : 0);
+      state.today.ceil[id] = n <= 1 ? 0 : n - 1;
+      save(); render();
+      break;
+    }
+
     case 'toggle-ceil-step': {
       const qid = el.dataset.qid, sid = el.dataset.sid;
+      const q = state.quests.find(x => x.id === qid);
+      if (!q) break;
+      const step = (q.ceilingSteps || []).find(s => s.id === sid);
+      if (!step) break;
       if (!state.today.ceilSteps) state.today.ceilSteps = {};
       if (!state.today.ceilSteps[qid]) state.today.ceilSteps[qid] = {};
-      state.today.ceilSteps[qid][sid] = !state.today.ceilSteps[qid][sid];
+      const cur = state.today.ceilSteps[qid][sid];
+      if (step.repeatable){
+        const n = typeof cur === 'number' ? cur : (cur ? 1 : 0);
+        state.today.ceilSteps[qid][sid] = n + 1;
+      } else {
+        state.today.ceilSteps[qid][sid] = !cur;
+      }
+      save(); render();
+      break;
+    }
+
+    case 'dec-ceil-step': {
+      const qid = el.dataset.qid, sid = el.dataset.sid;
+      if (!state.today.ceilSteps || !state.today.ceilSteps[qid]) break;
+      const cur = state.today.ceilSteps[qid][sid];
+      const n = typeof cur === 'number' ? cur : (cur ? 1 : 0);
+      state.today.ceilSteps[qid][sid] = n <= 1 ? 0 : n - 1;
       save(); render();
       break;
     }
@@ -2283,9 +2349,13 @@ document.addEventListener('click', (e) => {
         <h2>Edit Quest — ${STAT_META[q.stat].label}</h2>
         <label class="fld"><span>Quest name</span><input id="eqName" value="${esc(q.name)}"></label>
         <label class="fld"><span>Floor — absolute minimum that counts</span><input id="eqFloor" value="${esc(q.floor)}"></label>
-                                <label class="fld"><span>Ceiling — ideal outcome</span><input id="eqCeil" value="${esc(q.ceiling)}"></label>
-        <label class="fld"><span>Ceiling Steps (one per line — optional, for clarity)</span>
-          <textarea id="eqSteps" placeholder="1. Fill the kettle&#10;2. Brew for 3 minutes&#10;3. Clean the mug">${(q.ceilingSteps||[]).map(s => s.text).join('\n')}</textarea>
+                                                <label class="fld"><span>Ceiling — ideal outcome</span><input id="eqCeil" value="${esc(q.ceiling)}"></label>
+        <label style="display:flex;align-items:center;gap:10px;margin:0 0 12px 0;font-size:12.5px;color:var(--text);cursor:pointer">
+          <input type="checkbox" id="eqCeilRepeatable" ${q.ceilingRepeatable ? 'checked' : ''} style="width:auto">
+          <span>Repeatable ceiling — tracks a count, but awards the point only once</span>
+        </label>
+        <label class="fld"><span>Ceiling Steps (one per line — optional)</span>
+          <textarea id="eqSteps" placeholder="[r] Drink a glass of water&#10;Finish the report&#10;— prefix a line with [r] to make it repeatable">${(q.ceilingSteps||[]).map(s => (s.repeatable ? '[r] ' : '') + s.text).join('\n')}</textarea>
         </label>
         <label class="fld"><span>Quest Phase</span>
           <div style="padding:9px 11px;background:rgba(4,10,22,.85);border:1px solid rgba(47,143,255,.3);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:15px">PHASE ${q.phase ?? 1}</div>
@@ -2308,17 +2378,25 @@ document.addEventListener('click', (e) => {
       }
       const q = state.quests.find(x => x.id === el.dataset.id);
       if (!q) break;
-            q.name = $('#eqName').value.trim();
+                  q.name = $('#eqName').value.trim();
       q.floor = $('#eqFloor').value.trim();
             q.ceiling = $('#eqCeil').value.trim();
-      // Preserve step IDs when the text at the same index is unchanged, so today's ticks survive.
+      q.ceilingRepeatable = !!$('#eqCeilRepeatable').checked;
+      // Convert today's ceiling tick to the right type if the flag flipped.
+      if (q.ceilingRepeatable && state.today.ceil[q.id] === true) state.today.ceil[q.id] = 1;
+      if (!q.ceilingRepeatable && typeof state.today.ceil[q.id] === 'number') state.today.ceil[q.id] = state.today.ceil[q.id] > 0;
+
       const stepLines = $('#eqSteps').value.split('\n').map(s => s.trim()).filter(Boolean);
       const oldSteps = q.ceilingSteps || [];
-      q.ceilingSteps = stepLines.map((text, i) => {
+      q.ceilingSteps = stepLines.map((line, i) => {
+        let text = line;
+        let repeatable = false;
+        const m = line.match(/^\[r\]\s*(.+)$/i);
+        if (m){ repeatable = true; text = m[1].trim(); }
         const old = oldSteps[i];
-        return { id: (old && old.text === text) ? old.id : uid(), text };
+        const sameAsOld = old && old.text === text;
+        return { id: sameAsOld ? old.id : uid(), text, repeatable };
       });
-      // Drop any today-tick entries for steps that no longer exist.
       if (state.today.ceilSteps){
         const liveIds = new Set(q.ceilingSteps.map(s => s.id));
         const ticks = state.today.ceilSteps[q.id] || {};
