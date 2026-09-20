@@ -2721,11 +2721,18 @@ document.addEventListener('click', (e) => {
       closeModal();
       break;
 
-            case 'toggle': {
+                case 'toggle': {
       const id = el.dataset.id, kind = el.dataset.kind;
       const q = state.quests.find(x => x.id === id);
       const map = kind === 'floor' ? state.today.floor : state.today.ceil;
       const isRepeatable = kind === 'ceil' && q && q.ceilingRepeatable;
+
+      // Was the ceiling already considered "on" before this click?
+      const wasOn = (() => {
+        const v = map[id];
+        return typeof v === 'number' ? v > 0 : !!v;
+      })();
+
       if (isRepeatable){
         const cur = map[id];
         const n = typeof cur === 'number' ? cur : (cur ? 1 : 0);
@@ -2734,20 +2741,40 @@ document.addEventListener('click', (e) => {
         map[id] = !map[id];
       }
       if (kind === 'ceil' && map[id]) state.today.floor[id] = true; // ceiling implies floor
+
+      // Refund the ceiling's stat point if it was paid and is now off.
+      const isOnNow = (() => {
+        const v = map[id];
+        return typeof v === 'number' ? v > 0 : !!v;
+      })();
+      if (kind === 'ceil' && wasOn && !isOnNow && q && state.today.ceilPaid && state.today.ceilPaid[q.id]){
+        state.stats[q.stat] = Math.max(0, state.stats[q.stat] - 1);
+        delete state.today.ceilPaid[q.id];
+        toast(`−1 ${STAT_META[q.stat].label} — CEILING REVOKED`, 'bad');
+      }
+
       checkDailyAwards();
       save(); render();
       break;
     }
 
-    case 'dec-ceil': {
+        case 'dec-ceil': {
       const id = el.dataset.id;
+      const q = state.quests.find(x => x.id === id);
       const cur = state.today.ceil[id];
       const n = typeof cur === 'number' ? cur : (cur ? 1 : 0);
-      state.today.ceil[id] = n <= 1 ? 0 : n - 1;
+      const next = n <= 1 ? 0 : n - 1;
+      state.today.ceil[id] = next;
+
+      // Dropping to zero means the ceiling is no longer cleared — revoke its point.
+      if (next === 0 && q && state.today.ceilPaid && state.today.ceilPaid[q.id]){
+        state.stats[q.stat] = Math.max(0, state.stats[q.stat] - 1);
+        delete state.today.ceilPaid[q.id];
+        toast(`−1 ${STAT_META[q.stat].label} — CEILING REVOKED`, 'bad');
+      }
       save(); render();
       break;
     }
-
     case 'toggle-ceil-step': {
       const qid = el.dataset.qid, sid = el.dataset.sid;
       const q = state.quests.find(x => x.id === qid);
