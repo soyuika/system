@@ -158,7 +158,9 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .quest.done{border-color:rgba(56,255,176,.45);box-shadow:0 0 26px rgba(56,255,176,.12)}
 .q-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px}
 .q-stat{font-size:10.5px;letter-spacing:.24em;color:var(--cyan);text-transform:uppercase}
-.q-mult{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--gold);border:1px solid rgba(255,207,92,.35);padding:1px 6px}
+.q-phase{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--cyan);border:1px solid rgba(79,214,255,.35);padding:1px 6px;letter-spacing:.1em}
+.q-phase.hard{color:var(--gold);border-color:rgba(255,207,92,.5)}
+.q-phase.easy{color:var(--green);border-color:rgba(56,255,176,.5)}
 .q-name{font-size:15px;font-weight:600;color:#eaf6ff;margin-bottom:11px;letter-spacing:.04em}
 .q-line{display:flex;align-items:flex-start;gap:11px;padding:8px 0;border-top:1px solid rgba(47,143,255,.13)}
 .q-tag{font-size:9.5px;letter-spacing:.2em;color:var(--dim);min-width:62px;padding-top:3px}
@@ -269,7 +271,7 @@ input,textarea,select{font-size:15px}
 .bar{height:9px}
 .pts{font-size:30px}
 .q-stat{font-size:12.5px}
-.q-mult{font-size:11.5px}
+.q-phase{font-size:11.5px}
 .q-name{font-size:16.5px}
 .q-tag{font-size:11.5px}
 .q-text{font-size:14.5px}
@@ -388,7 +390,7 @@ function defaultState(){
     stats: {intellect:0, stamina:0, agility:0, mental:0, awareness:0},
     unassigned: 0,
     systemTokens: 0,
-    quests: STAT_KEYS.map(k => ({id:uid(), stat:k, name:'', floor:'', ceiling:'', mult:1})),
+        quests: STAT_KEYS.map(k => ({id:uid(), stat:k, name:'', floor:'', ceiling:'', phase:1})),
     today: {date: localDateStr(), floor:{}, ceil:{}, floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null},
     log: {},
     weekFails: {},
@@ -440,7 +442,10 @@ function migrate(raw){
   if (!Array.isArray(s.quests) || s.quests.length !== 5){
     s.quests = d.quests;
   }
-  s.quests.forEach(q => { if (typeof q.mult !== 'number') q.mult = 1; });
+    s.quests.forEach(q => {
+    if (typeof q.phase !== 'number') q.phase = 1;
+    delete q.mult;
+  });
   return s;
 }
 
@@ -722,9 +727,9 @@ function tick(){
    WEEKLY REVIEW
    ========================================================= */
 function weeklySuggestion(fails){
-  if (fails === 0) return {label:'INCREASE +10%', delta:1.1, cls:'gold'};
-  if (fails >= 5)  return {label:'DECREASE −10%', delta:1/1.1, cls:'ghost'};
-  return {label:'HOLD', delta:1, cls:'ghost'};
+  if (fails === 0) return {label:'INCREASE DIFFICULTY', delta:1,  cls:'gold'};
+  if (fails >= 5)  return {label:'DECREASE DIFFICULTY', delta:-1, cls:'ghost'};
+  return {label:'HOLD', delta:0, cls:'ghost'};
 }
 
 function openWeeklyReview(){
@@ -744,9 +749,9 @@ function openWeeklyReview(){
           </div>
         </div>
         <input data-wk-floor="${q.id}" value="${esc(q.floor)}" placeholder="new floor text (optional)">
-        <label class="row" style="font-size:11px;color:var(--dim);gap:6px">
-          <input type="checkbox" data-wk-apply="${q.id}" style="width:auto" checked>
-          apply ${s.delta>1?'+10%':s.delta<1?'−10%':'no'} difficulty change (current ×${q.mult.toFixed(2)})
+                <label class="row" style="font-size:11px;color:var(--dim);gap:6px">
+          <input type="checkbox" data-wk-apply="${q.id}" style="width:auto" ${s.delta !== 0 ? 'checked' : 'disabled'}>
+          ${s.delta > 0 ? 'shift phase +1' : s.delta < 0 ? 'shift phase −1' : 'no phase change'} (current: PHASE ${q.phase ?? 1})
         </label>
       </div>`;
   }).join('');
@@ -754,8 +759,8 @@ function openWeeklyReview(){
   openModal(`
     <h2>Weekly System Reset</h2>
     <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:14px">
-      Sunday 19:00–24:00. Review your quests. 0 failures → floor difficulty +10%.
-      1–4 failures → hold. 5+ failures → difficulty −10%. Adjust ceilings freely.
+            Sunday 19:00–24:00. Review your quests. 0 failures → difficulty increases (phase +1).
+      1–4 failures → hold. 5+ failures → difficulty decreases (phase −1). Adjust ceilings freely.
     </p>
     ${rows}
     <div class="row" style="justify-content:flex-end;margin-top:16px">
@@ -769,12 +774,12 @@ function applyWeekly(){
   state.quests.forEach(q => {
     const inp = document.querySelector(`[data-wk-floor="${q.id}"]`);
     if (inp && inp.value.trim()) q.floor = inp.value.trim();
-    const chk = document.querySelector(`[data-wk-apply="${q.id}"]`);
+        const chk = document.querySelector(`[data-wk-apply="${q.id}"]`);
     if (chk && chk.checked){
       const fails = state.weekFails[q.id] || 0;
       const s = weeklySuggestion(fails);
-      if (s.delta !== 1){
-        q.mult = clamp(q.mult * s.delta, 0.4, 12);
+      if (s.delta !== 0){
+        q.phase = (q.phase ?? 1) + s.delta;
       }
     }
   });
@@ -1018,8 +1023,8 @@ function viewQuests(){
       <div class="quest panel ${f && c ? 'done' : ''}">
         <div class="q-head">
           <span class="q-stat">${STAT_META[q.stat].icon} ${STAT_META[q.stat].label}</span>
-          <span class="row" style="gap:6px">
-            <span class="q-mult">×${q.mult.toFixed(2)}</span>
+                    <span class="row" style="gap:6px">
+            <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
             <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}">Edit</button>
           </span>
         </div>
@@ -1393,9 +1398,12 @@ document.addEventListener('click', (e) => {
         <h2>Edit Quest — ${STAT_META[q.stat].label}</h2>
         <label class="fld"><span>Quest name</span><input id="eqName" value="${esc(q.name)}"></label>
         <label class="fld"><span>Floor — absolute minimum that counts</span><input id="eqFloor" value="${esc(q.floor)}"></label>
-        <label class="fld"><span>Ceiling — ideal outcome</span><input id="eqCeil" value="${esc(q.ceiling)}"></label>
-        <label class="fld"><span>Difficulty multiplier</span><input id="eqMult" type="number" step="0.05" min="0.4" max="12" value="${q.mult}"></label>
+                <label class="fld"><span>Ceiling — ideal outcome</span><input id="eqCeil" value="${esc(q.ceiling)}"></label>
+        <label class="fld"><span>Quest Phase</span>
+          <div style="padding:9px 11px;background:rgba(4,10,22,.85);border:1px solid rgba(47,143,255,.3);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:15px">PHASE ${q.phase ?? 1}</div>
+        </label>
         <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:14px">
+          Phase is adjusted automatically by the weekly reset. Quests must reflect effort you control — never outcomes.
           Quests must reflect effort you control — never outcomes.
         </div>
         <div class="row" style="justify-content:flex-end">
@@ -1411,9 +1419,7 @@ document.addEventListener('click', (e) => {
       if (!q) break;
       q.name = $('#eqName').value.trim();
       q.floor = $('#eqFloor').value.trim();
-      q.ceiling = $('#eqCeil').value.trim();
-      const m = parseFloat($('#eqMult').value);
-      q.mult = isNaN(m) ? 1 : clamp(m, 0.4, 12);
+            q.ceiling = $('#eqCeil').value.trim();
       save(); closeModal(); render();
       break;
     }
