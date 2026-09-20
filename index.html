@@ -296,6 +296,49 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .chk.on{background:linear-gradient(180deg,rgba(56,255,176,.35),rgba(10,80,55,.35));border-color:var(--green);color:#c9fff0;box-shadow:0 0 18px rgba(56,255,176,.35)}
 .q-line.on .q-text{color:var(--green);text-decoration:line-through;text-decoration-color:rgba(56,255,176,.4)}
 
+/* ---------- ceiling sub-steps ---------- */
+.ceil-steps{
+  margin:0 0 0 0;
+  padding:6px 0 4px 22px;
+  border-top:1px dashed rgba(47,143,255,.14);
+}
+.ceil-steps-head{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;letter-spacing:.16em;
+  color:var(--dim);text-transform:uppercase;
+  margin-bottom:6px;
+}
+.ceil-steps-head b{color:var(--cyan);font-weight:500}
+.ceil-step{
+  display:flex;align-items:flex-start;gap:11px;
+  padding:4px 0;
+  font-size:13.5px;color:var(--dim);
+  line-height:1.5;
+  transition:color .15s;
+}
+.ceil-step .step-chk{
+  font-family:'Share Tech Mono',monospace;font-size:12px;
+  width:22px;height:22px;min-width:22px;padding:0;
+  background:rgba(8,18,36,.8);
+  border:1px solid rgba(47,143,255,.3);
+  color:var(--dim);cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:.15s;flex-shrink:0;
+  margin-top:1px;
+}
+.ceil-step .step-chk:hover{border-color:var(--cyan);color:var(--cyan)}
+.ceil-step .step-chk.on{
+  background:linear-gradient(180deg,rgba(56,255,176,.3),rgba(10,80,55,.3));
+  border-color:var(--green);color:#c9fff0;
+  box-shadow:0 0 12px rgba(56,255,176,.3);
+}
+.ceil-step .step-text{flex:1}
+.ceil-step.on .step-text{
+  color:var(--green);
+  text-decoration:line-through;
+  text-decoration-color:rgba(56,255,176,.4);
+}
+
 /* ---------- quest tree / graduation ---------- */
 .qtree{
   margin:0 0 16px 0;
@@ -698,13 +741,14 @@ function defaultState(){
     stats: {intellect:0, stamina:0, agility:0, mental:0, awareness:0},
     unassigned: 0,
     systemTokens: 0,
-                quests: STAT_KEYS.map(k => ({
+                                quests: STAT_KEYS.map(k => ({
       id: uid(), stat: k, name: '', floor: '', ceiling: '', phase: 1,
+      ceilingSteps: [],
       origin: new Date().toISOString(),
       history: []
     })),
         lifestyle: [],
-        today: {date: localDateStr(), floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null},
+            today: {date: localDateStr(), floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, ceilSteps:{}, floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null},
     log: {},
     weekFails: {},
     weekStart: weekStartStr(),
@@ -746,12 +790,13 @@ function migrate(raw){
     s.today.lifestyle = (raw && raw.today && raw.today.lifestyle) || {};
   // Ensure per-ceiling tracking exists. On first load after this update, mark
   // any already-ticked ceilings as paid so they aren't re-awarded retroactively.
-  s.today.ceilPaid = (raw && raw.today && raw.today.ceilPaid) || {};
+    s.today.ceilPaid = (raw && raw.today && raw.today.ceilPaid) || {};
   if (s.today.ceil){
     Object.keys(s.today.ceil).forEach(id => {
       if (s.today.ceil[id]) s.today.ceilPaid[id] = true;
     });
   }
+  s.today.ceilSteps = (raw && raw.today && raw.today.ceilSteps) || {};
   s.lifestyle = (raw && raw.lifestyle) || [];
     s.dungeons = Object.assign({}, d.dungeons, (raw && raw.dungeons) || {});
   s.dungeons.locked = (raw && raw.dungeons && raw.dungeons.locked) || {};
@@ -773,9 +818,10 @@ function migrate(raw){
   if (!Array.isArray(s.quests) || s.quests.length !== 5){
     s.quests = d.quests;
   }
-        s.quests.forEach(q => {
+                s.quests.forEach(q => {
     if (typeof q.phase !== 'number') q.phase = 1;
     if (!Array.isArray(q.history)) q.history = [];
+    if (!Array.isArray(q.ceilingSteps)) q.ceilingSteps = [];
     if (!q.origin) q.origin = s.createdAt || new Date().toISOString();
     delete q.mult;
   });
@@ -1097,8 +1143,8 @@ function rollover(){
 
   if (prev.date && failed > 0) issuePenalty(failed, prev.date, lifeDone, lifeTotal);
 
-    state.today = {
-    date: nowStr, floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{},
+      state.today = {
+    date: nowStr, floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, ceilSteps:{},
     floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null
   };
 }
@@ -1532,10 +1578,11 @@ function viewQuests(){
           <button class="chk ${f?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="floor">${f?'✓ Floor':'Floor'}</button>
           <div class="q-text ${q.floor?'':'empty'}">${esc(q.floor || 'set a minimum that counts')}</div>
         </div>
-        <div class="q-line ${c?'on':''}">
+                <div class="q-line ${c?'on':''}">
           <button class="chk ${c?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="ceil">${c?'✓ Ceiling':'Ceiling'}</button>
           <div class="q-text ${q.ceiling?'':'empty'}">${esc(q.ceiling || 'set an ideal outcome to strive for')}</div>
         </div>
+        ${renderCeilingSteps(q, t)}
       </div>`;
   }).join('');
 
@@ -1571,6 +1618,26 @@ function viewQuests(){
     ${penaltyPanelHTML()}`;
 }
 
+function renderCeilingSteps(q, t){
+  const steps = q.ceilingSteps || [];
+  if (!steps.length) return '';
+  const done = t.ceilSteps[q.id] || {};
+  const doneCount = steps.filter(s => done[s.id]).length;
+  const rows = steps.map(s => {
+    const on = !!done[s.id];
+    return `
+      <div class="ceil-step ${on?'on':''}">
+        <button class="step-chk ${on?'on':''}" data-act="toggle-ceil-step" data-qid="${q.id}" data-sid="${s.id}">${on?'✓':'○'}</button>
+        <span class="step-text">${esc(s.text)}</span>
+      </div>`;
+  }).join('');
+  return `
+    <div class="ceil-steps">
+      <div class="ceil-steps-head">Steps &nbsp;<b>${doneCount}</b>/${steps.length} &nbsp;·&nbsp; for clarity only, no points</div>
+      ${rows}
+    </div>`;
+}
+  
   function openDistributeModal(){
   const pool = state.unassigned;
   const barrier = nextLevelBarrier();
@@ -2186,12 +2253,21 @@ document.addEventListener('click', (e) => {
       closeModal();
       break;
 
-    case 'toggle': {
+        case 'toggle': {
       const id = el.dataset.id, kind = el.dataset.kind;
       const map = kind === 'floor' ? state.today.floor : state.today.ceil;
       map[id] = !map[id];
       if (kind === 'ceil' && map[id]) state.today.floor[id] = true; // ceiling implies floor
       checkDailyAwards();
+      save(); render();
+      break;
+    }
+
+    case 'toggle-ceil-step': {
+      const qid = el.dataset.qid, sid = el.dataset.sid;
+      if (!state.today.ceilSteps) state.today.ceilSteps = {};
+      if (!state.today.ceilSteps[qid]) state.today.ceilSteps[qid] = {};
+      state.today.ceilSteps[qid][sid] = !state.today.ceilSteps[qid][sid];
       save(); render();
       break;
     }
@@ -2207,7 +2283,10 @@ document.addEventListener('click', (e) => {
         <h2>Edit Quest — ${STAT_META[q.stat].label}</h2>
         <label class="fld"><span>Quest name</span><input id="eqName" value="${esc(q.name)}"></label>
         <label class="fld"><span>Floor — absolute minimum that counts</span><input id="eqFloor" value="${esc(q.floor)}"></label>
-                <label class="fld"><span>Ceiling — ideal outcome</span><input id="eqCeil" value="${esc(q.ceiling)}"></label>
+                                <label class="fld"><span>Ceiling — ideal outcome</span><input id="eqCeil" value="${esc(q.ceiling)}"></label>
+        <label class="fld"><span>Ceiling Steps (one per line — optional, for clarity)</span>
+          <textarea id="eqSteps" placeholder="1. Fill the kettle&#10;2. Brew for 3 minutes&#10;3. Clean the mug">${(q.ceilingSteps||[]).map(s => s.text).join('\n')}</textarea>
+        </label>
         <label class="fld"><span>Quest Phase</span>
           <div style="padding:9px 11px;background:rgba(4,10,22,.85);border:1px solid rgba(47,143,255,.3);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:15px">PHASE ${q.phase ?? 1}</div>
         </label>
@@ -2229,9 +2308,22 @@ document.addEventListener('click', (e) => {
       }
       const q = state.quests.find(x => x.id === el.dataset.id);
       if (!q) break;
-      q.name = $('#eqName').value.trim();
+            q.name = $('#eqName').value.trim();
       q.floor = $('#eqFloor').value.trim();
             q.ceiling = $('#eqCeil').value.trim();
+      // Preserve step IDs when the text at the same index is unchanged, so today's ticks survive.
+      const stepLines = $('#eqSteps').value.split('\n').map(s => s.trim()).filter(Boolean);
+      const oldSteps = q.ceilingSteps || [];
+      q.ceilingSteps = stepLines.map((text, i) => {
+        const old = oldSteps[i];
+        return { id: (old && old.text === text) ? old.id : uid(), text };
+      });
+      // Drop any today-tick entries for steps that no longer exist.
+      if (state.today.ceilSteps){
+        const liveIds = new Set(q.ceilingSteps.map(s => s.id));
+        const ticks = state.today.ceilSteps[q.id] || {};
+        Object.keys(ticks).forEach(sid => { if (!liveIds.has(sid)) delete ticks[sid]; });
+      }
       save(); closeModal(); render();
       break;
     }
