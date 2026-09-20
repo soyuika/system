@@ -175,6 +175,30 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .chk.on{background:linear-gradient(180deg,rgba(56,255,176,.35),rgba(10,80,55,.35));border-color:var(--green);color:#c9fff0;box-shadow:0 0 18px rgba(56,255,176,.35)}
 .q-line.on .q-text{color:var(--green);text-decoration:line-through;text-decoration-color:rgba(56,255,176,.4)}
 
+/* ---------- lifestyle upgrades ---------- */
+.life-panel{border-color:rgba(160,107,255,.4)}
+.life-panel .panel-title{color:var(--purple);text-shadow:0 0 12px rgba(160,107,255,.5)}
+.life-panel .panel-title::after{background:linear-gradient(90deg,rgba(160,107,255,.4),transparent)}
+.life-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.life-item{
+  display:flex;align-items:center;gap:12px;padding:10px 13px;
+  border:1px solid rgba(160,107,255,.25);background:rgba(15,8,28,.55);
+  transition:.15s;
+}
+.life-item:hover{border-color:rgba(160,107,255,.5)}
+.life-item.on{border-color:rgba(56,255,176,.45);background:rgba(10,30,25,.55)}
+.life-item .life-name{flex:1;font-size:14.5px;color:var(--text)}
+.life-item.on .life-name{color:var(--green)}
+.life-check{
+  font-family:inherit;font-size:11px;letter-spacing:.14em;padding:6px 12px;cursor:pointer;
+  background:rgba(20,10,35,.8);border:1px solid rgba(160,107,255,.4);color:var(--purple);
+  transition:.15s;min-width:96px;text-transform:uppercase;text-align:center;
+}
+.life-check:hover{border-color:var(--purple);color:#c9a9ff}
+.life-check.on{background:linear-gradient(180deg,rgba(56,255,176,.3),rgba(10,80,55,.3));border-color:var(--green);color:#c9fff0}
+.life-counter{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--purple)}
+.life-counter b{color:#fff;font-size:17px}
+
 .daily-bar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 .daily-count{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--dim)}
 .daily-count b{color:#fff;font-size:17px}
@@ -423,7 +447,8 @@ function defaultState(){
     unassigned: 0,
     systemTokens: 0,
         quests: STAT_KEYS.map(k => ({id:uid(), stat:k, name:'', floor:'', ceiling:'', phase:1})),
-    today: {date: localDateStr(), floor:{}, ceil:{}, floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null},
+        lifestyle: [],
+    today: {date: localDateStr(), floor:{}, ceil:{}, lifestyle:{}, floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null},
     log: {},
     weekFails: {},
     weekStart: weekStartStr(),
@@ -460,7 +485,9 @@ function migrate(raw){
   const d = defaultState();
   const s = Object.assign({}, d, raw || {});
   s.stats = Object.assign({}, d.stats, (raw && raw.stats) || {});
-  s.today = Object.assign({}, d.today, (raw && raw.today) || {});
+    s.today = Object.assign({}, d.today, (raw && raw.today) || {});
+  s.today.lifestyle = (raw && raw.today && raw.today.lifestyle) || {};
+  s.lifestyle = (raw && raw.lifestyle) || [];
   s.dungeons = Object.assign({}, d.dungeons, (raw && raw.dungeons) || {});
   s.dungeons.locked = (raw && raw.dungeons && raw.dungeons.locked) || {};
   s.dungeons.cleared = (raw && raw.dungeons && raw.dungeons.cleared) || [];
@@ -574,18 +601,60 @@ function checkDailyAwards(){
   }
 }
 
-function rollReward(){
-  let r = Math.random() * 100;
-  if (r < 50){
-    if (state.rewards.length){
-      return {type:'custom', text: pick(state.rewards).text};
+function rollReward(boostFactor = 0){
+  const w = {
+    custom:     50,
+    keyED:      20,
+    skip:       15,
+    pointKeyCB: 10,
+    keyAS:       4,
+    token:       1
+  };
+
+  // If no custom rewards are defined, redistribute that slot proportionally.
+  if (!state.rewards.length){
+    const released = w.custom;
+    w.custom = 0;
+    const sum = w.keyED + w.skip + w.pointKeyCB + w.keyAS + w.token;
+    for (const k of ['keyED','skip','pointKeyCB','keyAS','token']){
+      w[k] += released * (w[k] / sum);
     }
-    r = 50 + Math.random() * 50; // reroll into the non-custom band
   }
-  if (r < 70) return {type:'key', tier:'ED'};
-  if (r < 85) return {type:'skip'};
-  if (r < 95) return {type:'point_key', tier:'CB'};
-  if (r < 99) return {type:'key', tier:'AS'};
+
+  // Lifestyle boost: shift weight from common → rare, scaled by boostFactor (0..1).
+  if (boostFactor > 0){
+    const diminish = 1 - 0.35 * boostFactor;
+    let released = 0;
+    for (const k of ['custom','keyED','skip']){
+      const before = w[k];
+      w[k] = w[k] * diminish;
+      released += before - w[k];
+    }
+    const rareSum = w.pointKeyCB + w.keyAS + w.token;
+    if (rareSum > 0){
+      for (const k of ['pointKeyCB','keyAS','token']){
+        w[k] += released * (w[k] / rareSum);
+      }
+    } else {
+      for (const k of ['pointKeyCB','keyAS','token']) w[k] += released / 3;
+    }
+  }
+
+  const total = Object.values(w).reduce((a,b) => a+b, 0);
+  let r = Math.random() * total;
+  for (const [key, weight] of Object.entries(w)){
+    if (r < weight){
+      switch(key){
+        case 'custom':     return {type:'custom',    text: pick(state.rewards).text};
+        case 'keyED':      return {type:'key',       tier:'ED'};
+        case 'skip':       return {type:'skip'};
+        case 'pointKeyCB': return {type:'point_key', tier:'CB'};
+        case 'keyAS':      return {type:'key',       tier:'AS'};
+        case 'token':      return {type:'token'};
+      }
+    }
+    r -= weight;
+  }
   return {type:'token'};
 }
 
@@ -600,7 +669,10 @@ function claimReward(){
   if (t.rewardGiven) return;
   if (!state.quests.every(q => t.ceil[q.id])) return;
 
-  const res = rollReward();
+    const lifestyleDone = Object.keys(state.today.lifestyle || {}).filter(id => state.today.lifestyle[id]).length;
+  const lifestyleTotal = state.lifestyle.length;
+  const boostFactor = lifestyleTotal > 0 ? lifestyleDone / lifestyleTotal : 0;
+  const res = rollReward(boostFactor);
   let text = '';
 
   if (res.type === 'custom'){
@@ -635,8 +707,29 @@ function claimReward(){
 /* =========================================================
    ROLLOVER / TICK
    ========================================================= */
-function issuePenalty(failedCount, forDate){
-  const tier = failedCount === 1 ? 1 : (failedCount <= 3 ? 2 : 3);
+function issuePenalty(failedCount, forDate, lifestyleDone = 0, lifestyleTotal = 0){
+  let tier = failedCount === 1 ? 1 : (failedCount <= 3 ? 2 : 3);
+  const ratio = lifestyleTotal > 0 ? lifestyleDone / lifestyleTotal : 0;
+
+  // Full escape: 1 missed quest + ALL lifestyle upgrades done → 1% chance to skip entirely.
+  if (tier === 1 && lifestyleTotal > 0 && lifestyleDone === lifestyleTotal){
+    if (Math.random() < 0.01){
+      toast('LIFESTYLE BONUS — penalty escaped entirely.', 'gold');
+      return;
+    }
+  }
+
+  // Tier reduction: base tier 2 or 3, scaled by lifestyle ratio.
+  if (tier > 1 && lifestyleTotal > 0 && lifestyleDone > 0){
+    const dropChance = ratio * 0.6;
+    if (Math.random() < dropChance){
+      tier -= 1;
+      if (tier === 2 && Math.random() < dropChance * 0.4){
+        tier -= 1;
+      }
+      toast(`LIFESTYLE BONUS — penalty tier reduced to ${tier}.`, 'gold');
+    }
+  }
 
   if (state.skips > 0){
     state.skips -= 1;
@@ -647,7 +740,6 @@ function issuePenalty(failedCount, forDate){
   const pool = state.penalties.filter(p => p.tier === tier);
   const chosen = pool.length ? pick(pool) : null;
 
-  // Deadline: 12:00 on the day the penalty is issued.
   let dl = new Date(); dl.setHours(12,0,0,0);
   if (dl.getTime() < Date.now()) dl = new Date(Date.now() + 6*3600*1000);
 
@@ -681,9 +773,12 @@ function rollover(){
   state.quests.forEach(q => { if (prev.floor[q.id]) done++; });
   const failed = total - done;
 
+  const prevLife = prev.lifestyle || {};
+  const lifeDone = Object.keys(prevLife).filter(id => prevLife[id]).length;
+  const lifeTotal = state.lifestyle.length;
+
   if (prev.date){
     state.log[prev.date] = {done, failed};
-    // keep log bounded
     const keys = Object.keys(state.log).sort();
     while (keys.length > 400) delete state.log[keys.shift()];
     state.quests.forEach(q => {
@@ -691,10 +786,10 @@ function rollover(){
     });
   }
 
-  if (prev.date && failed > 0) issuePenalty(failed, prev.date);
+  if (prev.date && failed > 0) issuePenalty(failed, prev.date, lifeDone, lifeTotal);
 
   state.today = {
-    date: nowStr, floor:{}, ceil:{},
+    date: nowStr, floor:{}, ceil:{}, lifestyle:{},
     floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null
   };
 }
@@ -1109,11 +1204,49 @@ function viewQuests(){
       </div>
     </div>
 
-    ${quests}
+        ${quests}
+    ${lifestylePanelHTML()}
     ${rewardPanel}
     ${penaltyPanelHTML()}`;
 }
 
+  function lifestylePanelHTML(){
+  if (!state.lifestyle.length){
+    return `<div class="panel life-panel">
+      <div class="panel-title">Lifestyle Upgrades</div>
+      <div class="empty">No lifestyle upgrades defined. Add some in the System tab — they're passive maintenance habits that don't attach to a stat.</div>
+    </div>`;
+  }
+  const tl = state.today.lifestyle || {};
+  const doneCount = state.lifestyle.filter(l => tl[l.id]).length;
+  const total = state.lifestyle.length;
+  const rows = state.lifestyle.map(l => {
+    const on = !!tl[l.id];
+    return `
+      <div class="life-item ${on?'on':''}">
+        <div class="life-name">${esc(l.name)}</div>
+        <button class="life-check ${on?'on':''}" data-act="toggle-lifestyle" data-id="${l.id}">${on?'✓ Done':'Mark Done'}</button>
+      </div>`;
+  }).join('');
+
+  const allDone = doneCount === total && total > 0;
+  const boostPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+  return `
+    <div class="panel life-panel">
+      <div class="panel-title">Lifestyle Upgrades</div>
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="life-counter">Completed <b>${doneCount}</b> / ${total}</div>
+        <div class="meta" style="color:var(--dim);font-size:11px">BOOST: ${boostPct}%${allDone?' · full benefit':''}</div>
+      </div>
+      <div class="life-grid">${rows}</div>
+      <div class="meta" style="color:var(--dim);font-size:11px;margin-top:10px;line-height:1.6">
+        Passive maintenance habits. Not attached to any stat, no floors or ceilings — just done or not done.
+        Completed upgrades shift your daily reward table toward rarer drops, and reduce the tier of any penalty you earn from missed quests.
+      </div>
+    </div>`;
+}
+  
 function penaltyPanelHTML(){
   const p = state.pendingPenalty;
   if (!p){
@@ -1276,13 +1409,21 @@ function viewSystem(){
   const penValid = state.penalties.length >= 5 &&
     [1,2,3].every(t => state.penalties.some(p => p.tier === t));
 
-  const rewards = state.rewards.length
+    const rewards = state.rewards.length
     ? state.rewards.map(r => `
         <div class="item">
           <div style="font-size:12px">${esc(r.text)}</div>
           <button class="btn small danger" data-act="del-reward" data-id="${r.id}">✕</button>
         </div>`).join('')
     : `<div class="empty">No custom rewards. The 50% custom slot will reroll into other rewards.</div>`;
+
+  const lifestyleMgmt = state.lifestyle.length
+    ? state.lifestyle.map(l => `
+        <div class="item">
+          <div style="font-size:12px">${esc(l.name)}</div>
+          <button class="btn small danger" data-act="del-lifestyle" data-id="${l.id}">✕</button>
+        </div>`).join('')
+    : `<div class="empty">No lifestyle upgrades defined.</div>`;
 
   const titles = state.titles.map(t => `
     <div class="item">
@@ -1333,6 +1474,19 @@ function viewSystem(){
       <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:10px">
         Drop table: 50% custom · 20% key (E/D) · 15% penalty skip · 10% +1 point &amp; key (C/B) ·
         4% key (A/S) · 1% system upgrade token.
+      </div>
+    </div>
+
+        <div class="panel life-panel">
+      <div class="panel-title">Lifestyle Upgrades</div>
+      <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:12px">
+        Passive maintenance habits — not attached to any stat. Complete them daily to shift your reward table
+        toward rarer drops and reduce the tier of penalties from missed quests.
+      </div>
+      ${lifestyleMgmt}
+      <div class="row" style="margin-top:10px">
+        <input id="lifeText" placeholder="New lifestyle upgrade..." style="flex:1;min-width:180px">
+        <button class="btn small" data-act="add-lifestyle">Add</button>
       </div>
     </div>
 
@@ -1510,8 +1664,28 @@ document.addEventListener('click', (e) => {
       save(); render();
       break;
     }
-    case 'del-reward':
+        case 'del-reward':
       state.rewards = state.rewards.filter(r => r.id !== el.dataset.id);
+      save(); render();
+      break;
+
+    case 'toggle-lifestyle': {
+      if (!state.today.lifestyle) state.today.lifestyle = {};
+      const id = el.dataset.id;
+      state.today.lifestyle[id] = !state.today.lifestyle[id];
+      save(); render();
+      break;
+    }
+    case 'add-lifestyle': {
+      const t = $('#lifeText').value.trim();
+      if (!t) break;
+      state.lifestyle.push({id: uid(), name: t});
+      save(); render();
+      break;
+    }
+    case 'del-lifestyle':
+      state.lifestyle = state.lifestyle.filter(l => l.id !== el.dataset.id);
+      if (state.today.lifestyle) delete state.today.lifestyle[el.dataset.id];
       save(); render();
       break;
 
