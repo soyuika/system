@@ -93,14 +93,15 @@ body::after{
 }
 .panel-title::before{
   content:'!';
-  display:inline-flex;align-items:center;justify-content:center;
-  width:20px;height:20px;flex-shrink:0;
+  display:grid;place-items:center;
+  width:22px;height:22px;flex-shrink:0;
   border:1px solid var(--cyan);border-radius:50%;
-  font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:600;line-height:1;
+  font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:600;
   color:var(--cyan);
   background:radial-gradient(circle at 50% 50%, rgba(79,214,255,.18), transparent 72%);
   box-shadow:0 0 10px rgba(79,214,255,.45), inset 0 0 8px rgba(79,214,255,.15);
   text-shadow:0 0 6px rgba(79,214,255,.9);
+  padding-bottom:1px;
 }
 .warn .panel-title::before{
   color:var(--danger);
