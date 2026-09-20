@@ -249,6 +249,17 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   flex-shrink:0;
   padding-top:2px;
 }
+.dungeon-real{
+  font-size:12.5px;
+  color:var(--dim);
+  font-style:italic;
+  opacity:.62;
+  letter-spacing:.03em;
+  line-height:1.4;
+}
+.item.dungeon .dungeon-real{
+  margin:-4px 0 7px 0;
+}
 .tag{font-family:'Share Tech Mono',monospace;font-size:10px;padding:2px 7px;border:1px solid currentColor}
 .tag.t1{color:var(--green)}.tag.t2{color:var(--gold)}.tag.t3{color:var(--danger)}
 .rank-E{color:#8fa6c4}.rank-D{color:#5fd0ff}.rank-C{color:#4f8dff}
@@ -963,9 +974,10 @@ function openDungeon(id){
   }
 
   const days = DUNGEON_DAYS[d.rank];
-  state.dungeons.active = {
+    state.dungeons.active = {
     id: d.id,
     name: d.name,
+    real: d.real || '',
     rank: d.rank,
     tasks: d.tasks.map(t => ({...t, done:false})),
     startedAt: new Date().toISOString(),
@@ -986,8 +998,8 @@ function toggleTask(taskId){
   t.done = !t.done;
 
   if (a.tasks.every(x => x.done)){
-    state.dungeons.cleared.push({
-      id: a.id, name: a.name, rank: a.rank,
+        state.dungeons.cleared.push({
+      id: a.id, name: a.name, real: a.real || '', rank: a.rank,
       clearedAt: new Date().toISOString()
     });
     state.dungeons.active = null;
@@ -1300,10 +1312,11 @@ function viewDungeons(){
         return `
                     <div class="item dungeon">
             <div style="min-width:0">
-              <div class="title">
+                            <div class="title">
                 <span class="tag rank-${x.rank}">${x.rank}</span>
                 ${esc(x.name)}
               </div>
+              ${x.real ? `<div class="dungeon-real">${esc(x.real)}</div>` : ''}
               <div class="meta">${x.tasks.length} objective${x.tasks.length===1?'':'s'} · ${DUNGEON_DAYS[x.rank]} day limit
                 ${locked ? ` · <span style="color:var(--danger)">SEALED until ${fmtDate(lock.until)}</span>` : ''}
               </div>
@@ -1329,11 +1342,12 @@ function viewDungeons(){
         <div class="panel-title" style="color:var(--danger)">⚠ Active Dungeon</div>
         <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:12px">
           <div>
-            <div style="font-size:17px;font-weight:700">
+                        <div style="font-size:17px;font-weight:700">
               <span class="tag rank-${a.rank}" style="font-size:13px">${a.rank}</span>
               ${esc(a.name)}
             </div>
-            <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:4px">
+            ${a.real ? `<div class="dungeon-real" style="margin-top:2px">${esc(a.real)}</div>` : ''}
+            <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:6px">
               ${a.tasks.filter(t=>t.done).length}/${a.tasks.length} objectives
             </div>
           </div>
@@ -1351,10 +1365,13 @@ function viewDungeons(){
 
   const cleared = d.cleared.length
     ? d.cleared.slice().reverse().map(c => `
-                <div class="item dungeon">
-                    <div class="title" style="margin-bottom:0;align-self:center">
-            <span class="tag rank-${c.rank}">${c.rank}</span>
-            ${esc(c.name)}
+                                <div class="item dungeon">
+          <div style="min-width:0">
+            <div class="title" style="margin-bottom:0">
+              <span class="tag rank-${c.rank}">${c.rank}</span>
+              ${esc(c.name)}
+            </div>
+            ${c.real ? `<div class="dungeon-real" style="margin:2px 0 0 0">${esc(c.real)}</div>` : ''}
           </div>
           <div class="meta">cleared ${fmtDate(c.clearedAt)}</div>
         </div>`).join('')
@@ -1373,8 +1390,8 @@ function viewDungeons(){
 
     <div class="panel">
       <div class="panel-title">Inbox — Register a Dungeon</div>
-      <div class="grid2">
-        <label class="fld"><span>Monster / Dungeon Name</span><input id="dnName" placeholder="Procrastination"></label>
+            <div class="grid2">
+        <label class="fld"><span>Monster / Dungeon Name</span><input id="dnName" placeholder="The Disordered Kingdom"></label>
         <label class="fld"><span>Rank (subjective confidence)</span>
           <select id="dnRank">
             <option value="E">E — very simple, could easily do</option>
@@ -1384,8 +1401,11 @@ function viewDungeons(){
             <option value="A">A — 50% confidence, must push hard</option>
             <option value="S">S — 1% chance, must overcome myself</option>
           </select>
-        </label>
+                </label>
       </div>
+      <label class="fld"><span>Real Meaning (optional)</span>
+        <input id="dnReal" placeholder="What this actually is — e.g. 'my messy bedroom'">
+      </label>
       <label class="fld"><span>Objectives (one per line)</span>
         <textarea id="dnTasks" placeholder="Do a brain dump of every task&#10;Complete every task on the list"></textarea>
       </label>
@@ -1716,13 +1736,14 @@ document.addEventListener('click', (e) => {
       save(); render();
       break;
 
-    case 'add-dungeon': {
+        case 'add-dungeon': {
       const name = $('#dnName').value.trim();
+      const real = $('#dnReal').value.trim();
       const rank = $('#dnRank').value;
       const raw = $('#dnTasks').value.split('\n').map(s => s.trim()).filter(Boolean);
       if (!name || !raw.length) return toast('Name and at least one objective required.', 'bad');
       state.dungeons.inbox.push({
-        id: uid(), name, rank,
+        id: uid(), name, real, rank,
         tasks: raw.map(t => ({id:uid(), text:t, done:false})),
         createdAt: new Date().toISOString()
       });
