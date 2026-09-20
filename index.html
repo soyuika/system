@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ARISE // SYSTEM</title>
+<meta name="theme-color" content="#04060d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04060d;
+  --panel-a:rgba(10,22,45,.92);
+  --panel-b:rgba(5,10,22,.92);
+  --line:rgba(47,143,255,.35);
+  --line-hi:rgba(79,214,255,.85);
+  --cyan:#4fd6ff;
+  --blue:#2f7fff;
+  --text:#cfe6ff;
+  --dim:#6f8cb5;
+  --danger:#ff3d6e;
+  --gold:#ffcf5c;
+  --green:#38ffb0;
+  --purple:#a06bff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Chakra Petch',system-ui,-apple-system,sans-serif;
+  font-weight:400;
+  letter-spacing:.02em;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:60px;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(30,110,255,.20), transparent 65%),
+    radial-gradient(ellipse 60% 40% at 100% 105%, rgba(0,200,255,.09), transparent 60%),
+    linear-gradient(rgba(47,143,255,.05) 1px, transparent 1px) 0 0/100% 44px,
+    linear-gradient(90deg, rgba(47,143,255,.05) 1px, transparent 1px) 0 0/44px 100%;
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(180deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,20,60,.16) 3px, rgba(0,0,0,0) 4px);
+  mix-blend-mode:overlay;opacity:.5;
+  animation:scan 9s linear infinite;
+}
+@keyframes scan{from{background-position-y:0}to{background-position-y:100px}}
+
+.wrap{position:relative;z-index:2;max-width:1080px;margin:0 auto;padding:18px 14px 40px}
+
+/* ---------- panels ---------- */
+.panel{
+  position:relative;
+  background:linear-gradient(160deg,var(--panel-a),var(--panel-b));
+  border:1px solid var(--line);
+  box-shadow:0 0 0 1px rgba(0,0,0,.55) inset, 0 0 26px rgba(20,90,200,.13), 0 6px 30px rgba(0,0,0,.55);
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  padding:16px 18px;
+  margin-bottom:14px;
+}
+.panel::before{
+  content:'';position:absolute;top:0;left:14px;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--line-hi),transparent);opacity:.65;
+}
+.panel-title{
+  font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--cyan);
+  margin-bottom:12px;display:flex;align-items:center;gap:10px;
+  text-shadow:0 0 12px rgba(79,214,255,.5);
+}
+.panel-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(79,214,255,.4),transparent)}
+
+/* ---------- HUD ---------- */
+#hud{margin-bottom:14px}
+.hud{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.hud-left{display:flex;flex-direction:column;gap:4px;min-width:0}
+.hud-name{font-size:19px;font-weight:600;letter-spacing:.18em;color:#eaf6ff;text-shadow:0 0 18px rgba(79,214,255,.55)}
+.hud-name small{font-weight:300;color:var(--dim);letter-spacing:.1em;font-size:11px;display:block;margin-top:2px}
+.hud-right{display:flex;align-items:center;gap:16px}
+.lvl-box{text-align:right}
+.lvl-label{display:block;font-size:9px;letter-spacing:.3em;color:var(--dim)}
+.lvl-num{font-family:'Share Tech Mono',monospace;font-size:34px;line-height:1;color:#fff;text-shadow:0 0 22px rgba(79,214,255,.85)}
+.rank-badge{
+  --c:#8fa6c4;
+  width:64px;height:64px;display:flex;align-items:center;justify-content:center;
+  font-family:'Share Tech Mono',monospace;font-size:28px;color:var(--c);
+  border:1px solid var(--c);
+  background:radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--c) 22%, transparent), transparent 70%);
+  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+  text-shadow:0 0 18px var(--c);
+  box-shadow:0 0 26px color-mix(in srgb, var(--c) 40%, transparent);
+  animation:pulse 3.4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tab{
+  font-family:inherit;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  background:rgba(8,18,36,.7);color:var(--dim);border:1px solid rgba(47,143,255,.22);
+  padding:10px 16px;cursor:pointer;transition:.16s;
+  clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+}
+.tab:hover{color:var(--cyan);border-color:rgba(79,214,255,.5)}
+.tab.active{color:#04121f;background:linear-gradient(180deg,#5fd8ff,#2f8fff);border-color:#7fe3ff;font-weight:600;box-shadow:0 0 22px rgba(79,214,255,.5)}
+.tab .badge{display:inline-block;margin-left:6px;background:var(--danger);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px}
+
+/* ---------- buttons ---------- */
+.btn{
+  font-family:inherit;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;
+  background:linear-gradient(180deg, rgba(30,90,180,.35), rgba(10,30,70,.35));
+  border:1px solid rgba(79,214,255,.45);color:var(--cyan);
+  padding:9px 15px;cursor:pointer;transition:.15s;
+  clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+}
+.btn:hover:not(:disabled){background:linear-gradient(180deg, rgba(50,140,255,.55), rgba(20,60,130,.55));box-shadow:0 0 20px rgba(79,214,255,.45);color:#fff}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn.small{font-size:10px;padding:6px 11px;letter-spacing:.12em}
+.btn.danger{border-color:rgba(255,61,110,.5);color:var(--danger)}
+.btn.danger:hover:not(:disabled){background:linear-gradient(180deg, rgba(180,30,60,.55), rgba(80,10,25,.55));box-shadow:0 0 20px rgba(255,61,110,.45);color:#fff}
+.btn.gold{border-color:rgba(255,207,92,.5);color:var(--gold)}
+.btn.gold:hover:not(:disabled){background:linear-gradient(180deg, rgba(180,140,30,.55), rgba(80,60,10,.55));box-shadow:0 0 20px rgba(255,207,92,.45);color:#fff}
+.btn.ghost{border-color:rgba(111,140,181,.35);color:var(--dim);background:rgba(10,18,32,.5)}
+.btn.ghost:hover{color:var(--cyan);border-color:rgba(79,214,255,.5);background:rgba(20,50,100,.5)}
+
+input,textarea,select{
+  font-family:inherit;font-size:13px;color:var(--text);
+  background:rgba(4,10,22,.85);border:1px solid rgba(47,143,255,.3);
+  padding:9px 11px;width:100%;outline:none;transition:.15s;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 16px rgba(79,214,255,.25)}
+textarea{resize:vertical;min-height:64px}
+label.fld{display:block;margin-bottom:10px}
+label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+
+/* ---------- stats ---------- */
+.stat-row{margin-bottom:14px}
+.stat-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;letter-spacing:.14em;margin-bottom:6px}
+.stat-name{color:var(--text);font-weight:500}
+.stat-name i{font-style:normal;color:var(--cyan);margin-right:8px}
+.stat-val{font-family:'Share Tech Mono',monospace;font-size:15px;color:#fff}
+.stat-val small{color:var(--dim);font-size:10px}
+.bar{height:8px;background:rgba(10,25,50,.9);border:1px solid rgba(47,143,255,.25);overflow:hidden;position:relative}
+.bar-fill{height:100%;background:linear-gradient(90deg,#1c5fd6,#4fd6ff);box-shadow:0 0 14px rgba(79,214,255,.7);transition:width .5s cubic-bezier(.2,.8,.3,1)}
+.bar-fill.locked{background:linear-gradient(90deg,#3a4a66,#6f8cb5);box-shadow:none}
+.stat-desc{font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.5}
+
+.assign-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.pts{font-family:'Share Tech Mono',monospace;font-size:26px;color:var(--gold);text-shadow:0 0 20px rgba(255,207,92,.7)}
+
+/* ---------- quests ---------- */
+.quest{padding:14px 16px;margin-bottom:10px}
+.quest.done{border-color:rgba(56,255,176,.45);box-shadow:0 0 26px rgba(56,255,176,.12)}
+.q-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px}
+.q-stat{font-size:10.5px;letter-spacing:.24em;color:var(--cyan);text-transform:uppercase}
+.q-mult{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--gold);border:1px solid rgba(255,207,92,.35);padding:1px 6px}
+.q-name{font-size:15px;font-weight:600;color:#eaf6ff;margin-bottom:11px;letter-spacing:.04em}
+.q-line{display:flex;align-items:flex-start;gap:11px;padding:8px 0;border-top:1px solid rgba(47,143,255,.13)}
+.q-tag{font-size:9.5px;letter-spacing:.2em;color:var(--dim);min-width:62px;padding-top:3px}
+.q-text{flex:1;font-size:12.5px;color:var(--text);line-height:1.5}
+.q-text.empty{color:var(--dim);font-style:italic}
+.chk{
+  font-family:inherit;font-size:10px;letter-spacing:.14em;padding:6px 11px;cursor:pointer;
+  background:rgba(8,18,36,.8);border:1px solid rgba(47,143,255,.35);color:var(--dim);
+  transition:.15s;min-width:92px;text-transform:uppercase;
+  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+}
+.chk:hover{border-color:var(--cyan);color:var(--cyan)}
+.chk.on{background:linear-gradient(180deg,rgba(56,255,176,.35),rgba(10,80,55,.35));border-color:var(--green);color:#c9fff0;box-shadow:0 0 18px rgba(56,255,176,.35)}
+.q-line.on .q-text{color:var(--green);text-decoration:line-through;text-decoration-color:rgba(56,255,176,.4)}
+
+.daily-bar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.daily-count{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--dim)}
+.daily-count b{color:#fff;font-size:17px}
+.daily-count .ok{color:var(--green)}
+
+/* ---------- misc ---------- */
+.empty{color:var(--dim);font-size:12px;font-style:italic;padding:10px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:620px){.grid2{grid-template-columns:1fr}}
+.item{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:9px 11px;border:1px solid rgba(47,143,255,.18);background:rgba(6,14,28,.6);margin-bottom:6px;
+  font-size:12.5px;
+}
+.item .meta{font-size:10px;color:var(--dim);letter-spacing:.1em}
+.tag{font-family:'Share Tech Mono',monospace;font-size:10px;padding:2px 7px;border:1px solid currentColor}
+.tag.t1{color:var(--green)}.tag.t2{color:var(--gold)}.tag.t3{color:var(--danger)}
+.rank-E{color:#8fa6c4}.rank-D{color:#5fd0ff}.rank-C{color:#4f8dff}
+.rank-B{color:#a06bff}.rank-A{color:#ffb347}.rank-S{color:#ff4d6d}
+
+.warn{border-color:rgba(255,61,110,.5);box-shadow:0 0 30px rgba(255,61,110,.15)}
+.warn .panel-title{color:var(--danger);text-shadow:0 0 12px rgba(255,61,110,.5)}
+.warn .panel-title::after{background:linear-gradient(90deg,rgba(255,61,110,.4),transparent)}
+.big-timer{font-family:'Share Tech Mono',monospace;font-size:30px;color:var(--danger);text-shadow:0 0 22px rgba(255,61,110,.7);letter-spacing:.06em}
+.big-timer.ok{color:var(--cyan);text-shadow:0 0 22px rgba(79,214,255,.7)}
+
+.hexstrip{display:flex;gap:3px;flex-wrap:wrap;margin-top:8px}
+.hex{width:15px;height:15px;background:rgba(20,40,70,.8);border:1px solid rgba(47,143,255,.2)}
+.hex.g{background:linear-gradient(180deg,#38ffb0,#12a878);border-color:#38ffb0;box-shadow:0 0 8px rgba(56,255,176,.6)}
+.hex.y{background:linear-gradient(180deg,#ffcf5c,#b8860b);border-color:#ffcf5c}
+.hex.r{background:linear-gradient(180deg,#ff3d6e,#8a1230);border-color:#ff3d6e}
+.hex.today{outline:1px solid #fff}
+
+/* ---------- overlay / modal ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;
+  background:rgba(2,5,12,.9);backdrop-filter:blur(6px);padding:18px;overflow-y:auto;
+}
+.overlay.hidden{display:none}
+.modal{
+  width:100%;max-width:520px;position:relative;
+  background:linear-gradient(160deg,rgba(10,24,48,.98),rgba(4,9,20,.98));
+  border:1px solid rgba(79,214,255,.5);
+  box-shadow:0 0 60px rgba(30,110,255,.3), 0 0 0 1px rgba(0,0,0,.7) inset;
+  clip-path:polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px);
+  padding:26px;max-height:88vh;overflow-y:auto;
+}
+.modal h2{font-size:15px;letter-spacing:.26em;text-transform:uppercase;color:var(--cyan);margin-bottom:16px;text-shadow:0 0 14px rgba(79,214,255,.5)}
+.oath-title{font-size:26px;letter-spacing:.32em;color:#fff;text-align:center;text-shadow:0 0 34px rgba(79,214,255,.9);margin-bottom:8px}
+.oath-sub{text-align:center;font-size:11px;letter-spacing:.24em;color:var(--cyan);margin-bottom:24px}
+.oath-text{font-size:13px;line-height:2;color:var(--text);margin-bottom:22px;text-align:center}
+.oath-text b{color:var(--cyan)}
+
+/* ---------- toast ---------- */
+#toasts{position:fixed;right:14px;bottom:14px;z-index:10001;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none}
+.toast{
+  background:linear-gradient(160deg,rgba(10,30,60,.97),rgba(4,10,22,.97));
+  border:1px solid rgba(79,214,255,.6);color:var(--cyan);
+  padding:11px 16px;font-size:12px;letter-spacing:.1em;
+  box-shadow:0 0 28px rgba(79,214,255,.35);
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  animation:tin .3s ease-out;max-width:320px;
+}
+.toast.gold{border-color:rgba(255,207,92,.7);color:var(--gold);box-shadow:0 0 28px rgba(255,207,92,.35)}
+.toast.bad{border-color:rgba(255,61,110,.7);color:var(--danger);box-shadow:0 0 28px rgba(255,61,110,.35)}
+@keyframes tin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+
+footer{position:relative;z-index:2;text-align:center;font-size:10px;letter-spacing:.22em;color:#33465f;padding:26px 0 10px;text-transform:uppercase}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:rgba(5,12,24,.9)}
+::-webkit-scrollbar-thumb{background:rgba(47,143,255,.35)}
+::-webkit-scrollbar-thumb:hover{background:rgba(79,214,255,.6)}
+</style>
+</head>
+<body>
+
+<div id="app" class="wrap">
+  <div id="hud"></div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-act="tab" data-tab="status">Status</button>
+    <button class="tab" data-act="tab" data-tab="quests">Quests</button>
+    <button class="tab" data-act="tab" data-tab="dungeons">Dungeons</button>
+    <button class="tab" data-act="tab" data-tab="system">System</button>
+  </nav>
+  <main id="view"></main>
+  <footer>Arise // System v1.0 — speak of this to no one</footer>
+</div>
+
+<div id="modal" class="overlay hidden"></div>
+<div id="toasts"></div>
+<input type="file" id="importFile" accept="application/json" style="display:none">
+
+<script>
+"use strict";
+/* =========================================================
+   CONSTANTS
+   ========================================================= */
+const STORAGE_KEY = 'arise_system_v1';
+
+const STAT_KEYS = ['intellect','stamina','agility','mental','awareness'];
+const STAT_META = {
+  intellect:{label:'INTELLECT', icon:'◈', desc:'Strategy, learning, creativity, problem-solving, pattern recognition, efficiency of thought.'},
+  stamina  :{label:'STAMINA',   icon:'⬢', desc:'Endurance, cardio, deep work, sustained focus, muscle building, perseverance.'},
+  agility  :{label:'AGILITY',   icon:'⚡', desc:'Mobility, reflexes, coordination, speed.'},
+  mental   :{label:'MENTAL',    icon:'◆', desc:'Self-belief, focus on the goal, consistency, working with your nature instead of against it.'},
+  awareness:{label:'AWARENESS', icon:'◎', desc:'Perception, intuition, self-reflection, spotting weaknesses, reading people, values alignment.'}
+};
+
+const RANKS = [
+  {name:'E', min:0,    max:10,       color:'#8fa6c4'},
+  {name:'D', min:11,   max:50,       color:'#5fd0ff'},
+  {name:'C', min:51,   max:200,      color:'#4f8dff'},
+  {name:'B', min:201,  max:500,      color:'#a06bff'},
+  {name:'A', min:501,  max:1000,     color:'#ffb347'},
+  {name:'S', min:1001, max:Infinity, color:'#ff4d6d'}
+];
+const POINTS_PER_LEVEL = 10;
+
+const RANK_VAL = {E:1,D:2,C:3,B:4,A:5,S:6};
+const DUNGEON_DAYS = {E:2,D:2,C:3,B:4,A:4,S:5};
+
+/* =========================================================
+   UTILS
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+function localDateStr(d = new Date()){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function weekStartStr(d = new Date()){
+  const x = new Date(d);
+  const dow = (x.getDay() + 6) % 7; // Monday = 0
+  x.setDate(x.getDate() - dow);
+  return localDateStr(x);
+}
+function fmtDuration(ms){
+  if (ms <= 0) return '00:00:00';
+  const s = Math.floor(ms/1000);
+  const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60), ss = s%60;
+  const p = n => String(n).padStart(2,'0');
+  return d > 0 ? `${d}d ${p(h)}:${p(m)}:${p(ss)}` : `${p(h)}:${p(m)}:${p(ss)}`;
+}
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+/* =========================================================
+   STATE
+   ========================================================= */
+function defaultState(){
+  return {
+    version: 1,
+    createdAt: new Date().toISOString(),
+    playerName: 'HUNTER',
+    oathTaken: false,
+    stats: {intellect:0, stamina:0, agility:0, mental:0, awareness:0},
+    unassigned: 0,
+    systemTokens: 0,
+    quests: STAT_KEYS.map(k => ({id:uid(), stat:k, name:'', floor:'', ceiling:'', mult:1})),
+    today: {date: localDateStr(), floor:{}, ceil:{}, floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null},
+    log: {},
+    weekFails: {},
+    weekStart: weekStartStr(),
+    lastWeeklyPrompt: null,
+    pendingPenalty: null,
+    penalties: [
+      {id:uid(), tier:1, text:'No screens for the first 60 minutes after waking.'},
+      {id:uid(), tier:1, text:'10-minute cold shower, or 20 push-ups + 20 squats.'},
+      {id:uid(), tier:2, text:'45 minutes of focused work on your hardest task — no music, no phone.'},
+      {id:uid(), tier:2, text:'Zero social media / YouTube for the entire day.'},
+      {id:uid(), tier:3, text:'Full digital detox for 24 hours.'},
+      {id:uid(), tier:3, text:'Wake at 05:00 and complete a 5 km run before sunrise.'}
+    ],
+    rewards: [
+      {id:uid(), text:'One episode of the anime you are currently watching.'},
+      {id:uid(), text:'A treat you genuinely enjoy (good coffee, snack, bath, etc.).'}
+    ],
+    titles: [],
+    keys: [],
+    skips: 0,
+    dungeons: {inbox:[], active:null, locked:{}, cleared:[]}
+  };
+}
+
+let state = defaultState();
+let activeTab = 'status';
+
+function save(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch(e){ console.error('save failed', e); }
+}
+
+function migrate(raw){
+  const d = defaultState();
+  const s = Object.assign({}, d, raw || {});
+  s.stats = Object.assign({}, d.stats, (raw && raw.stats) || {});
+  s.today = Object.assign({}, d.today, (raw && raw.today) || {});
+  s.dungeons = Object.assign({}, d.dungeons, (raw && raw.dungeons) || {});
+  s.dungeons.locked = (raw && raw.dungeons && raw.dungeons.locked) || {};
+  s.dungeons.cleared = (raw && raw.dungeons && raw.dungeons.cleared) || [];
+  s.dungeons.inbox = (raw && raw.dungeons && raw.dungeons.inbox) || [];
+  s.titles = (raw && raw.titles) || [];
+  s.keys = (raw && raw.keys) || [];
+  s.log = (raw && raw.log) || {};
+  s.weekFails = (raw && raw.weekFails) || {};
+  s.penalties = (raw && raw.penalties) || d.penalties;
+  s.rewards = (raw && raw.rewards) || d.rewards;
+  if (!Array.isArray(s.quests) || s.quests.length !== 5){
+    s.quests = d.quests;
+  }
+  s.quests.forEach(q => { if (typeof q.mult !== 'number') q.mult = 1; });
+  return s;
+}
+
+function load(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return migrate(JSON.parse(raw));
+  } catch(e){ console.error('load failed', e); return null; }
+}
+
+/* =========================================================
+   DERIVED VALUES
+   ========================================================= */
+function getLevel(){
+  return Math.floor(Math.min(...STAT_KEYS.map(k => state.stats[k])) / POINTS_PER_LEVEL);
+}
+function rankForLevel(lv){
+  return RANKS.find(r => lv >= r.min && lv <= r.max) || RANKS[RANKS.length-1];
+}
+function nextRankOf(lv){
+  const idx = RANKS.findIndex(r => lv >= r.min && lv <= r.max);
+  return idx >= 0 && idx < RANKS.length-1 ? RANKS[idx+1] : null;
+}
+function nextLevelBarrier(){
+  return (getLevel() + 1) * POINTS_PER_LEVEL;
+}
+function getSystemLevel(){
+  return 1 + state.systemTokens;
+}
+function lowestStat(){
+  let k = STAT_KEYS[0];
+  STAT_KEYS.forEach(s => { if (state.stats[s] < state.stats[k]) k = s; });
+  return k;
+}
+
+/* =========================================================
+   TITLES
+   ========================================================= */
+function addTitle(name, desc, hours){
+  state.titles = state.titles.filter(t => t.name !== name);
+  state.titles.push({
+    id: uid(), name, desc, custom:false,
+    expiresAt: hours ? new Date(Date.now() + hours*3600*1000).toISOString() : null
+  });
+}
+function pruneTitles(){
+  const now = Date.now();
+  const before = state.titles.length;
+  state.titles = state.titles.filter(t => !t.expiresAt || new Date(t.expiresAt).getTime() > now);
+  return state.titles.length !== before;
+}
+
+/* =========================================================
+   GAME LOGIC — points, rewards, penalties
+   ========================================================= */
+function toast(msg, kind){
+  const d = document.createElement('div');
+  d.className = 'toast' + (kind ? ' ' + kind : '');
+  d.textContent = msg;
+  $('#toasts').appendChild(d);
+  setTimeout(() => { d.style.transition='opacity .4s'; d.style.opacity='0'; setTimeout(()=>d.remove(), 420); }, 3800);
+}
+
+function checkDailyAwards(){
+  const t = state.today;
+  const total = state.quests.length;
+  const allFloor = state.quests.every(q => t.floor[q.id]);
+  const allCeil  = state.quests.every(q => t.ceil[q.id]);
+
+  if (allFloor && !t.floorPointGiven){
+    t.floorPointGiven = true;
+    state.unassigned += 1;
+    toast('+1 STAT POINT — ALL FLOORS CLEARED', 'gold');
+  }
+  if (allCeil && !t.ceilPointGiven){
+    t.ceilPointGiven = true;
+    state.unassigned += 1;
+    toast('+1 STAT POINT — ALL CEILINGS CLEARED', 'gold');
+  }
+}
+
+function rollReward(){
+  let r = Math.random() * 100;
+  if (r < 50){
+    if (state.rewards.length){
+      return {type:'custom', text: pick(state.rewards).text};
+    }
+    r = 50 + Math.random() * 50; // reroll into the non-custom band
+  }
+  if (r < 70) return {type:'key', tier:'ED'};
+  if (r < 85) return {type:'skip'};
+  if (r < 95) return {type:'point_key', tier:'CB'};
+  if (r < 99) return {type:'key', tier:'AS'};
+  return {type:'token'};
+}
+
+function makeKey(tier){
+  const table = {ED:['E','D'], CB:['C','B'], AS:['A','S']};
+  const rank = pick(table[tier]);
+  return {id: uid(), rank};
+}
+
+function claimReward(){
+  const t = state.today;
+  if (t.rewardGiven) return;
+  if (!state.quests.every(q => t.ceil[q.id])) return;
+
+  const res = rollReward();
+  let text = '';
+
+  if (res.type === 'custom'){
+    text = res.text;
+  } else if (res.type === 'key'){
+    const k = makeKey(res.tier);
+    state.keys.push(k);
+    text = `DUNGEON KEY [${k.rank}-RANK] acquired.`;
+  } else if (res.type === 'skip'){
+    state.skips += 1;
+    text = 'PENALTY SKIP — tomorrow\'s penalty will be voided.';
+  } else if (res.type === 'point_key'){
+    const k = makeKey(res.tier);
+    state.keys.push(k);
+    state.unassigned += 1;
+    text = `+1 STAT POINT and DUNGEON KEY [${k.rank}-RANK].`;
+  } else {
+    state.systemTokens += 1;
+    text = 'SYSTEM UPGRADE TOKEN — account level +1.';
+  }
+
+  t.rewardGiven = true;
+  t.rewardText = text;
+  save(); render();
+  openModal(`
+    <h2>Reward Acquired</h2>
+    <div style="font-size:15px;line-height:1.9;color:#eaf6ff;text-align:center;padding:10px 0 20px">${esc(text)}</div>
+    <div class="row" style="justify-content:center"><button class="btn" data-act="close-modal">Acknowledge</button></div>
+  `);
+}
+
+/* =========================================================
+   ROLLOVER / TICK
+   ========================================================= */
+function issuePenalty(failedCount, forDate){
+  const tier = failedCount === 1 ? 1 : (failedCount <= 3 ? 2 : 3);
+
+  if (state.skips > 0){
+    state.skips -= 1;
+    toast('Penalty skipped (consumed skip).', 'gold');
+    return;
+  }
+
+  const pool = state.penalties.filter(p => p.tier === tier);
+  const chosen = pool.length ? pick(pool) : null;
+
+  // Deadline: 12:00 on the day the penalty is issued.
+  let dl = new Date(); dl.setHours(12,0,0,0);
+  if (dl.getTime() < Date.now()) dl = new Date(Date.now() + 6*3600*1000);
+
+  state.pendingPenalty = {
+    date: forDate,
+    tier,
+    penaltyId: chosen ? chosen.id : null,
+    text: chosen ? chosen.text : `Tier ${tier} penalty — you have none defined. Add them in the System tab.`,
+    deadline: dl.toISOString(),
+    done: false
+  };
+  toast(`PENALTY ISSUED — TIER ${tier}`, 'bad');
+}
+
+function applyFraud(){
+  const lv = getLevel();
+  const barrier = lv * POINTS_PER_LEVEL;
+  STAT_KEYS.forEach(k => { state.stats[k] = barrier; });
+  state.unassigned = 0;
+  addTitle('Fraud', 'You did not complete your penalty in time.', 24);
+  state.pendingPenalty = null;
+  toast('FRAUD — all progress within your level annulled. Title: FRAUD (24h)', 'bad');
+}
+
+function rollover(){
+  const nowStr = localDateStr();
+  const prev = state.today;
+  const total = state.quests.length;
+
+  let done = 0;
+  state.quests.forEach(q => { if (prev.floor[q.id]) done++; });
+  const failed = total - done;
+
+  if (prev.date){
+    state.log[prev.date] = {done, failed};
+    // keep log bounded
+    const keys = Object.keys(state.log).sort();
+    while (keys.length > 400) delete state.log[keys.shift()];
+    state.quests.forEach(q => {
+      if (!prev.floor[q.id]) state.weekFails[q.id] = (state.weekFails[q.id] || 0) + 1;
+    });
+  }
+
+  if (prev.date && failed > 0) issuePenalty(failed, prev.date);
+
+  state.today = {
+    date: nowStr, floor:{}, ceil:{},
+    floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null
+  };
+}
+
+function checkDungeonTimeout(){
+  const a = state.dungeons.active;
+  if (!a) return false;
+  if (Date.now() > new Date(a.deadline).getTime()){
+    const lockMs = (7 + Math.random()*175) * 86400000; // 7 days .. ~6 months
+    state.dungeons.locked[a.id] = {
+      until: new Date(Date.now() + lockMs).toISOString(),
+      everFailed: true
+    };
+    state.dungeons.active = null;
+    toast('SYSTEM ERROR: MENTAL BARRIER — dungeon sealed.', 'bad');
+    return true;
+  }
+  return false;
+}
+
+function checkWeeklyWindow(){
+  const now = new Date();
+  if (now.getDay() === 0 && now.getHours() >= 19){
+    const ws = weekStartStr();
+    if (state.lastWeeklyPrompt !== ws){
+      state.lastWeeklyPrompt = ws;
+      save();
+      openWeeklyReview();
+    }
+  }
+}
+
+function tick(){
+  let dirty = false;
+
+  // 1. title expiry
+  if (pruneTitles()) dirty = true;
+
+  // 2. fraud check (before rollover, so the pending penalty belongs to the right day)
+  if (state.pendingPenalty && !state.pendingPenalty.done){
+    if (Date.now() > new Date(state.pendingPenalty.deadline).getTime()){
+      applyFraud();
+      dirty = true;
+    }
+  }
+
+  // 3. dungeon timeout
+  if (checkDungeonTimeout()) dirty = true;
+
+  // 4. day rollover
+  if (state.today.date !== localDateStr()){
+    rollover();
+    dirty = true;
+  }
+
+  // 5. week rollover
+  const ws = weekStartStr();
+  if (state.weekStart !== ws){
+    state.weekStart = ws;
+    state.weekFails = {};
+    dirty = true;
+  }
+
+  if (dirty){ save(); render(); }
+  checkWeeklyWindow();
+}
+
+/* =========================================================
+   WEEKLY REVIEW
+   ========================================================= */
+function weeklySuggestion(fails){
+  if (fails === 0) return {label:'INCREASE +10%', delta:1.1, cls:'gold'};
+  if (fails >= 5)  return {label:'DECREASE −10%', delta:1/1.1, cls:'ghost'};
+  return {label:'HOLD', delta:1, cls:'ghost'};
+}
+
+function openWeeklyReview(){
+  const rows = state.quests.map(q => {
+    const fails = state.weekFails[q.id] || 0;
+    const s = weeklySuggestion(fails);
+    return `
+      <div class="item" style="flex-direction:column;align-items:stretch;gap:8px">
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <div style="font-size:10px;letter-spacing:.2em;color:var(--cyan)">${STAT_META[q.stat].label}</div>
+            <div style="font-size:13px;font-weight:600">${esc(q.name || '— unnamed —')}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="meta">FAILED ${fails}× THIS WEEK</div>
+            <div class="meta" style="color:${s.delta>1?'var(--gold)':s.delta<1?'var(--danger)':'var(--dim)'}">${s.label}</div>
+          </div>
+        </div>
+        <input data-wk-floor="${q.id}" value="${esc(q.floor)}" placeholder="new floor text (optional)">
+        <label class="row" style="font-size:11px;color:var(--dim);gap:6px">
+          <input type="checkbox" data-wk-apply="${q.id}" style="width:auto" checked>
+          apply ${s.delta>1?'+10%':s.delta<1?'−10%':'no'} difficulty change (current ×${q.mult.toFixed(2)})
+        </label>
+      </div>`;
+  }).join('');
+
+  openModal(`
+    <h2>Weekly System Reset</h2>
+    <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:14px">
+      Sunday 19:00–24:00. Review your quests. 0 failures → floor difficulty +10%.
+      1–4 failures → hold. 5+ failures → difficulty −10%. Adjust ceilings freely.
+    </p>
+    ${rows}
+    <div class="row" style="justify-content:flex-end;margin-top:16px">
+      <button class="btn ghost" data-act="close-modal">Later</button>
+      <button class="btn" data-act="apply-weekly">Confirm Reset</button>
+    </div>
+  `);
+}
+
+function applyWeekly(){
+  state.quests.forEach(q => {
+    const inp = document.querySelector(`[data-wk-floor="${q.id}"]`);
+    if (inp && inp.value.trim()) q.floor = inp.value.trim();
+    const chk = document.querySelector(`[data-wk-apply="${q.id}"]`);
+    if (chk && chk.checked){
+      const fails = state.weekFails[q.id] || 0;
+      const s = weeklySuggestion(fails);
+      if (s.delta !== 1){
+        q.mult = clamp(q.mult * s.delta, 0.4, 12);
+      }
+    }
+  });
+  state.weekFails = {};
+  state.lastWeeklyPrompt = weekStartStr();
+  save(); closeModal(); render();
+  toast('WEEKLY RESET COMPLETE');
+}
+
+/* =========================================================
+   DUNGEONS
+   ========================================================= */
+function openDungeon(id){
+  const d = state.dungeons.inbox.find(x => x.id === id);
+  if (!d) return;
+  if (state.dungeons.active) return toast('You are already inside a dungeon.', 'bad');
+
+  const lock = state.dungeons.locked[id];
+  if (lock && Date.now() < new Date(lock.until).getTime()){
+    return toast(`SYSTEM ERROR: MENTAL BARRIER — sealed until ${fmtDate(lock.until)}`, 'bad');
+  }
+
+  let usedKey = null;
+  const needsKey = !(lock && lock.everFailed);
+  if (needsKey){
+    const need = RANK_VAL[d.rank];
+    const idx = state.keys.findIndex(k => RANK_VAL[k.rank] >= need);
+    if (idx === -1) return toast('No suitable key. Clear all ceiling quests for a chance at one.', 'bad');
+    usedKey = state.keys.splice(idx,1)[0];
+  }
+
+  const days = DUNGEON_DAYS[d.rank];
+  state.dungeons.active = {
+    id: d.id,
+    name: d.name,
+    rank: d.rank,
+    tasks: d.tasks.map(t => ({...t, done:false})),
+    startedAt: new Date().toISOString(),
+    deadline: new Date(Date.now() + days*86400000).toISOString()
+  };
+  state.dungeons.inbox = state.dungeons.inbox.filter(x => x.id !== id);
+  delete state.dungeons.locked[id];
+
+  save(); render();
+  toast(`DUNGEON OPENED — ${d.rank}-RANK${usedKey ? ` (key [${usedKey.rank}] consumed)` : ''}`);
+}
+
+function toggleTask(taskId){
+  const a = state.dungeons.active;
+  if (!a) return;
+  const t = a.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  t.done = !t.done;
+
+  if (a.tasks.every(x => x.done)){
+    state.dungeons.cleared.push({
+      id: a.id, name: a.name, rank: a.rank,
+      clearedAt: new Date().toISOString()
+    });
+    state.dungeons.active = null;
+    save(); render();
+    toast('DUNGEON CLEARED. The System registers your growth.', 'gold');
+    return;
+  }
+  save(); render();
+}
+
+function abandonDungeon(){
+  const a = state.dungeons.active;
+  if (!a) return;
+  if (!confirm('Abandon this dungeon? It will be sealed for a random period (1 week – 6 months).')) return;
+  const lockMs = (7 + Math.random()*175) * 86400000;
+  state.dungeons.locked[a.id] = {until: new Date(Date.now()+lockMs).toISOString(), everFailed:true};
+  state.dungeons.active = null;
+  save(); render();
+  toast('SYSTEM ERROR: MENTAL BARRIER — dungeon sealed.', 'bad');
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function render(){
+  renderHUD();
+  renderTabs();
+  const v = $('#view');
+  if (activeTab === 'status')   v.innerHTML = viewStatus();
+  if (activeTab === 'quests')   v.innerHTML = viewQuests();
+  if (activeTab === 'dungeons') v.innerHTML = viewDungeons();
+  if (activeTab === 'system')   v.innerHTML = viewSystem();
+  updateTimers();
+}
+
+function renderTabs(){
+  document.querySelectorAll('.tab').forEach(t => {
+    const on = t.dataset.tab === activeTab;
+    t.classList.toggle('active', on);
+    const old = t.querySelector('.badge');
+    if (old) old.remove();
+    if (t.dataset.tab === 'quests' && state.pendingPenalty && !state.pendingPenalty.done){
+      const b = document.createElement('span'); b.className='badge'; b.textContent='!'; t.appendChild(b);
+    }
+    if (t.dataset.tab === 'dungeons' && state.dungeons.active){
+      const b = document.createElement('span'); b.className='badge'; b.textContent='1'; t.appendChild(b);
+    }
+  });
+}
+
+function renderHUD(){
+  const lv = getLevel();
+  const rk = rankForLevel(lv);
+  $('#hud').innerHTML = `
+    <div class="panel hud">
+      <div class="hud-left">
+        <div class="hud-name">${esc(state.playerName)}
+          <small>SYSTEM LEVEL ${getSystemLevel()} · ${new Date().toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})}</small>
+        </div>
+      </div>
+      <div class="hud-right">
+        <div class="lvl-box">
+          <span class="lvl-label">LEVEL</span>
+          <span class="lvl-num">${lv}</span>
+        </div>
+        <div class="rank-badge" style="--c:${rk.color}">${rk.name}</div>
+      </div>
+    </div>`;
+}
+
+function viewStatus(){
+  const lv = getLevel();
+  const rk = rankForLevel(lv);
+  const nr = nextRankOf(lv);
+  const barrier = nextLevelBarrier();
+  const low = lowestStat();
+
+  const statRows = STAT_KEYS.map(k => {
+    const val = state.stats[k];
+    const pct = clamp((val / barrier) * 100, 0, 100);
+    const lagging = val < barrier;
+    return `
+      <div class="stat-row">
+        <div class="stat-top">
+          <span class="stat-name"><i>${STAT_META[k].icon}</i>${STAT_META[k].label}</span>
+          <span class="stat-val">${val}<small> / ${barrier}</small></span>
+        </div>
+        <div class="bar"><div class="bar-fill ${lagging?'':''}" style="width:${pct}%"></div></div>
+        <div class="stat-desc">${STAT_META[k].desc}</div>
+      </div>`;
+  }).join('');
+
+  const assignBtns = STAT_KEYS.map(k =>
+    `<button class="btn small" data-act="assign" data-stat="${k}" ${state.unassigned<=0?'disabled':''}>+ ${STAT_META[k].label}</button>`
+  ).join('');
+
+  const titles = state.titles.length
+    ? state.titles.map(t => `
+        <div class="item">
+          <div>
+            <div style="color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};font-weight:600;letter-spacing:.1em">${esc(t.name)}</div>
+            <div class="meta">${esc(t.desc||'')}</div>
+          </div>
+          ${t.expiresAt ? `<div class="meta">expires ${fmtDate(t.expiresAt)}</div>` : `<div class="meta">permanent</div>`}
+        </div>`).join('')
+    : `<div class="empty">No titles yet.</div>`;
+
+  // 30-day activity strip
+  const days = [];
+  for (let i = 29; i >= 0; i--){
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = localDateStr(d);
+    const rec = state.log[key];
+    let cls = '';
+    if (rec){
+      if (rec.failed === 0) cls = 'g';
+      else if (rec.failed <= 2) cls = 'y';
+      else cls = 'r';
+    }
+    if (i === 0) cls += ' today';
+    days.push(`<div class="hex ${cls}" title="${key}${rec?` — ${rec.done}/${state.quests.length} floors`:''}"></div>`);
+  }
+
+  const nextRankLine = nr
+    ? `<div style="font-size:12.5px;line-height:1.9">
+         <div>NEXT RANK: <b style="color:${nr.color}">${nr.name}-RANK</b> at <b>Level ${nr.min}</b></div>
+         <div class="meta" style="color:var(--dim);font-size:11px">
+           Requires <b style="color:#fff">${nr.min * POINTS_PER_LEVEL} points</b> in <u>every</u> stat.
+           Lagging stat: <b style="color:var(--cyan)">${STAT_META[low].label}</b> —
+           <b style="color:#fff">${Math.max(0, nr.min*POINTS_PER_LEVEL - state.stats[low])}</b> to go.
+         </div>
+       </div>`
+    : `<div style="font-size:12.5px">MAXIMUM RANK REACHED. <span style="color:var(--danger)">S-RANK.</span> The System has nothing left to offer you.</div>`;
+
+  return `
+    <div class="panel">
+      <div class="panel-title">Attributes</div>
+      ${statRows}
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Unassigned Points</div>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div class="pts">${state.unassigned}</div>
+        <div class="assign-row">${assignBtns}</div>
+      </div>
+      <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:8px">
+        Points are awarded for clearing all floors (1) and all ceilings (1) in a day.
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Rank Progress</div>
+      ${nextRankLine}
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Titles</div>
+      ${titles}
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Last 30 Days</div>
+      <div class="hexstrip">${days.join('')}</div>
+      <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:9px">
+        <span style="color:var(--green)">■</span> all floors &nbsp;
+        <span style="color:var(--gold)">■</span> partial &nbsp;
+        <span style="color:var(--danger)">■</span> heavy failure &nbsp;
+        <span style="color:#2a3f5f">■</span> no record
+      </div>
+    </div>`;
+}
+
+function viewQuests(){
+  const t = state.today;
+  const total = state.quests.length;
+  const floorDone = state.quests.filter(q => t.floor[q.id]).length;
+  const ceilDone  = state.quests.filter(q => t.ceil[q.id]).length;
+  const allCeil = ceilDone === total;
+
+  const quests = state.quests.map(q => {
+    const f = !!t.floor[q.id], c = !!t.ceil[q.id];
+    return `
+      <div class="quest panel ${f && c ? 'done' : ''}">
+        <div class="q-head">
+          <span class="q-stat">${STAT_META[q.stat].icon} ${STAT_META[q.stat].label}</span>
+          <span class="row" style="gap:6px">
+            <span class="q-mult">×${q.mult.toFixed(2)}</span>
+            <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}">Edit</button>
+          </span>
+        </div>
+        <div class="q-name">${esc(q.name || '— unnamed quest —')}</div>
+        <div class="q-line ${f?'on':''}">
+          <button class="chk ${f?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="floor">${f?'✓ Floor':'Floor'}</button>
+          <div class="q-text ${q.floor?'':'empty'}">${esc(q.floor || 'set a minimum that counts')}</div>
+        </div>
+        <div class="q-line ${c?'on':''}">
+          <button class="chk ${c?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="ceil">${c?'✓ Ceiling':'Ceiling'}</button>
+          <div class="q-text ${q.ceiling?'':'empty'}">${esc(q.ceiling || 'set an ideal outcome to strive for')}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const rewardPanel = `
+    <div class="panel">
+      <div class="panel-title">Daily Reward</div>
+      ${t.rewardGiven
+        ? `<div style="font-size:13px;color:var(--gold);line-height:1.8">◆ ${esc(t.rewardText)}</div>`
+        : `<div class="daily-bar">
+             <div class="daily-count">All ceilings required — <b>${ceilDone}</b>/${total}</div>
+             <button class="btn gold" data-act="claim-reward" ${allCeil?'':'disabled'}>Claim Reward</button>
+           </div>`}
+    </div>`;
+
+  return `
+    <div class="panel">
+      <div class="panel-title">Daily Quests — ${t.date}</div>
+      <div class="daily-bar">
+        <div class="daily-count">
+          FLOOR <b class="${floorDone===total?'ok':''}">${floorDone}</b>/${total}
+          &nbsp;·&nbsp;
+          CEILING <b class="${ceilDone===total?'ok':''}">${ceilDone}</b>/${total}
+        </div>
+        <div class="daily-count">
+          POINTS TODAY: <b>${(t.floorPointGiven?1:0)+(t.ceilPointGiven?1:0)}</b>/2
+        </div>
+      </div>
+    </div>
+
+    ${quests}
+    ${rewardPanel}
+    ${penaltyPanelHTML()}`;
+}
+
+function penaltyPanelHTML(){
+  const p = state.pendingPenalty;
+  if (!p){
+    return `<div class="panel">
+      <div class="panel-title">Penalty</div>
+      <div class="empty">No active penalty. The System is watching.</div>
+    </div>`;
+  }
+  return `
+    <div class="panel warn">
+      <div class="panel-title">⚠ Penalty — Tier ${p.tier}</div>
+      <div style="font-size:14px;line-height:1.7;margin-bottom:12px">${esc(p.text)}</div>
+      <div class="daily-bar">
+        <div>
+          <div class="meta" style="color:var(--dim);font-size:10px;letter-spacing:.2em">DEADLINE</div>
+          <div class="big-timer" data-timer="penalty">--:--:--</div>
+        </div>
+        <button class="btn" data-act="complete-penalty">Mark Complete</button>
+      </div>
+      <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:10px">
+        Failure to complete: all progress within your current level is annulled, and the title
+        <b style="color:var(--danger)">FRAUD</b> is applied for 24 hours.
+      </div>
+    </div>`;
+}
+
+function viewDungeons(){
+  const d = state.dungeons;
+
+  const keys = state.keys.length
+    ? state.keys.map(k => `<span class="tag rank-${k.rank}" style="font-size:12px;padding:3px 9px">KEY [${k.rank}]</span>`).join(' ')
+    : `<span class="empty">No keys. Clear all ceiling quests for a chance at one.</span>`;
+
+  const inbox = d.inbox.length
+    ? d.inbox.map(x => {
+        const lock = d.locked[x.id];
+        const locked = lock && Date.now() < new Date(lock.until).getTime();
+        return `
+          <div class="item">
+            <div style="min-width:0">
+              <div style="font-weight:600">
+                <span class="tag rank-${x.rank}">${x.rank}</span>
+                ${esc(x.name)}
+              </div>
+              <div class="meta">${x.tasks.length} objective${x.tasks.length===1?'':'s'} · ${DUNGEON_DAYS[x.rank]} day limit
+                ${locked ? ` · <span style="color:var(--danger)">SEALED until ${fmtDate(lock.until)}</span>` : ''}
+              </div>
+            </div>
+            <div class="row">
+              <button class="btn small" data-act="open-dungeon" data-id="${x.id}">${locked?'Sealed':'Open'}</button>
+              <button class="btn small danger" data-act="del-dungeon" data-id="${x.id}">✕</button>
+            </div>
+          </div>`;
+      }).join('')
+    : `<div class="empty">Inbox empty. Register a monster to hunt.</div>`;
+
+  let active = '';
+  if (d.active){
+    const a = d.active;
+    const tasks = a.tasks.map(t => `
+      <div class="q-line ${t.done?'on':''}">
+        <button class="chk ${t.done?'on':''}" data-act="toggle-task" data-id="${t.id}">${t.done?'✓ Done':'Do'}</button>
+        <div class="q-text">${esc(t.text)}</div>
+      </div>`).join('');
+    active = `
+      <div class="panel" style="border-color:rgba(255,61,110,.45)">
+        <div class="panel-title" style="color:var(--danger)">⚠ Active Dungeon</div>
+        <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+          <div>
+            <div style="font-size:17px;font-weight:700">
+              <span class="tag rank-${a.rank}" style="font-size:13px">${a.rank}</span>
+              ${esc(a.name)}
+            </div>
+            <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:4px">
+              ${a.tasks.filter(t=>t.done).length}/${a.tasks.length} objectives
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div class="meta" style="color:var(--dim);font-size:10px;letter-spacing:.2em">TIME REMAINING</div>
+            <div class="big-timer" data-timer="dungeon">--:--:--</div>
+          </div>
+        </div>
+        ${tasks}
+        <div class="row" style="justify-content:flex-end;margin-top:12px">
+          <button class="btn small danger" data-act="abandon-dungeon">Abandon</button>
+        </div>
+      </div>`;
+  }
+
+  const cleared = d.cleared.length
+    ? d.cleared.slice().reverse().map(c => `
+        <div class="item">
+          <div><span class="tag rank-${c.rank}">${c.rank}</span> ${esc(c.name)}</div>
+          <div class="meta">cleared ${fmtDate(c.clearedAt)}</div>
+        </div>`).join('')
+    : `<div class="empty">No dungeons cleared yet.</div>`;
+
+  return `
+    <div class="panel">
+      <div class="panel-title">Key Inventory</div>
+      <div class="row">${keys}</div>
+      <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:9px">
+        A key can open any dungeon of equal or lower rank. Keys are destroyed on use.
+      </div>
+    </div>
+
+    ${active}
+
+    <div class="panel">
+      <div class="panel-title">Inbox — Register a Dungeon</div>
+      <div class="grid2">
+        <label class="fld"><span>Monster / Dungeon Name</span><input id="dnName" placeholder="Procrastination"></label>
+        <label class="fld"><span>Rank (subjective confidence)</span>
+          <select id="dnRank">
+            <option value="E">E — very simple, could easily do</option>
+            <option value="D">D — relatively simple, probably could do</option>
+            <option value="C" selected>C — need focus and effort, but could do</option>
+            <option value="B">B — need a lot of focus, ~80% confidence</option>
+            <option value="A">A — 50% confidence, must push hard</option>
+            <option value="S">S — 1% chance, must overcome myself</option>
+          </select>
+        </label>
+      </div>
+      <label class="fld"><span>Objectives (one per line)</span>
+        <textarea id="dnTasks" placeholder="Do a brain dump of every task&#10;Complete every task on the list"></textarea>
+      </label>
+      <button class="btn" data-act="add-dungeon">Register Dungeon</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Dungeon Inbox</div>
+      ${inbox}
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Cleared</div>
+      ${cleared}
+    </div>`;
+}
+
+function viewSystem(){
+  const pen = [1,2,3].map(tier => {
+    const list = state.penalties.filter(p => p.tier === tier);
+    return `
+      <div style="margin-bottom:12px">
+        <div class="meta" style="color:var(--dim);font-size:10px;letter-spacing:.2em;margin-bottom:6px">
+          TIER ${tier} — ${tier===1?'EASIEST':tier===2?'MEDIUM':'HARDEST'} (${list.length})
+        </div>
+        ${list.map(p => `
+          <div class="item">
+            <div style="font-size:12px">${esc(p.text)}</div>
+            <button class="btn small danger" data-act="del-penalty" data-id="${p.id}">✕</button>
+          </div>`).join('') || `<div class="empty" style="padding:4px 0">none</div>`}
+      </div>`;
+  }).join('');
+
+  const penValid = state.penalties.length >= 5 &&
+    [1,2,3].every(t => state.penalties.some(p => p.tier === t));
+
+  const rewards = state.rewards.length
+    ? state.rewards.map(r => `
+        <div class="item">
+          <div style="font-size:12px">${esc(r.text)}</div>
+          <button class="btn small danger" data-act="del-reward" data-id="${r.id}">✕</button>
+        </div>`).join('')
+    : `<div class="empty">No custom rewards. The 50% custom slot will reroll into other rewards.</div>`;
+
+  const titles = state.titles.map(t => `
+    <div class="item">
+      <div>
+        <div style="font-weight:600;color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'}">${esc(t.name)}</div>
+        <div class="meta">${esc(t.desc||'')}</div>
+      </div>
+      <div class="meta">${t.expiresAt ? 'expires '+fmtDate(t.expiresAt) : 'permanent'}</div>
+    </div>`).join('') || `<div class="empty">No titles.</div>`;
+
+  return `
+    <div class="panel">
+      <div class="panel-title">Hunter Profile</div>
+      <label class="fld"><span>Name</span><input id="pname" value="${esc(state.playerName)}"></label>
+      <div class="row">
+        <button class="btn small" data-act="save-name">Save Name</button>
+        <span class="meta" style="color:var(--dim);font-size:11px">System Level ${getSystemLevel()} · ${state.systemTokens} upgrade token(s)</span>
+      </div>
+    </div>
+
+    <div class="panel ${penValid?'':'warn'}">
+      <div class="panel-title">Penalty Pool ${penValid?'':'— INCOMPLETE'}</div>
+      <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:12px">
+        Requirement: at least <b>5 penalties</b> total, and at least <b>1 in each tier</b>.
+        Currently ${state.penalties.length} total.
+      </div>
+      ${pen}
+      <div class="grid2" style="margin-top:6px">
+        <input id="penText" placeholder="New penalty...">
+        <div class="row">
+          <select id="penTier" style="flex:1">
+            <option value="1">Tier 1 — easiest</option>
+            <option value="2" selected>Tier 2 — medium</option>
+            <option value="3">Tier 3 — hardest</option>
+          </select>
+          <button class="btn small" data-act="add-penalty">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Custom Rewards (50% slot)</div>
+      ${rewards}
+      <div class="row" style="margin-top:10px">
+        <input id="rwText" placeholder="New reward..." style="flex:1;min-width:180px">
+        <button class="btn small" data-act="add-reward">Add</button>
+      </div>
+      <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:10px">
+        Drop table: 50% custom · 20% key (E/D) · 15% penalty skip · 10% +1 point &amp; key (C/B) ·
+        4% key (A/S) · 1% system upgrade token.
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Titles</div>
+      ${titles}
+      <div class="grid2" style="margin-top:10px">
+        <input id="ttName" placeholder="Title name">
+        <input id="ttDesc" placeholder="Requirement / description">
+      </div>
+      <button class="btn small" style="margin-top:8px" data-act="add-title">Add Title (award manually)</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Weekly Reset</div>
+      <div class="meta" style="color:var(--dim);font-size:11px;line-height:1.8;margin-bottom:10px">
+        Runs automatically Sunday 19:00–24:00. Window opens in-page; you can also trigger it manually here.
+        <br>Failures this week: ${
+          Object.entries(state.weekFails).map(([id,n]) => {
+            const q = state.quests.find(x => x.id === id);
+            return q ? `${esc(q.name||'unnamed')}: ${n}` : '';
+          }).filter(Boolean).join(' · ') || 'none recorded'
+        }
+      </div>
+      <button class="btn small" data-act="weekly">Open Weekly Review</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Data</div>
+      <div class="row">
+        <button class="btn" data-act="export">Export Data</button>
+        <button class="btn" data-act="import">Import Data</button>
+        <button class="btn danger" data-act="wipe">Erase Everything</button>
+      </div>
+      <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:10px">
+        Everything is stored locally in this browser. Export regularly — clearing your browser data
+        will erase your progress permanently.
+      </div>
+    </div>`;
+}
+
+/* =========================================================
+   TIMERS
+   ========================================================= */
+function updateTimers(){
+  const p = state.pendingPenalty;
+  const pEl = document.querySelector('[data-timer="penalty"]');
+  if (pEl && p && !p.done){
+    const ms = new Date(p.deadline).getTime() - Date.now();
+    pEl.textContent = fmtDuration(ms);
+    pEl.classList.toggle('ok', ms > 3*3600*1000);
+  }
+  const a = state.dungeons.active;
+  const dEl = document.querySelector('[data-timer="dungeon"]');
+  if (dEl && a){
+    const ms = new Date(a.deadline).getTime() - Date.now();
+    dEl.textContent = fmtDuration(ms);
+    dEl.classList.toggle('ok', ms > 24*3600*1000);
+  }
+}
+setInterval(() => { tick(); updateTimers(); }, 1000);
+
+/* =========================================================
+   MODAL
+   ========================================================= */
+function openModal(html){
+  const m = $('#modal');
+  m.innerHTML = `<div class="modal">${html}</div>`;
+  m.classList.remove('hidden');
+}
+function closeModal(){
+  const m = $('#modal');
+  m.classList.add('hidden');
+  m.innerHTML = '';
+}
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const act = el.dataset.act;
+
+  switch(act){
+    case 'tab':
+      activeTab = el.dataset.tab;
+      render();
+      break;
+
+    case 'close-modal':
+      closeModal();
+      break;
+
+    case 'toggle': {
+      const id = el.dataset.id, kind = el.dataset.kind;
+      const map = kind === 'floor' ? state.today.floor : state.today.ceil;
+      map[id] = !map[id];
+      if (kind === 'ceil' && map[id]) state.today.floor[id] = true; // ceiling implies floor
+      checkDailyAwards();
+      save(); render();
+      break;
+    }
+
+    case 'edit-quest': {
+      const q = state.quests.find(x => x.id === el.dataset.id);
+      if (!q) break;
+      openModal(`
+        <h2>Edit Quest — ${STAT_META[q.stat].label}</h2>
+        <label class="fld"><span>Quest name</span><input id="eqName" value="${esc(q.name)}"></label>
+        <label class="fld"><span>Floor — absolute minimum that counts</span><input id="eqFloor" value="${esc(q.floor)}"></label>
+        <label class="fld"><span>Ceiling — ideal outcome</span><input id="eqCeil" value="${esc(q.ceiling)}"></label>
+        <label class="fld"><span>Difficulty multiplier</span><input id="eqMult" type="number" step="0.05" min="0.4" max="12" value="${q.mult}"></label>
+        <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:14px">
+          Quests must reflect effort you control — never outcomes.
+        </div>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn ghost" data-act="close-modal">Cancel</button>
+          <button class="btn" data-act="save-quest" data-id="${q.id}">Save</button>
+        </div>
+      `);
+      break;
+    }
+
+    case 'save-quest': {
+      const q = state.quests.find(x => x.id === el.dataset.id);
+      if (!q) break;
+      q.name = $('#eqName').value.trim();
+      q.floor = $('#eqFloor').value.trim();
+      q.ceiling = $('#eqCeil').value.trim();
+      const m = parseFloat($('#eqMult').value);
+      q.mult = isNaN(m) ? 1 : clamp(m, 0.4, 12);
+      save(); closeModal(); render();
+      break;
+    }
+
+    case 'assign': {
+      if (state.unassigned <= 0) break;
+      state.unassigned -= 1;
+      state.stats[el.dataset.stat] += 1;
+      save(); render();
+      break;
+    }
+
+    case 'claim-reward':
+      claimReward();
+      break;
+
+    case 'complete-penalty':
+      state.pendingPenalty = null;
+      save(); render();
+      toast('Penalty cleared. The System acknowledges.');
+      break;
+
+    case 'add-penalty': {
+      const t = $('#penText').value.trim();
+      const tier = parseInt($('#penTier').value, 10);
+      if (!t) break;
+      state.penalties.push({id:uid(), tier, text:t});
+      save(); render();
+      break;
+    }
+    case 'del-penalty':
+      state.penalties = state.penalties.filter(p => p.id !== el.dataset.id);
+      save(); render();
+      break;
+
+    case 'add-reward': {
+      const t = $('#rwText').value.trim();
+      if (!t) break;
+      state.rewards.push({id:uid(), text:t});
+      save(); render();
+      break;
+    }
+    case 'del-reward':
+      state.rewards = state.rewards.filter(r => r.id !== el.dataset.id);
+      save(); render();
+      break;
+
+    case 'add-title': {
+      const n = $('#ttName').value.trim();
+      const d = $('#ttDesc').value.trim();
+      if (!n) break;
+      state.titles.push({id:uid(), name:n, desc:d, custom:true, expiresAt:null});
+      save(); render();
+      break;
+    }
+
+    case 'save-name':
+      state.playerName = ($('#pname').value.trim() || 'HUNTER');
+      save(); render();
+      break;
+
+    case 'add-dungeon': {
+      const name = $('#dnName').value.trim();
+      const rank = $('#dnRank').value;
+      const raw = $('#dnTasks').value.split('\n').map(s => s.trim()).filter(Boolean);
+      if (!name || !raw.length) return toast('Name and at least one objective required.', 'bad');
+      state.dungeons.inbox.push({
+        id: uid(), name, rank,
+        tasks: raw.map(t => ({id:uid(), text:t, done:false})),
+        createdAt: new Date().toISOString()
+      });
+      save(); render();
+      toast('Dungeon registered in inbox.');
+      break;
+    }
+    case 'del-dungeon':
+      state.dungeons.inbox = state.dungeons.inbox.filter(x => x.id !== el.dataset.id);
+      save(); render();
+      break;
+
+    case 'open-dungeon':
+      openDungeon(el.dataset.id);
+      break;
+
+    case 'toggle-task':
+      toggleTask(el.dataset.id);
+      break;
+
+    case 'abandon-dungeon':
+      abandonDungeon();
+      break;
+
+    case 'weekly':
+      openWeeklyReview();
+      break;
+
+    case 'apply-weekly':
+      applyWeekly();
+      break;
+
+    case 'export': {
+      const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `arise-system-${localDateStr()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Export complete.');
+      break;
+    }
+
+    case 'import':
+      $('#importFile').click();
+      break;
+
+    case 'wipe': {
+      if (!confirm('This erases EVERYTHING permanently. Are you certain?')) break;
+      if (!confirm('Absolutely certain? There is no recovery.')) break;
+      localStorage.removeItem(STORAGE_KEY);
+      location.reload();
+      break;
+    }
+  }
+});
+
+/* file import */
+document.addEventListener('change', (e) => {
+  if (e.target.id !== 'importFile') return;
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      state = migrate(data);
+      save(); render();
+      toast('Data imported successfully.', 'gold');
+    } catch(err){
+      toast('Import failed — invalid file.', 'bad');
+    }
+  };
+  r.readAsText(f);
+  e.target.value = '';
+});
+
+/* =========================================================
+   INIT
+   ========================================================= */
+function showOath(){
+  openModal(`
+    <div class="oath-title">ARISE</div>
+    <div class="oath-sub">SYSTEM INITIALIZATION</div>
+    <div class="oath-text">
+      You have been selected as a <b>Player</b>.<br>
+      Daily quests have been generated.<br>
+      Failure to comply will result in a <b>penalty</b>.<br><br>
+      <span style="color:var(--dim);font-size:12px;line-height:1.9">
+        The first rule of this System is that you do not speak of this System.<br>
+        Once you begin, you do not quit. You may only stop —
+        and remain, indefinitely, at whatever level you stopped.
+      </span>
+    </div>
+    <div class="row" style="justify-content:center">
+      <button class="btn" data-act="accept-oath" id="oathBtn">I Accept</button>
+    </div>
+  `);
+  document.getElementById('oathBtn').addEventListener('click', () => {
+    state.oathTaken = true;
+    save(); closeModal(); render();
+    toast('Welcome, Player.', 'gold');
+  });
+}
+
+function init(){
+  const loaded = load();
+  if (loaded) state = loaded;
+
+  tick();
+  render();
+
+  if (!state.oathTaken) showOath();
+  else tick();
+}
+
+init();
+</script>
+</body>
+</html>
