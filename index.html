@@ -191,6 +191,39 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   font-size:12.5px;
 }
 .item .meta{font-size:10px;color:var(--dim);letter-spacing:.1em}
+
+/* dungeon inbox / cleared entries get extra breathing room */
+.item.dungeon{
+  padding:13px 15px;
+  gap:16px;
+  align-items:flex-start;
+  margin-bottom:8px;
+}
+.item.dungeon .title{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-size:14.5px;
+  font-weight:600;
+  line-height:1.35;
+  margin-bottom:7px;
+}
+.item.dungeon .title .tag{
+  flex-shrink:0;
+  font-size:11.5px;
+  padding:3px 8px;
+}
+.item.dungeon .meta{
+  font-size:12px !important;
+  letter-spacing:.04em !important;
+  line-height:1.55;
+  color:var(--dim);
+}
+.item.dungeon .row{
+  gap:9px;
+  flex-shrink:0;
+  padding-top:2px;
+}
 .tag{font-family:'Share Tech Mono',monospace;font-size:10px;padding:2px 7px;border:1px solid currentColor}
 .tag.t1{color:var(--green)}.tag.t2{color:var(--gold)}.tag.t3{color:var(--danger)}
 .rank-E{color:#8fa6c4}.rank-D{color:#5fd0ff}.rank-C{color:#4f8dff}
@@ -1119,9 +1152,9 @@ function viewDungeons(){
         const lock = d.locked[x.id];
         const locked = lock && Date.now() < new Date(lock.until).getTime();
         return `
-          <div class="item">
+                    <div class="item dungeon">
             <div style="min-width:0">
-              <div style="font-weight:600">
+              <div class="title">
                 <span class="tag rank-${x.rank}">${x.rank}</span>
                 ${esc(x.name)}
               </div>
@@ -1133,7 +1166,7 @@ function viewDungeons(){
               <button class="btn small" data-act="open-dungeon" data-id="${x.id}">${locked?'Sealed':'Open'}</button>
               <button class="btn small danger" data-act="del-dungeon" data-id="${x.id}">✕</button>
             </div>
-          </div>`;
+          </div>
       }).join('')
     : `<div class="empty">Inbox empty. Register a monster to hunt.</div>`;
 
@@ -1172,8 +1205,11 @@ function viewDungeons(){
 
   const cleared = d.cleared.length
     ? d.cleared.slice().reverse().map(c => `
-        <div class="item">
-          <div><span class="tag rank-${c.rank}">${c.rank}</span> ${esc(c.name)}</div>
+                <div class="item dungeon">
+                    <div class="title" style="margin-bottom:0;align-self:center">
+            <span class="tag rank-${c.rank}">${c.rank}</span>
+            ${esc(c.name)}
+          </div>
           <div class="meta">cleared ${fmtDate(c.clearedAt)}</div>
         </div>`).join('')
     : `<div class="empty">No dungeons cleared yet.</div>`;
