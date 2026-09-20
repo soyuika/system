@@ -176,6 +176,27 @@ input,textarea,select{
   background:rgba(4,10,22,.85);border:1px solid rgba(47,143,255,.3);
   padding:9px 11px;width:100%;outline:none;transition:.15s;
 }
+
+/* iOS/Safari: strip native chrome so inputs respect the container width */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="number"]{
+  -webkit-appearance:none;
+  appearance:none;
+  min-width:0;
+  max-width:100%;
+  width:100%;
+  box-sizing:border-box;
+}
+
+/* keep the picker indicator from pushing the box wider on iOS */
+input[type="date"]::-webkit-calendar-picker-indicator{
+  opacity:.7;
+  margin-left:6px;
+  cursor:pointer;
+  filter:invert(1) hue-rotate(180deg);
+}
 input:focus,textarea:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 16px rgba(79,214,255,.25)}
 textarea{resize:vertical;min-height:64px}
 label.fld{display:block;margin-bottom:10px}
