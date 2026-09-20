@@ -23,7 +23,8 @@
   --danger:#ff3d6e;
   --gold:#ffcf5c;
   --green:#38ffb0;
-  --purple:#a06bff;
+    --purple:#a06bff;
+  --mission:#ff5fa8;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100%}
@@ -543,6 +544,136 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   text-transform:uppercase;
   line-height:1.6;
 }
+
+/* ---------- missions ---------- */
+.mission-panel{
+  border-color:rgba(255,95,168,.4);
+  box-shadow:0 0 0 1px rgba(0,0,0,.6) inset, 0 0 26px rgba(255,95,168,.12), 0 0 60px rgba(255,95,168,.07), 0 6px 30px rgba(0,0,0,.55);
+}
+.mission-panel .panel-title{
+  color:var(--mission);
+  text-shadow:0 0 12px rgba(255,95,168,.55);
+  border-color:rgba(255,95,168,.4);
+  background:linear-gradient(90deg, rgba(255,95,168,.09), rgba(255,95,168,.01) 70%);
+  box-shadow:0 0 14px rgba(255,95,168,.1), inset 0 0 24px rgba(255,95,168,.04);
+}
+.mission-panel .panel-title::before{
+  border-color:var(--mission);
+  background:
+    linear-gradient(var(--mission),var(--mission)) 50% 4px / 2px 7px no-repeat,
+    linear-gradient(var(--mission),var(--mission)) 50% 13px / 2px 2px no-repeat,
+    radial-gradient(circle at 50% 50%, rgba(255,95,168,.22), transparent 72%);
+  box-shadow:0 0 10px rgba(255,95,168,.55), inset 0 0 8px rgba(255,95,168,.18);
+  filter:drop-shadow(0 0 4px rgba(255,95,168,.95));
+}
+.mission-name{
+  font-size:22px;font-weight:700;color:#fff;
+  letter-spacing:.05em;margin-bottom:10px;
+  line-height:1.25;
+  text-shadow:0 0 18px rgba(255,95,168,.5);
+}
+.mission-meta{
+  display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+  margin-bottom:12px;padding-bottom:12px;
+  border-bottom:1px solid rgba(255,95,168,.2);
+}
+.mission-bounty{
+  font-family:'Share Tech Mono',monospace;
+  font-size:14px;color:var(--gold);
+  letter-spacing:.1em;
+}
+.mission-dates{
+  font-family:'Share Tech Mono',monospace;
+  font-size:12.5px;color:var(--dim);
+  letter-spacing:.06em;margin-bottom:6px;
+}
+.mission-timeline{
+  font-family:'Share Tech Mono',monospace;
+  font-size:15px;color:var(--text);
+  letter-spacing:.06em;margin-bottom:4px;
+}
+.mission-timeline b{color:var(--mission);font-weight:600}
+.mission-section-label{
+  font-size:11px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--dim);margin:18px 0 8px;
+  padding-bottom:6px;
+  border-bottom:1px dashed rgba(255,95,168,.25);
+}
+.mission-criterion{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:9px 0;font-size:14.5px;color:var(--text);
+  line-height:1.5;transition:color .15s;
+}
+.mission-criterion .crit-chk{
+  font-family:'Share Tech Mono',monospace;font-size:14px;
+  width:26px;height:26px;min-width:26px;padding:0;
+  background:rgba(8,18,36,.8);
+  border:1px solid rgba(255,95,168,.35);
+  color:var(--dim);cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:.15s;flex-shrink:0;margin-top:1px;
+}
+.mission-criterion .crit-chk:hover{border-color:var(--mission);color:var(--mission)}
+.mission-criterion .crit-chk.on{
+  background:linear-gradient(180deg,rgba(56,255,176,.3),rgba(10,80,55,.3));
+  border-color:var(--green);color:#c9fff0;
+  box-shadow:0 0 12px rgba(56,255,176,.3);
+}
+.mission-criterion .crit-text{flex:1}
+.mission-criterion.on .crit-text{
+  color:var(--green);
+  text-decoration:line-through;
+  text-decoration-color:rgba(56,255,176,.4);
+}
+.mission-progress{
+  font-family:'Share Tech Mono',monospace;
+  font-size:12.5px;color:var(--dim);
+  letter-spacing:.08em;margin-top:8px;
+}
+.mission-progress b{color:var(--green);font-weight:600}
+.mission-field-value{
+  font-size:13.5px;color:var(--text);
+  line-height:1.7;white-space:pre-wrap;
+  padding:10px 13px;
+  background:rgba(4,10,22,.6);
+  border-left:2px solid rgba(255,95,168,.4);
+}
+.mission-ready{
+  padding:12px 14px;margin:18px 0 8px;
+  border:1px solid rgba(56,255,176,.5);
+  background:linear-gradient(90deg, rgba(56,255,176,.08), rgba(56,255,176,.01) 80%);
+  color:var(--green);
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px;letter-spacing:.16em;
+  text-align:center;text-transform:uppercase;
+  box-shadow:0 0 20px rgba(56,255,176,.15);
+}
+.mission-log-item{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  padding:11px 13px;margin-bottom:8px;
+  border:1px solid rgba(255,95,168,.18);
+  background:rgba(6,14,28,.55);
+}
+.mission-log-item.completed{border-color:rgba(56,255,176,.35)}
+.mission-log-item.failed{border-color:rgba(255,61,110,.35)}
+.mission-log-name{
+  font-size:14px;font-weight:600;color:#eaf6ff;
+  margin-bottom:5px;line-height:1.4;
+}
+.mission-log-name .tag{margin-right:6px}
+.mission-log-meta{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11.5px;color:var(--dim);
+  letter-spacing:.04em;
+}
+.mission-log-delta{
+  font-family:'Share Tech Mono',monospace;
+  font-size:15px;font-weight:700;
+  flex-shrink:0;white-space:nowrap;
+}
+.mission-log-delta.plus{color:var(--green)}
+.mission-log-delta.minus{color:var(--danger)}
+.mission-log-delta.zero{color:var(--dim)}
 .big-timer{font-family:'Share Tech Mono',monospace;font-size:30px;color:var(--danger);text-shadow:0 0 22px rgba(255,61,110,.7);letter-spacing:.06em}
 .big-timer.ok{color:var(--cyan);text-shadow:0 0 22px rgba(79,214,255,.7)}
 
@@ -664,7 +795,8 @@ footer{font-size:11px}
   <nav class="tabs" id="tabs">
     <button class="tab active" data-act="tab" data-tab="status">Status</button>
     <button class="tab" data-act="tab" data-tab="quests">Quests</button>
-    <button class="tab" data-act="tab" data-tab="dungeons">Dungeons</button>
+        <button class="tab" data-act="tab" data-tab="dungeons">Dungeons</button>
+    <button class="tab" data-act="tab" data-tab="missions">Missions</button>
     <button class="tab" data-act="tab" data-tab="system">System</button>
   </nav>
   <main id="view"></main>
@@ -706,6 +838,8 @@ const DUNGEON_DAYS = {E:2,D:2,C:3,B:4,A:4,S:5};
 const DUNGEON_OBJECTIVE_POINTS = 20;
 const EDIT_TOKEN_CHANCE_IN_KEY_SLOT = 0.5; // inside the 20% "key" band, 50/50 key vs token
 const DEV_PASSWORD = "I'm breaking the rules";
+const MISSION_BOUNTY = {E:5, D:10, C:30, B:70, A:100, S:150};
+const MISSION_MIN_DAYS = 14;
 
 /* =========================================================
    UTILS
@@ -779,7 +913,8 @@ function defaultState(){
         keys: [],
     skips: 0,
     editTokens: 0,
-    dungeons: {inbox:[], active:null, locked:{}, cleared:[]}
+        dungeons: {inbox:[], active:null, locked:{}, cleared:[]},
+    missions: {active:null, history:[]}
   };
 }
 
@@ -819,7 +954,9 @@ function migrate(raw){
   s.titles = (raw && raw.titles) || [];
     s.keys = (raw && raw.keys) || [];
     if (typeof s.editTokens !== 'number') s.editTokens = 0;
-  if (typeof s.devMode !== 'boolean') s.devMode = false;
+    if (typeof s.devMode !== 'boolean') s.devMode = false;
+  s.missions = Object.assign({active: null, history: []}, (raw && raw.missions) || {});
+  if (!Array.isArray(s.missions.history)) s.missions.history = [];
   s.log = (raw && raw.log) || {};
   s.weekFails = (raw && raw.weekFails) || {};
   s.penalties = (raw && raw.penalties) || d.penalties;
@@ -1178,6 +1315,63 @@ function checkDungeonTimeout(){
   return false;
 }
 
+function checkMissionDeadline(){
+  const m = state.missions && state.missions.active;
+  if (!m) return false;
+  if (Date.now() < new Date(m.deadline).getTime()) return false;
+  resolveMissionDeadline();
+  return true;
+}
+
+function resolveMissionDeadline(){
+  const m = state.missions.active;
+  if (!m) return;
+  const done = m.criteria.filter(c => c.done).length;
+  const missing = m.criteria.length - done;
+
+  if (missing === 0){
+    if (state.devMode){
+      state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'completed', delta: 0});
+      toast('DEV MODE — mission complete, no points awarded.');
+    } else {
+      state.unassigned += m.bounty;
+      state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'completed', delta: m.bounty});
+      toast(`MISSION COMPLETE — +${m.bounty} points`, 'gold');
+    }
+  } else {
+    const fine = Math.round(m.bounty * missing / m.criteria.length);
+    if (state.devMode){
+      state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'failed', delta: 0, missing});
+      toast('DEV MODE — mission failed, no fine applied.');
+    } else {
+      applyMissionFine(fine);
+      state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'failed', delta: -fine, missing});
+      toast(`MISSION FAILED — ${missing} criteria missing · −${fine} points`, 'bad');
+    }
+  }
+  state.missions.active = null;
+  if (state.missions.history.length > 100) state.missions.history.length = 100;
+}
+
+function applyMissionFine(fine){
+  let remaining = fine;
+  const fromPool = Math.min(state.unassigned, remaining);
+  state.unassigned -= fromPool;
+  remaining -= fromPool;
+  while (remaining > 0){
+    const sorted = [...STAT_KEYS].sort((a,b) => state.stats[b] - state.stats[a]);
+    let deducted = false;
+    for (const k of sorted){
+      if (state.stats[k] > 0 && remaining > 0){
+        state.stats[k] -= 1;
+        remaining -= 1;
+        deducted = true;
+      }
+    }
+    if (!deducted) break;
+  }
+}
+  
 function checkWeeklyWindow(){
   const now = new Date();
   if (now.getDay() === 0 && now.getHours() >= 19){
@@ -1208,8 +1402,11 @@ function tick(){
     }
   }
 
-  // 3. dungeon timeout
+    // 3. dungeon timeout
   if (checkDungeonTimeout()) dirty = true;
+
+  // 3b. mission deadline
+  if (checkMissionDeadline()) dirty = true;
 
   // 4. day rollover
   if (state.today.date !== localDateStr()){
@@ -1401,7 +1598,8 @@ function render(){
   const v = $('#view');
   if (activeTab === 'status')   v.innerHTML = viewStatus();
   if (activeTab === 'quests')   v.innerHTML = viewQuests();
-  if (activeTab === 'dungeons') v.innerHTML = viewDungeons();
+    if (activeTab === 'dungeons') v.innerHTML = viewDungeons();
+  if (activeTab === 'missions') v.innerHTML = viewMissions();
   if (activeTab === 'system')   v.innerHTML = viewSystem();
   updateTimers();
 }
@@ -1415,8 +1613,11 @@ function renderTabs(){
     if (t.dataset.tab === 'quests' && state.pendingPenalty && !state.pendingPenalty.done){
       const b = document.createElement('span'); b.className='badge'; b.textContent='!'; t.appendChild(b);
     }
-    if (t.dataset.tab === 'dungeons' && state.dungeons.active){
+        if (t.dataset.tab === 'dungeons' && state.dungeons.active){
       const b = document.createElement('span'); b.className='badge'; b.textContent='1'; t.appendChild(b);
+    }
+    if (t.dataset.tab === 'missions' && state.missions && state.missions.active){
+      const b = document.createElement('span'); b.className='badge'; b.textContent='◆'; t.appendChild(b);
     }
   });
 }
@@ -2046,6 +2247,166 @@ function viewDungeons(){
     </div>`;
 }
 
+/* =========================================================
+   MISSIONS
+   ========================================================= */
+function viewMissions(){
+  if (!state.missions) state.missions = {active: null, history: []};
+  if (state.missions.active) return viewActiveMission(state.missions.active) + viewMissionHistory();
+  return viewMissionForm() + viewMissionHistory();
+}
+
+function viewActiveMission(m){
+  const done = m.criteria.filter(c => c.done).length;
+  const total = m.criteria.length;
+  const allDone = done === total;
+
+  const now = Date.now();
+  const start = new Date(m.startedAt).getTime();
+  const end = new Date(m.deadline).getTime();
+  const daysElapsed = Math.floor((now - start) / 86400000);
+  const totalDays = Math.max(1, Math.ceil((end - start) / 86400000));
+  const daysRemaining = Math.max(0, Math.ceil((end - now) / 86400000));
+  const overdue = now > end;
+
+  const criteria = m.criteria.map((c, i) => `
+    <div class="mission-criterion ${c.done ? 'on' : ''}">
+      <button class="crit-chk ${c.done ? 'on' : ''}" data-act="toggle-criterion" data-id="${c.id}">${c.done ? '✓' : (i+1)}</button>
+      <span class="crit-text">${esc(c.text)}</span>
+    </div>`).join('');
+
+  return `
+    <div class="panel mission-panel">
+      <div class="panel-title">Active Mission</div>
+
+      <div class="mission-name">${esc(m.name)}</div>
+      <div class="mission-meta">
+        <span class="tag rank-${m.rank}">${m.rank}</span>
+        <span class="mission-bounty">◆ BOUNTY +${m.bounty} PTS</span>
+      </div>
+
+      <div class="mission-dates">
+        Started ${fmtShort(m.startedAt)} · Deadline ${fmtShort(m.deadline)}
+      </div>
+      <div class="mission-timeline">
+        Day <b>${daysElapsed + 1}</b> of ${totalDays} · <b>${daysRemaining}</b> day${daysRemaining === 1 ? '' : 's'} remaining${overdue ? ' · EXPIRED' : ''}
+      </div>
+
+      <div class="mission-section-label">Success Criteria — all three required</div>
+      ${criteria}
+      <div class="mission-progress">PROGRESS: <b>${done}</b> / ${total}${allDone ? ' — ALL CRITERIA MET' : ''}</div>
+
+      ${m.encounter ? `
+        <div class="mission-section-label">Likely to Encounter</div>
+        <div class="mission-field-value">${esc(m.encounter)}</div>` : ''}
+
+      ${m.plan ? `
+        <div class="mission-section-label">Plan to Deal With It</div>
+        <div class="mission-field-value">${esc(m.plan)}</div>` : ''}
+
+      ${allDone ? `<div class="mission-ready">◆ All criteria met — ready to close</div>` : ''}
+
+      <div class="row" style="justify-content:flex-end;margin-top:16px">
+        <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
+        ${allDone ? `<button class="btn gold" data-act="finish-mission">Finish Mission · +${m.bounty} pts</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function viewMissionForm(){
+  const minDate = new Date(Date.now() + MISSION_MIN_DAYS * 86400000);
+  const defaultDate = new Date(Date.now() + 30 * 86400000);
+  const minDateStr = minDate.toISOString().slice(0,10);
+  const defaultDateStr = defaultDate.toISOString().slice(0,10);
+
+  return `
+    <div class="panel mission-panel">
+      <div class="panel-title">New Mission Briefing</div>
+
+      <p style="font-size:12.5px;color:var(--dim);line-height:1.75;margin-bottom:16px">
+        One mission at a time. Be specific — vague missions are missions you fail.
+        All three criteria must be met by the deadline, or a fine is deducted from your points.
+      </p>
+
+      <label class="fld"><span>Mission Name</span>
+        <input id="msName" placeholder="e.g. Ship my portfolio site">
+      </label>
+
+      <label class="fld"><span>Rank — determines bounty and fine</span>
+        <select id="msRank">
+          <option value="E">E — fairly easy (+5 pts)</option>
+          <option value="D">D — somewhat easy (+10 pts)</option>
+          <option value="C" selected>C — medium (+30 pts)</option>
+          <option value="B">B — slightly harder (+70 pts)</option>
+          <option value="A">A — hard (+100 pts)</option>
+          <option value="S">S — almost impossible (+150 pts)</option>
+        </select>
+      </label>
+
+      <label class="fld"><span>Deadline — minimum ${MISSION_MIN_DAYS} days from now</span>
+        <input id="msDeadline" type="date" min="${minDateStr}" value="${defaultDateStr}">
+      </label>
+
+      <div class="mission-section-label">Success Criteria — all three required</div>
+      <label class="fld"><span>1</span>
+        <input id="msCrit1" placeholder="Objective, specific, measurable">
+      </label>
+      <label class="fld"><span>2</span>
+        <input id="msCrit2" placeholder="Objective, specific, measurable">
+      </label>
+      <label class="fld"><span>3</span>
+        <input id="msCrit3" placeholder="Objective, specific, measurable">
+      </label>
+
+      <label class="fld"><span>Likely to Encounter</span>
+        <textarea id="msEncounter" placeholder="What obstacles do you realistically expect?"></textarea>
+      </label>
+
+      <label class="fld"><span>Plan to Deal With It</span>
+        <textarea id="msPlan" placeholder="How will you respond when those obstacles hit?"></textarea>
+      </label>
+
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn gold" data-act="start-mission">Accept Mission</button>
+      </div>
+    </div>`;
+}
+
+function viewMissionHistory(){
+  const log = state.missions.history || [];
+  if (!log.length){
+    return `<div class="panel mission-panel">
+      <div class="panel-title">Mission Log</div>
+      <div class="empty">No past missions yet.</div>
+    </div>`;
+  }
+
+  const rows = log.slice(0, 25).map(h => {
+    const deltaClass = h.delta > 0 ? 'plus' : h.delta < 0 ? 'minus' : 'zero';
+    const deltaSign = h.delta > 0 ? '+' : '';
+    const outcomeLabel = {completed:'COMPLETED', failed:'FAILED', abandoned:'ABANDONED'}[h.outcome] || h.outcome.toUpperCase();
+    const detail = h.outcome === 'failed' ? ` — ${h.missing} criteria missing` : '';
+    return `
+      <div class="mission-log-item ${h.outcome}">
+        <div style="min-width:0">
+          <div class="mission-log-name">
+            <span class="tag rank-${h.rank}">${h.rank}</span>${esc(h.name)}
+          </div>
+          <div class="mission-log-meta">
+            ${outcomeLabel}${detail} · ${fmtShort(h.finishedAt || h.startedAt)}
+          </div>
+        </div>
+        <div class="mission-log-delta ${deltaClass}">${deltaSign}${h.delta} pts</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="panel mission-panel">
+      <div class="panel-title">Mission Log</div>
+      ${rows}
+    </div>`;
+}
+  
 function viewSystem(){
   const pen = [1,2,3].map(tier => {
     const list = state.penalties.filter(p => p.tier === tier);
@@ -2503,6 +2864,108 @@ document.addEventListener('click', (e) => {
       save(); render();
       toast('Developer mode off. Everything counts again.');
       break;
+
+        case 'start-mission': {
+      if (state.missions.active){
+        toast('You already have an active mission.', 'bad');
+        break;
+      }
+      const name = $('#msName').value.trim();
+      const rank = $('#msRank').value;
+      const deadlineStr = $('#msDeadline').value;
+      const c1 = $('#msCrit1').value.trim();
+      const c2 = $('#msCrit2').value.trim();
+      const c3 = $('#msCrit3').value.trim();
+      const encounter = $('#msEncounter').value.trim();
+      const plan = $('#msPlan').value.trim();
+
+      if (!name){ toast('Mission name is required.', 'bad'); break; }
+      if (!c1 || !c2 || !c3){ toast('All 3 success criteria are required.', 'bad'); break; }
+      if (!deadlineStr){ toast('Deadline is required.', 'bad'); break; }
+      if (!MISSION_BOUNTY[rank]){ toast('Invalid rank.', 'bad'); break; }
+
+      const deadline = new Date(deadlineStr + 'T23:59:59');
+      const minDeadline = new Date(Date.now() + MISSION_MIN_DAYS * 86400000);
+      if (deadline.getTime() < minDeadline.getTime()){
+        toast(`Deadline must be at least ${MISSION_MIN_DAYS} days from now.`, 'bad');
+        break;
+      }
+
+      state.missions.active = {
+        id: uid(),
+        name, rank,
+        bounty: MISSION_BOUNTY[rank],
+        criteria: [
+          {id: uid(), text: c1, done: false},
+          {id: uid(), text: c2, done: false},
+          {id: uid(), text: c3, done: false}
+        ],
+        startedAt: new Date().toISOString(),
+        deadline: deadline.toISOString(),
+        encounter, plan
+      };
+      save(); render();
+      toast(`MISSION ACCEPTED — ${rank}-RANK`, 'gold');
+      break;
+    }
+
+    case 'toggle-criterion': {
+      const m = state.missions.active;
+      if (!m) break;
+      const c = m.criteria.find(x => x.id === el.dataset.id);
+      if (!c) break;
+      c.done = !c.done;
+      save(); render();
+      break;
+    }
+
+    case 'abandon-mission': {
+      const m = state.missions.active;
+      if (!m) break;
+      if (!confirm('Abandon this mission? No points lost, no points gained. The slot frees up.')) break;
+      state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'abandoned', delta: 0});
+      state.missions.active = null;
+      save(); render();
+      toast('Mission abandoned.');
+      break;
+    }
+
+    case 'finish-mission': {
+      const m = state.missions.active;
+      if (!m) break;
+      const done = m.criteria.filter(c => c.done).length;
+      if (done !== m.criteria.length){
+        toast('All criteria must be met before finishing.', 'bad');
+        break;
+      }
+      if (state.devMode){
+        state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'completed', delta: 0});
+        state.missions.active = null;
+        save(); render();
+        toast('DEV MODE — mission closed, no points awarded.');
+        break;
+      }
+      state.unassigned += m.bounty;
+      state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'completed', delta: m.bounty});
+      state.missions.active = null;
+      save(); render();
+      openModal(`
+        <h2>Mission Complete</h2>
+        <div style="text-align:center;padding:10px 0 20px">
+          <div style="font-size:16px;font-weight:700;margin-bottom:14px">
+            <span class="tag rank-${m.rank}" style="font-size:13px">${m.rank}</span>
+            ${esc(m.name)}
+          </div>
+          <div style="font-size:11px;color:var(--dim);letter-spacing:.24em;text-transform:uppercase;margin-bottom:8px">Bounty Paid</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:26px;color:var(--gold);text-shadow:0 0 20px rgba(255,207,92,.7)">+${m.bounty} STAT POINTS</div>
+          <div style="font-size:12px;color:var(--dim);margin-top:10px">Assign them in the Status tab.</div>
+        </div>
+        <div class="row" style="justify-content:center">
+          <button class="btn" data-act="close-modal">Acknowledge</button>
+        </div>
+      `);
+      break;
+    }
 
     case 'claim-reward':
       claimReward();
