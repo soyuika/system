@@ -67,37 +67,14 @@ body::after{
 /* ---------- panels ---------- */
 .panel{
   position:relative;
-  background:
-    /* TL corner bracket */
-    linear-gradient(var(--line-hi),var(--line-hi)) 12px 12px / 14px 2px no-repeat,
-    linear-gradient(var(--line-hi),var(--line-hi)) 12px 12px / 2px 14px no-repeat,
-    /* TR corner bracket */
-    linear-gradient(var(--line-hi),var(--line-hi)) calc(100% - 26px) 12px / 14px 2px no-repeat,
-    linear-gradient(var(--line-hi),var(--line-hi)) calc(100% - 14px) 12px / 2px 14px no-repeat,
-    /* BL corner bracket */
-    linear-gradient(var(--line-hi),var(--line-hi)) 12px calc(100% - 14px) / 14px 2px no-repeat,
-    linear-gradient(var(--line-hi),var(--line-hi)) 12px calc(100% - 26px) / 2px 14px no-repeat,
-    /* BR corner bracket */
-    linear-gradient(var(--line-hi),var(--line-hi)) calc(100% - 26px) calc(100% - 14px) / 14px 2px no-repeat,
-    linear-gradient(var(--line-hi),var(--line-hi)) calc(100% - 14px) calc(100% - 26px) / 2px 14px no-repeat,
-    /* base */
-    linear-gradient(160deg,var(--panel-a),var(--panel-b));
+  background:linear-gradient(160deg,var(--panel-a),var(--panel-b));
   border:1px solid var(--line);
   box-shadow:
     0 0 0 1px rgba(0,0,0,.6) inset,
     0 0 26px rgba(79,214,255,.12),
     0 0 60px rgba(30,110,255,.07),
     0 6px 30px rgba(0,0,0,.55);
-    clip-path:polygon(
-    14px 0,
-    calc(100% - 14px) 0,
-    100% 14px,
-    100% calc(100% - 14px),
-    calc(100% - 14px) 100%,
-    14px 100%,
-    0 calc(100% - 14px),
-    0 14px
-  );
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
   padding:16px 18px;
   margin-bottom:14px;
 }
