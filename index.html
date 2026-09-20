@@ -152,6 +152,53 @@ body::after{
 .tab:hover{color:var(--cyan);border-color:rgba(79,214,255,.5)}
 .tab.active{color:#04121f;background:linear-gradient(180deg,#5fd8ff,#2f8fff);border-color:#7fe3ff;font-weight:600;box-shadow:0 0 22px rgba(79,214,255,.5)}
 .tab .badge{display:inline-block;margin-left:6px;background:var(--danger);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px}
+.tab-icon{display:none}
+
+@media(max-width:620px){
+  .tabs{flex-wrap:nowrap;gap:5px;overflow:hidden}
+  .tab{flex:1 1 auto;min-width:0;text-align:center;font-size:11px !important;padding:9px 6px !important;letter-spacing:.12em !important}
+  .tab-full{display:none}
+    .tab-icon{
+    display:flex;align-items:center;justify-content:center;
+    flex:0 0 42px;
+    padding:9px 0 !important;
+    font-size:16px !important;
+    letter-spacing:0 !important;
+  }
+
+  /* unassigned points: stack the number above a 2-column grid of buttons */
+  .unassigned-row{
+    flex-direction:column !important;
+    align-items:stretch !important;
+    justify-content:flex-start !important;
+    gap:14px !important;
+  }
+  .unassigned-row .pts{
+    text-align:center;
+    font-size:38px;
+    line-height:1;
+  }
+  .unassigned-row .assign-row{
+    display:grid !important;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:0 !important;
+    width:100%;
+  }
+  .unassigned-row .assign-row .btn{
+    width:100%;
+    justify-content:center;
+    padding:10px 6px;
+    font-size:10.5px !important;
+    letter-spacing:.06em !important;
+    min-width:0;
+    text-align:center;
+  }
+  /* the odd-one-out button (last, at odd position) spans the full width */
+  .unassigned-row .assign-row .btn:last-child:nth-child(odd){
+    grid-column:1 / -1;
+  }
+}
 
 /* ---------- buttons ---------- */
 .btn{
@@ -826,8 +873,9 @@ footer{font-size:11px}
     <button class="tab active" data-act="tab" data-tab="status">Status</button>
     <button class="tab" data-act="tab" data-tab="quests">Quests</button>
         <button class="tab" data-act="tab" data-tab="dungeons">Dungeons</button>
-    <button class="tab" data-act="tab" data-tab="missions">Missions</button>
-    <button class="tab" data-act="tab" data-tab="system">System</button>
+        <button class="tab" data-act="tab" data-tab="missions">Missions</button>
+    <button class="tab tab-full" data-act="tab" data-tab="system">System</button>
+    <button class="tab tab-icon" data-act="tab" data-tab="system" aria-label="System">⚙</button>
   </nav>
   <main id="view"></main>
   <footer>Arise // System v1.0 — speak of this to no one</footer>
@@ -1783,7 +1831,7 @@ function viewStatus(){
 
         <div class="panel">
       <div class="panel-title">Unassigned Points</div>
-      <div class="row" style="justify-content:space-between;align-items:center">
+            <div class="row unassigned-row" style="justify-content:space-between;align-items:center">
         <div class="pts">${state.unassigned}</div>
         <div class="assign-row">
           ${state.unassigned > 1 ? `<button class="btn small gold" data-act="distribute-points">Distribute</button>` : ''}
