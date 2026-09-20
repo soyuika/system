@@ -450,6 +450,47 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .warn{border-color:rgba(255,61,110,.5);box-shadow:0 0 30px rgba(255,61,110,.15)}
 .warn .panel-title{color:var(--danger);text-shadow:0 0 12px rgba(255,61,110,.5)}
 .warn .panel-title::after{background:linear-gradient(90deg,rgba(255,61,110,.4),transparent)}
+
+/* ---------- developer mode ---------- */
+.dev-banner{
+  text-align:center;
+  padding:9px 14px;
+  margin:-4px 0 14px 0;
+  border:1px dashed rgba(255,207,92,.6);
+  background:linear-gradient(90deg, rgba(255,207,92,.08), rgba(255,207,92,.02) 80%);
+  color:var(--gold);
+  font-family:'Share Tech Mono',monospace;
+  font-size:12.5px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  box-shadow:0 0 20px rgba(255,207,92,.12);
+}
+.dev-panel{border-color:rgba(255,207,92,.4)}
+.dev-panel .panel-title{
+  color:var(--gold);
+  text-shadow:0 0 12px rgba(255,207,92,.55);
+  border-color:rgba(255,207,92,.4);
+  background:linear-gradient(90deg, rgba(255,207,92,.09), rgba(255,207,92,.01) 70%);
+}
+.dev-panel .panel-title::before{
+  border-color:var(--gold);
+  background:
+    linear-gradient(var(--gold),var(--gold)) 50% 4px / 2px 7px no-repeat,
+    linear-gradient(var(--gold),var(--gold)) 50% 13px / 2px 2px no-repeat,
+    radial-gradient(circle at 50% 50%, rgba(255,207,92,.22), transparent 72%);
+  box-shadow:0 0 10px rgba(255,207,92,.55), inset 0 0 8px rgba(255,207,92,.18);
+  filter:drop-shadow(0 0 4px rgba(255,207,92,.95));
+}
+.dev-active{
+  font-family:'Share Tech Mono',monospace;
+  font-size:12.5px;letter-spacing:.14em;
+  padding:11px 14px;margin-bottom:12px;
+  border:1px dashed rgba(255,207,92,.6);
+  background:rgba(255,207,92,.06);
+  color:var(--gold);
+  text-transform:uppercase;
+  line-height:1.6;
+}
 .big-timer{font-family:'Share Tech Mono',monospace;font-size:30px;color:var(--danger);text-shadow:0 0 22px rgba(255,61,110,.7);letter-spacing:.06em}
 .big-timer.ok{color:var(--cyan);text-shadow:0 0 22px rgba(79,214,255,.7)}
 
@@ -612,6 +653,7 @@ const RANK_VAL = {E:1,D:2,C:3,B:4,A:5,S:6};
 const DUNGEON_DAYS = {E:2,D:2,C:3,B:4,A:4,S:5};
 const DUNGEON_OBJECTIVE_POINTS = 20;
 const EDIT_TOKEN_CHANCE_IN_KEY_SLOT = 0.5; // inside the 20% "key" band, 50/50 key vs token
+const DEV_PASSWORD = "I'm breaking the rules";
 
 /* =========================================================
    UTILS
@@ -650,8 +692,9 @@ function defaultState(){
   return {
     version: 1,
     createdAt: new Date().toISOString(),
-    playerName: 'HUNTER',
+        playerName: 'HUNTER',
     oathTaken: false,
+    devMode: false,
     stats: {intellect:0, stamina:0, agility:0, mental:0, awareness:0},
     unassigned: 0,
     systemTokens: 0,
@@ -713,7 +756,8 @@ function migrate(raw){
   }
   s.titles = (raw && raw.titles) || [];
     s.keys = (raw && raw.keys) || [];
-  if (typeof s.editTokens !== 'number') s.editTokens = 0;
+    if (typeof s.editTokens !== 'number') s.editTokens = 0;
+  if (typeof s.devMode !== 'boolean') s.devMode = false;
   s.log = (raw && raw.log) || {};
   s.weekFails = (raw && raw.weekFails) || {};
   s.penalties = (raw && raw.penalties) || d.penalties;
@@ -776,9 +820,10 @@ function isWeeklyWindow(){
   return now.getDay() === 0 && now.getHours() >= 19;
 }
 function canEditNow(){
-  return isWeeklyWindow() || state.editTokens > 0;
+  return state.devMode || isWeeklyWindow() || state.editTokens > 0;
 }
 function consumeEditToken(){
+  if (state.devMode) return true;
   if (isWeeklyWindow()) return true;
   if (state.editTokens <= 0) return false;
   if (!confirm(`Use 1 instant edit token for this change?\n\nYou have ${state.editTokens} remaining.`)) return false;
@@ -820,6 +865,7 @@ function toast(msg, kind){
 }
 
 function checkDailyAwards(){
+  if (state.devMode) return;
   const t = state.today;
   const total = state.quests.length;
   const allFloor = state.quests.every(q => t.floor[q.id]);
@@ -906,6 +952,12 @@ function claimReward(){
   const t = state.today;
   if (t.rewardGiven) return;
   if (!state.quests.every(q => t.ceil[q.id])) return;
+  if (state.devMode){
+    t.rewardGiven = true;
+    t.rewardText = 'DEV MODE — reward not applied.';
+    save(); render();
+    return;
+  }
 
     const lifestyleDone = Object.keys(state.today.lifestyle || {}).filter(id => state.today.lifestyle[id]).length;
   const lifestyleTotal = state.lifestyle.length;
@@ -949,6 +1001,7 @@ function claimReward(){
    ROLLOVER / TICK
    ========================================================= */
 function issuePenalty(failedCount, forDate, lifestyleDone = 0, lifestyleTotal = 0){
+  if (state.devMode) return;
   let tier = failedCount === 1 ? 1 : (failedCount <= 3 ? 2 : 3);
   const ratio = lifestyleTotal > 0 ? lifestyleDone / lifestyleTotal : 0;
 
@@ -1022,9 +1075,11 @@ function rollover(){
     state.log[prev.date] = {done, failed};
     const keys = Object.keys(state.log).sort();
     while (keys.length > 400) delete state.log[keys.shift()];
-    state.quests.forEach(q => {
-      if (!prev.floor[q.id]) state.weekFails[q.id] = (state.weekFails[q.id] || 0) + 1;
-    });
+        if (!state.devMode){
+      state.quests.forEach(q => {
+        if (!prev.floor[q.id]) state.weekFails[q.id] = (state.weekFails[q.id] || 0) + 1;
+      });
+    }
   }
 
   if (prev.date && failed > 0) issuePenalty(failed, prev.date, lifeDone, lifeTotal);
@@ -1216,14 +1271,18 @@ function toggleTask(taskId){
   t.done = !t.done;
 
   // Bank points the first time an objective is ticked. Unticking does not refund.
-  if (t.done && !t.paid){
+    if (t.done && !t.paid){
     t.paid = true;
-    state.unassigned += DUNGEON_OBJECTIVE_POINTS;
-    toast(`+${DUNGEON_OBJECTIVE_POINTS} STAT POINTS — OBJECTIVE COMPLETE`, 'gold');
+    if (state.devMode){
+      toast('DEV MODE — objective logged, no points awarded.');
+    } else {
+      state.unassigned += DUNGEON_OBJECTIVE_POINTS;
+      toast(`+${DUNGEON_OBJECTIVE_POINTS} STAT POINTS — OBJECTIVE COMPLETE`, 'gold');
+    }
   }
 
   if (a.tasks.every(x => x.done)){
-    const earned = a.tasks.filter(x => x.paid).length * DUNGEON_OBJECTIVE_POINTS;
+        const earned = state.devMode ? 0 : a.tasks.filter(x => x.paid).length * DUNGEON_OBJECTIVE_POINTS;
     state.dungeons.cleared.push({
       id: a.id, name: a.name, real: a.real || '', rank: a.rank,
       clearedAt: new Date().toISOString()
@@ -1300,16 +1359,16 @@ function renderHUD(){
                     <small>SYSTEM LEVEL ${getSystemLevel()} · ${new Date().toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})} · <span style="color:var(--cyan)">Day #${getDayNumber()}</span></small>
         </div>
       </div>
-      <div class="hud-right">
+            <div class="hud-right">
         <div class="lvl-box">
           <span class="lvl-label">LEVEL</span>
           <span class="lvl-num">${lv}</span>
         </div>
         <div class="rank-badge" style="--c:${rk.color}">${rk.name}</div>
       </div>
-    </div>`;
+    </div>
+    ${state.devMode ? '<div class="dev-banner">⚠ Developer Mode Active — points &amp; penalties disabled</div>' : ''}`;
 }
-
 function viewStatus(){
   const lv = getLevel();
   const rk = rankForLevel(lv);
@@ -2015,7 +2074,7 @@ function viewSystem(){
       <button class="btn small" data-act="weekly">Open Weekly Review</button>
     </div>
 
-    <div class="panel">
+        <div class="panel">
       <div class="panel-title">Data</div>
       <div class="row">
         <button class="btn" data-act="export">Export Data</button>
@@ -2026,6 +2085,30 @@ function viewSystem(){
         Everything is stored locally in this browser. Export regularly — clearing your browser data
         will erase your progress permanently.
       </div>
+    </div>
+
+    <div class="panel dev-panel">
+      <div class="panel-title">Developer Mode</div>
+      ${state.devMode ? `
+        <div class="dev-active">
+          Developer mode is active.<br>
+          Points and penalties are disabled. Edits bypass all locks.
+        </div>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn danger" data-act="deactivate-dev">Deactivate</button>
+        </div>
+      ` : `
+        <div class="meta" style="color:var(--dim);font-size:11px;line-height:1.8;margin-bottom:12px">
+          Grants unrestricted editing and disables point/penalty awards. Intended for testing and setup only.
+          Enter the passphrase to proceed.
+        </div>
+        <label class="fld"><span>Passphrase</span>
+          <input id="devPass" type="password" placeholder="…" autocomplete="off">
+        </label>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn gold" data-act="activate-dev">Activate Developer Mode</button>
+        </div>
+      `}
     </div>`;
 }
 
@@ -2217,6 +2300,25 @@ document.addEventListener('click', (e) => {
       toast(`Distributed ${total} point${total === 1 ? '' : 's'}`, 'gold');
       break;
     }
+
+        case 'activate-dev': {
+      const input = $('#devPass');
+      if (!input) break;
+      if (input.value.trim().toLowerCase() !== DEV_PASSWORD.toLowerCase()){
+        toast('Incorrect passphrase.', 'bad');
+        break;
+      }
+      state.devMode = true;
+      save(); render();
+      toast('DEVELOPER MODE ACTIVE — points and penalties disabled', 'gold');
+      break;
+    }
+
+    case 'deactivate-dev':
+      state.devMode = false;
+      save(); render();
+      toast('Developer mode off. Everything counts again.');
+      break;
 
     case 'claim-reward':
       claimReward();
