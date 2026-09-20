@@ -356,6 +356,18 @@ footer{font-size:11px}
 [style*="font-size:13px"]{font-size:14.5px !important}
 [style*="font-size:14px"]{font-size:15.5px !important}
 /* ====================================================== */
+
+/* ---------- mobile HUD: keep level + rank on the right ---------- */
+@media(max-width:620px){
+  .hud{flex-wrap:nowrap;gap:12px;align-items:center}
+  .hud-left{flex:1 1 auto;min-width:0}
+  .hud-right{flex:0 0 auto;gap:10px}
+  .hud-name{font-size:17px;letter-spacing:.14em;line-height:1.2}
+  .hud-name small{font-size:10.5px;letter-spacing:.04em;line-height:1.5;white-space:normal}
+  .lvl-label{font-size:9px;letter-spacing:.2em}
+  .lvl-num{font-size:30px}
+  .rank-badge{width:56px;height:56px;font-size:24px}
+}
 </style>
 </head>
 <body>
