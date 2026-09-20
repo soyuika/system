@@ -215,6 +215,61 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 }
 .stat-desc.open{max-height:160px;opacity:1;margin-top:8px}
 
+/* lagging stat highlight */
+.stat-row.lagging .stat-name{color:var(--gold)}
+.stat-row.lagging .stat-val{color:var(--gold)}
+.stat-row.lagging .bar{border-color:rgba(255,207,92,.45)}
+.stat-row.lagging .bar-fill{background:linear-gradient(90deg,#c9880a,#ffcf5c);box-shadow:0 0 14px rgba(255,207,92,.6)}
+.stat-lag-badge{
+  display:inline-block;font-size:9.5px;letter-spacing:.16em;
+  padding:2px 6px;margin-left:10px;
+  color:var(--gold);border:1px solid rgba(255,207,92,.5);
+  text-transform:uppercase;font-weight:500;
+}
+
+/* unassigned-points lag warning */
+.lag-warn{
+  margin-top:11px;padding:10px 13px;
+  border:1px solid rgba(255,207,92,.4);
+  background:linear-gradient(90deg, rgba(255,207,92,.09), rgba(255,207,92,.01) 80%);
+  font-size:12.5px;color:var(--text);line-height:1.65;
+}
+.lag-warn b{color:var(--gold)}
+
+/* distribution modal */
+.dist-row{
+  display:flex;align-items:center;gap:14px;
+  padding:11px 0;
+  border-bottom:1px solid rgba(47,143,255,.12);
+}
+.dist-row:last-of-type{border-bottom:none}
+.dist-name{flex:1;font-size:14.5px;letter-spacing:.1em}
+.dist-name.lag{color:var(--gold)}
+.dist-cur{
+  font-family:'Share Tech Mono',monospace;
+  font-size:13.5px;color:var(--dim);
+  min-width:56px;text-align:right;
+}
+.dist-input{
+  width:84px !important;padding:7px 9px !important;
+  font-family:'Share Tech Mono',monospace;font-size:16px !important;
+  text-align:center;
+}
+.dist-total{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:14px 0 4px;margin-top:4px;
+  border-top:1px solid rgba(79,214,255,.25);
+}
+.dist-total .label{
+  font-size:11px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;
+}
+.dist-total .val{
+  font-family:'Share Tech Mono',monospace;
+  font-size:21px;color:var(--gold);
+  text-shadow:0 0 14px rgba(255,207,92,.5);
+}
+.dist-total .val.over{color:var(--danger);text-shadow:0 0 14px rgba(255,61,110,.5)}
+
 .assign-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
 .pts{font-family:'Share Tech Mono',monospace;font-size:26px;color:var(--gold);text-shadow:0 0 20px rgba(255,207,92,.7)}
 
@@ -759,13 +814,13 @@ function checkDailyAwards(){
 
   if (allFloor && !t.floorPointGiven){
     t.floorPointGiven = true;
-    state.unassigned += 5;
-    toast('+5 STAT POINTS — ALL FLOORS CLEARED', 'gold');
+    STAT_KEYS.forEach(k => { state.stats[k] += 1; });
+    toast('+1 TO EVERY STAT — ALL FLOORS CLEARED', 'gold');
   }
   if (allCeil && !t.ceilPointGiven){
     t.ceilPointGiven = true;
-    state.unassigned += 5;
-    toast('+5 STAT POINTS — ALL CEILINGS CLEARED', 'gold');
+    STAT_KEYS.forEach(k => { state.stats[k] += 1; });
+    toast('+1 TO EVERY STAT — ALL CEILINGS CLEARED', 'gold');
   }
 }
 
@@ -1244,14 +1299,20 @@ function viewStatus(){
   const barrier = nextLevelBarrier();
   const low = lowestStat();
 
-    const statRows = STAT_KEYS.map(k => {
+      const allVals = STAT_KEYS.map(k => state.stats[k]);
+  const minVal = Math.min(...allVals);
+  const maxVal = Math.max(...allVals);
+  const anyLags = minVal < maxVal;
+
+  const statRows = STAT_KEYS.map(k => {
     const val = state.stats[k];
     const pct = clamp((val / barrier) * 100, 0, 100);
     const isOpen = expandedStats.has(k);
+    const isLagging = anyLags && val === minVal;
     return `
-      <div class="stat-row">
+      <div class="stat-row ${isLagging ? 'lagging' : ''}">
         <div class="stat-top ${isOpen ? 'open' : ''}" data-act="toggle-stat" data-stat="${k}">
-          <span class="stat-name"><span class="stat-chevron"></span>${STAT_META[k].label}</span>
+          <span class="stat-name"><span class="stat-chevron"></span>${STAT_META[k].label}${isLagging ? '<span class="stat-lag-badge">▼ lagging</span>' : ''}</span>
           <span class="stat-val">${val}<small> / ${barrier}</small></span>
         </div>
         <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
@@ -1307,15 +1368,24 @@ function viewStatus(){
       ${statRows}
     </div>
 
-    <div class="panel">
+        <div class="panel">
       <div class="panel-title">Unassigned Points</div>
       <div class="row" style="justify-content:space-between;align-items:center">
         <div class="pts">${state.unassigned}</div>
-        <div class="assign-row">${assignBtns}</div>
+        <div class="assign-row">
+          ${state.unassigned > 1 ? `<button class="btn small gold" data-act="distribute-points">Distribute</button>` : ''}
+          ${assignBtns}
+        </div>
       </div>
       <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:8px">
-        Points are awarded for clearing all floors (1) and all ceilings (1) in a day.
+        Daily quests grant <b style="color:#fff">+1 to every stat</b> when all floors and/or all ceilings are cleared — all-or-nothing.
+        This pool holds points from dungeons, rewards, and rare drops.
       </div>
+      ${(state.unassigned > 0 && anyLags) ? `
+        <div class="lag-warn">
+          <b>▼ ${STAT_META[low].label} is lagging</b> — your level is gated by your lowest stat.
+          It needs <b>${barrier - state.stats[low]}</b> more point${barrier - state.stats[low] === 1 ? '' : 's'} to reach the next barrier.
+        </div>` : ''}
     </div>
 
     <div class="panel">
@@ -1410,6 +1480,61 @@ function viewQuests(){
     ${penaltyPanelHTML()}`;
 }
 
+  function openDistributeModal(){
+  const pool = state.unassigned;
+  const barrier = nextLevelBarrier();
+  const allVals = STAT_KEYS.map(k => state.stats[k]);
+  const minVal = Math.min(...allVals);
+  const maxVal = Math.max(...allVals);
+  const anyLags = minVal < maxVal;
+
+  const rows = STAT_KEYS.map(k => {
+    const val = state.stats[k];
+    const isLagging = anyLags && val === minVal;
+    return `
+      <div class="dist-row">
+        <div class="dist-name ${isLagging ? 'lag' : ''}">${STAT_META[k].label}${isLagging ? ' ▼' : ''}</div>
+        <div class="dist-cur">${val} / ${barrier}</div>
+        <input class="dist-input" type="number" inputmode="numeric" min="0" max="${pool}" value="0" data-dist="${k}">
+      </div>`;
+  }).join('');
+
+  openModal(`
+    <h2>Distribute Points</h2>
+    <p style="font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:12px">
+      You have <b style="color:var(--gold);font-size:14px">${pool}</b> unassigned point${pool === 1 ? '' : 's'}.
+      Enter amounts per stat and confirm. Any amount not allocated stays in the pool.
+    </p>
+    ${rows}
+    <div class="dist-total">
+      <span class="label">Allocated</span>
+      <span class="val" id="distTotal">0 / ${pool}</span>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn ghost" data-act="close-modal">Cancel</button>
+      <button class="btn gold" id="distConfirm" data-act="apply-distribution" disabled>Confirm</button>
+    </div>
+  `);
+
+  const inputs = document.querySelectorAll('[data-dist]');
+  const totalEl = document.getElementById('distTotal');
+  const confirmBtn = document.getElementById('distConfirm');
+
+  function updateTotal(){
+    let sum = 0;
+    inputs.forEach(i => {
+      const v = Math.max(0, parseInt(i.value, 10) || 0);
+      sum += v;
+    });
+    const over = sum > pool;
+    totalEl.textContent = `${sum} / ${pool}`;
+    totalEl.classList.toggle('over', over);
+    confirmBtn.disabled = (sum === 0 || over);
+  }
+  inputs.forEach(i => i.addEventListener('input', updateTotal));
+  updateTotal();
+}
+  
   function lifestylePanelHTML(){
   if (!state.lifestyle.length){
     return `<div class="panel life-panel">
@@ -2018,11 +2143,39 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'assign': {
+        case 'assign': {
       if (state.unassigned <= 0) break;
       state.unassigned -= 1;
       state.stats[el.dataset.stat] += 1;
       save(); render();
+      break;
+    }
+
+    case 'distribute-points':
+      openDistributeModal();
+      break;
+
+    case 'apply-distribution': {
+      const inputs = document.querySelectorAll('[data-dist]');
+      let total = 0;
+      const alloc = {};
+      inputs.forEach(i => {
+        const v = Math.max(0, parseInt(i.value, 10) || 0);
+        if (v > 0) alloc[i.dataset.dist] = v;
+        total += v;
+      });
+      if (total === 0){
+        toast('Allocate at least 1 point.', 'bad');
+        break;
+      }
+      if (total > state.unassigned){
+        toast('Allocation exceeds your pool.', 'bad');
+        break;
+      }
+      Object.entries(alloc).forEach(([k, v]) => { state.stats[k] += v; });
+      state.unassigned -= total;
+      save(); closeModal(); render();
+      toast(`Distributed ${total} point${total === 1 ? '' : 's'}`, 'gold');
       break;
     }
 
