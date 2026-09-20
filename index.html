@@ -247,6 +247,56 @@ footer{position:relative;z-index:2;text-align:center;font-size:10px;letter-spaci
 ::-webkit-scrollbar-track{background:rgba(5,12,24,.9)}
 ::-webkit-scrollbar-thumb{background:rgba(47,143,255,.35)}
 ::-webkit-scrollbar-thumb:hover{background:rgba(79,214,255,.6)}
+
+/* ================= READABILITY SCALE ================= */
+body{font-size:16px}
+.panel-title{font-size:12.5px;letter-spacing:.24em}
+.tab{font-size:12.5px}
+.tab .badge{font-size:10px}
+.btn{font-size:12.5px}
+.btn.small{font-size:11.5px}
+label.fld span{font-size:11.5px}
+input,textarea,select{font-size:15px}
+.hud-name{font-size:21px}
+.hud-name small{font-size:12.5px}
+.lvl-label{font-size:10.5px}
+.lvl-num{font-size:38px}
+.rank-badge{font-size:32px;width:72px;height:72px}
+.stat-top{font-size:14px}
+.stat-val{font-size:18px}
+.stat-val small{font-size:12.5px}
+.stat-desc{font-size:13px !important;line-height:1.6}
+.bar{height:9px}
+.pts{font-size:30px}
+.q-stat{font-size:12.5px}
+.q-mult{font-size:11.5px}
+.q-name{font-size:16.5px}
+.q-tag{font-size:11.5px}
+.q-text{font-size:14.5px}
+.chk{font-size:11.5px;min-width:100px}
+.daily-count{font-size:15px}
+.daily-count b{font-size:19px}
+.empty{font-size:14px}
+.item{font-size:14.5px}
+.tag{font-size:11.5px}
+.item .meta,.meta{font-size:12.5px !important}
+.big-timer{font-size:34px}
+.modal h2{font-size:16px}
+.oath-sub{font-size:12px}
+.oath-text{font-size:14.5px}
+.toast{font-size:13px}
+footer{font-size:11px}
+
+/* override the inline px sizes used inside the JS templates */
+[style*="font-size:9px"]{font-size:11.5px !important}
+[style*="font-size:10px"]{font-size:12.5px !important}
+[style*="font-size:10.5px"]{font-size:12.5px !important}
+[style*="font-size:11px"]{font-size:13px !important}
+[style*="font-size:12px"]{font-size:13.5px !important}
+[style*="font-size:12.5px"]{font-size:14.5px !important}
+[style*="font-size:13px"]{font-size:14.5px !important}
+[style*="font-size:14px"]{font-size:15.5px !important}
+/* ====================================================== */
 </style>
 </head>
 <body>
@@ -420,6 +470,13 @@ function nextLevelBarrier(){
 }
 function getSystemLevel(){
   return 1 + state.systemTokens;
+}
+function getDayNumber(){
+  const start = new Date(state.createdAt);
+  start.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  return Math.floor((today - start) / 86400000) + 1;
 }
 function lowestStat(){
   let k = STAT_KEYS[0];
@@ -832,7 +889,7 @@ function renderHUD(){
     <div class="panel hud">
       <div class="hud-left">
         <div class="hud-name">${esc(state.playerName)}
-          <small>SYSTEM LEVEL ${getSystemLevel()} · ${new Date().toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})}</small>
+                    <small>SYSTEM LEVEL ${getSystemLevel()} · ${new Date().toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})} · <span style="color:var(--cyan)">Day #${getDayNumber()}</span></small>
         </div>
       </div>
       <div class="hud-right">
