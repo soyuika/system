@@ -704,7 +704,7 @@ function defaultState(){
       history: []
     })),
         lifestyle: [],
-    today: {date: localDateStr(), floor:{}, ceil:{}, lifestyle:{}, floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null},
+        today: {date: localDateStr(), floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null},
     log: {},
     weekFails: {},
     weekStart: weekStartStr(),
@@ -743,7 +743,15 @@ function migrate(raw){
   const s = Object.assign({}, d, raw || {});
   s.stats = Object.assign({}, d.stats, (raw && raw.stats) || {});
     s.today = Object.assign({}, d.today, (raw && raw.today) || {});
-  s.today.lifestyle = (raw && raw.today && raw.today.lifestyle) || {};
+    s.today.lifestyle = (raw && raw.today && raw.today.lifestyle) || {};
+  // Ensure per-ceiling tracking exists. On first load after this update, mark
+  // any already-ticked ceilings as paid so they aren't re-awarded retroactively.
+  s.today.ceilPaid = (raw && raw.today && raw.today.ceilPaid) || {};
+  if (s.today.ceil){
+    Object.keys(s.today.ceil).forEach(id => {
+      if (s.today.ceil[id]) s.today.ceilPaid[id] = true;
+    });
+  }
   s.lifestyle = (raw && raw.lifestyle) || [];
     s.dungeons = Object.assign({}, d.dungeons, (raw && raw.dungeons) || {});
   s.dungeons.locked = (raw && raw.dungeons && raw.dungeons.locked) || {};
@@ -867,19 +875,24 @@ function toast(msg, kind){
 function checkDailyAwards(){
   if (state.devMode) return;
   const t = state.today;
+  if (!t.ceilPaid) t.ceilPaid = {};
+
+  // Each ceiling gives +1 to its own stat, immediately, once.
+  state.quests.forEach(q => {
+    if (t.ceil[q.id] && !t.ceilPaid[q.id]){
+      t.ceilPaid[q.id] = true;
+      state.stats[q.stat] += 1;
+      toast(`+1 ${STAT_META[q.stat].label} — CEILING CLEARED`, 'gold');
+    }
+  });
+
+  // Floors stay all-or-nothing: +1 to every stat only when all five are done.
   const total = state.quests.length;
   const allFloor = state.quests.every(q => t.floor[q.id]);
-  const allCeil  = state.quests.every(q => t.ceil[q.id]);
-
   if (allFloor && !t.floorPointGiven){
     t.floorPointGiven = true;
     STAT_KEYS.forEach(k => { state.stats[k] += 1; });
     toast('+1 TO EVERY STAT — ALL FLOORS CLEARED', 'gold');
-  }
-  if (allCeil && !t.ceilPointGiven){
-    t.ceilPointGiven = true;
-    STAT_KEYS.forEach(k => { state.stats[k] += 1; });
-    toast('+1 TO EVERY STAT — ALL CEILINGS CLEARED', 'gold');
   }
 }
 
@@ -1084,8 +1097,8 @@ function rollover(){
 
   if (prev.date && failed > 0) issuePenalty(failed, prev.date, lifeDone, lifeTotal);
 
-  state.today = {
-    date: nowStr, floor:{}, ceil:{}, lifestyle:{},
+    state.today = {
+    date: nowStr, floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{},
     floorPointGiven:false, ceilPointGiven:false, rewardGiven:false, rewardText:null
   };
 }
@@ -1454,8 +1467,9 @@ function viewStatus(){
           ${assignBtns}
         </div>
       </div>
-      <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:8px">
-        Daily quests grant <b style="color:#fff">+1 to every stat</b> when all floors and/or all ceilings are cleared — all-or-nothing.
+            <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:8px">
+        Each ceiling grants <b style="color:#fff">+1 to its own stat</b> the moment you tick it.
+        Clearing all five floors grants <b style="color:#fff">+1 to every stat</b>.
         This pool holds points from dungeons, rewards, and rare drops.
       </div>
       ${(state.unassigned > 0 && anyLags) ? `
@@ -1545,8 +1559,8 @@ function viewQuests(){
           &nbsp;·&nbsp;
           CEILING <b class="${ceilDone===total?'ok':''}">${ceilDone}</b>/${total}
         </div>
-        <div class="daily-count">
-          POINTS TODAY: <b>${(t.floorPointGiven?1:0)+(t.ceilPointGiven?1:0)}</b>/2
+                <div class="daily-count">
+          STAT POINTS TODAY: <b>${((t.floorPointGiven ? 5 : 0) + Object.values(t.ceilPaid || {}).filter(Boolean).length)}</b>
         </div>
       </div>
     </div>
