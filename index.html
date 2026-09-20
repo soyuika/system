@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#04060d">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#04060d;
@@ -56,12 +56,19 @@ body::before{
     linear-gradient(90deg, rgba(47,143,255,.05) 1px, transparent 1px) 0 0/44px 100%;
 }
 body::after{
-  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
-  background:repeating-linear-gradient(180deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,20,60,.16) 3px, rgba(0,0,0,0) 4px);
-  mix-blend-mode:overlay;opacity:.5;
+  content:'';position:fixed;left:0;right:0;top:-100px;bottom:-100px;
+  pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(180deg,
+    rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,20,60,.16) 3px, rgba(0,0,0,0) 4px);
+  opacity:.5;
+  will-change:transform;
   animation:scan 9s linear infinite;
 }
-@keyframes scan{from{background-position-y:0}to{background-position-y:100px}}
+@keyframes scan{ from{transform:translateY(0)} to{transform:translateY(100px)} }
+
+@media (max-width:900px), (prefers-reduced-motion:reduce){
+  body::after{ display:none }
+}
 
 .wrap{position:relative;z-index:2;max-width:1080px;margin:0 auto;padding:18px 14px 40px}
 
@@ -70,11 +77,7 @@ body::after{
   position:relative;
   background:linear-gradient(160deg,var(--panel-a),var(--panel-b));
   border:1px solid var(--line);
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.6) inset,
-    0 0 26px rgba(79,214,255,.12),
-    0 0 60px rgba(30,110,255,.07),
-    0 6px 30px rgba(0,0,0,.55);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.6) inset;
   clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
   padding:16px 18px;
   margin-bottom:14px;
@@ -123,7 +126,7 @@ body::after{
 .hud{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
 .hud-left{display:flex;flex-direction:column;gap:4px;min-width:0}
 .hud-name{font-size:19px;font-weight:600;letter-spacing:.18em;color:#eaf6ff;text-shadow:0 0 18px rgba(79,214,255,.55)}
-.hud-name small{font-weight:300;color:var(--dim);letter-spacing:.1em;font-size:11px;display:block;margin-top:2px}
+.hud-name small{font-weight:400;color:var(--dim);letter-spacing:.1em;font-size:11px;display:block;margin-top:2px}
 .hud-right{display:flex;align-items:center;gap:16px}
 .lvl-box{text-align:right}
 .lvl-label{display:block;font-size:9px;letter-spacing:.3em;color:var(--dim)}
@@ -578,7 +581,7 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .rank-E{color:#8fa6c4}.rank-D{color:#5fd0ff}.rank-C{color:#4f8dff}
 .rank-B{color:#a06bff}.rank-A{color:#ffb347}.rank-S{color:#ff4d6d}
 
-.warn{border-color:rgba(255,61,110,.5);box-shadow:0 0 30px rgba(255,61,110,.15)}
+.warn{border-color:rgba(255,61,110,.5)}
 .warn .panel-title{color:var(--danger);text-shadow:0 0 12px rgba(255,61,110,.5)}
 
 /* ---------- developer mode ---------- */
@@ -625,7 +628,7 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 /* ---------- missions ---------- */
 .mission-panel{
   border-color:rgba(255,95,168,.4);
-  box-shadow:0 0 0 1px rgba(0,0,0,.6) inset, 0 0 26px rgba(255,95,168,.12), 0 0 60px rgba(255,95,168,.07), 0 6px 30px rgba(0,0,0,.55);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.6) inset;
 }
 .mission-panel .panel-title{
   color:var(--mission);
@@ -771,7 +774,7 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   width:100%;max-width:520px;position:relative;
   background:linear-gradient(160deg,rgba(10,24,48,.98),rgba(4,9,20,.98));
   border:1px solid rgba(79,214,255,.5);
-  box-shadow:0 0 60px rgba(30,110,255,.3), 0 0 0 1px rgba(0,0,0,.7) inset;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.7) inset;
   clip-path:polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px);
   padding:26px;max-height:88vh;overflow-y:auto;
 }
@@ -862,6 +865,18 @@ footer{font-size:11px}
   .lvl-label{font-size:9px;letter-spacing:.2em}
   .lvl-num{font-size:30px}
   .rank-badge{width:56px;height:56px;font-size:24px}
+}
+
+/* ---------- mobile performance diet ---------- */
+@media(max-width:900px){
+  /* fixed multi-gradient background repaints during scroll on iOS */
+  body::before{ transform: translateZ(0); }
+
+  .panel-title{ box-shadow:none; text-shadow:0 0 6px rgba(79,214,255,.4); }
+  .rank-badge{ animation:none; }          /* filter:brightness() repaints every frame */
+  .stat-desc{ transition:none; }
+  .tab, .btn, .chk, .life-check, .chk-mini{ transition:none; }
+  .bar-fill{ transition:width .2s ease; }
 }
 </style>
 </head>
@@ -999,10 +1014,24 @@ function defaultState(){
 let state = defaultState();
 let activeTab = 'status';
 const expandedStats = new Set();  // which stat descriptions are expanded this session
+let saveTimer = null, saveDirty = false;
+
 function save(){
+  saveDirty = true;
+  if (saveTimer) return;
+  saveTimer = setTimeout(flushSave, 400);
+}
+
+function flushSave(){
+  clearTimeout(saveTimer); saveTimer = null;
+  if (!saveDirty) return;
+  saveDirty = false;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   catch(e){ console.error('save failed', e); }
 }
+
+window.addEventListener('pagehide', flushSave);
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushSave(); });
 
 function migrate(raw){
   const d = defaultState();
@@ -2756,18 +2785,27 @@ function updateTimers(){
   const pEl = document.querySelector('[data-timer="penalty"]');
   if (pEl && p && !p.done){
     const ms = new Date(p.deadline).getTime() - Date.now();
-    pEl.textContent = fmtDuration(ms);
-    pEl.classList.toggle('ok', ms > 3*3600*1000);
+    const txt = fmtDuration(ms);
+    if (pEl.textContent !== txt) pEl.textContent = txt;
+    const ok = ms > 3*3600*1000;
+    if (pEl.classList.contains('ok') !== ok) pEl.classList.toggle('ok', ok);
   }
   const a = state.dungeons.active;
   const dEl = document.querySelector('[data-timer="dungeon"]');
   if (dEl && a){
     const ms = new Date(a.deadline).getTime() - Date.now();
-    dEl.textContent = fmtDuration(ms);
-    dEl.classList.toggle('ok', ms > 24*3600*1000);
+    const txt = fmtDuration(ms);
+    if (dEl.textContent !== txt) dEl.textContent = txt;
+    const ok = ms > 24*3600*1000;
+    if (dEl.classList.contains('ok') !== ok) dEl.classList.toggle('ok', ok);
   }
 }
-setInterval(() => { tick(); updateTimers(); }, 1000);
+setInterval(updateTimers, 1000);
+setInterval(tick, 20000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden){ tick(); updateTimers(); }
+});
+window.addEventListener('pageshow', () => { tick(); updateTimers(); });
 
 /* =========================================================
    MODAL
@@ -2797,11 +2835,13 @@ document.addEventListener('click', (e) => {
       render();
       break;
 
-    case 'toggle-stat': {
+        case 'toggle-stat': {
       const k = el.dataset.stat;
-      if (expandedStats.has(k)) expandedStats.delete(k);
-      else expandedStats.add(k);
-      render();
+      const open = expandedStats.has(k);
+      if (open) expandedStats.delete(k); else expandedStats.add(k);
+      el.classList.toggle('open', !open);
+      const desc = el.parentElement.querySelector('.stat-desc');
+      if (desc) desc.classList.toggle('open', !open);
       break;
     }
     case 'close-modal':
