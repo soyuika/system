@@ -127,6 +127,46 @@ body::after{
 .hud-left{display:flex;flex-direction:column;gap:4px;min-width:0}
 .hud-name{font-size:19px;font-weight:600;letter-spacing:.18em;color:#eaf6ff;text-shadow:0 0 18px rgba(79,214,255,.55)}
 .hud-name small{font-weight:400;color:var(--dim);letter-spacing:.1em;font-size:11px;display:block;margin-top:2px}
+.hud-title{
+  display:inline-block;
+  margin-left:12px;
+  padding:2px 10px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:11.5px;
+  font-weight:500;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--gold);
+  border:1px solid rgba(255,207,92,.5);
+  background:linear-gradient(90deg, rgba(255,207,92,.10), rgba(255,207,92,.02) 70%);
+  text-shadow:0 0 10px rgba(255,207,92,.6);
+  box-shadow:0 0 12px rgba(255,207,92,.15), inset 0 0 12px rgba(255,207,92,.05);
+  vertical-align:middle;
+}
+.hud-title.danger{
+  color:var(--danger);
+  border-color:rgba(255,61,110,.5);
+  background:linear-gradient(90deg, rgba(255,61,110,.10), rgba(255,61,110,.02) 70%);
+  text-shadow:0 0 10px rgba(255,61,110,.6);
+  box-shadow:0 0 12px rgba(255,61,110,.15), inset 0 0 12px rgba(255,61,110,.05);
+}
+.title-equipped-badge{
+  display:inline-block;
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;
+  letter-spacing:.14em;
+  padding:1px 6px;
+  margin-left:8px;
+  color:var(--gold);
+  border:1px solid rgba(255,207,92,.5);
+  background:rgba(255,207,92,.08);
+  text-transform:uppercase;
+  vertical-align:middle;
+}
+.item.title-equipped{
+  border-color:rgba(255,207,92,.4);
+  background:linear-gradient(90deg, rgba(255,207,92,.06), rgba(255,207,92,.01) 70%);
+}
 .hud-right{display:flex;align-items:center;gap:16px}
 .lvl-box{text-align:right}
 .lvl-label{display:block;font-size:9px;letter-spacing:.3em;color:var(--dim)}
@@ -357,6 +397,7 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .q-summary .q-stat{
   font-size:10.5px;letter-spacing:.24em;color:var(--cyan);
   text-transform:uppercase;flex-shrink:0;
+  min-width:100px;
 }
 .q-summary .q-name{
   flex:1;font-size:15px;font-weight:600;color:#eaf6ff;
@@ -896,7 +937,8 @@ footer{font-size:11px}
   .hud-left{flex:1 1 auto;min-width:0}
   .hud-right{flex:0 0 auto;gap:10px}
   .hud-name{font-size:17px;letter-spacing:.14em;line-height:1.2}
-  .hud-name small{font-size:10.5px;letter-spacing:.04em;line-height:1.5;white-space:normal}
+    .hud-name small{font-size:10.5px;letter-spacing:.04em;line-height:1.5;white-space:normal}
+  .hud-title{font-size:9.5px;padding:1px 7px;margin-left:8px;letter-spacing:.14em}
   .lvl-label{font-size:9px;letter-spacing:.2em}
   .lvl-num{font-size:30px}
   .rank-badge{width:56px;height:56px;font-size:24px}
@@ -1037,7 +1079,8 @@ function defaultState(){
       {id:uid(), text:'One episode of the anime you are currently watching.'},
       {id:uid(), text:'A treat you genuinely enjoy (good coffee, snack, bath, etc.).'}
     ],
-    titles: [],
+        titles: [],
+    equippedTitle: null,
         keys: [],
     skips: 0,
     editTokens: 0,
@@ -1097,7 +1140,9 @@ function migrate(raw){
       if (typeof t.paid !== 'boolean') t.paid = !!t.done;
     });
   }
-  s.titles = (raw && raw.titles) || [];
+    s.titles = (raw && raw.titles) || [];
+  if (typeof s.equippedTitle !== 'string') s.equippedTitle = null;
+  if (s.equippedTitle && !s.titles.some(t => t.id === s.equippedTitle)) s.equippedTitle = null;
     s.keys = (raw && raw.keys) || [];
     if (typeof s.editTokens !== 'number') s.editTokens = 0;
     if (typeof s.devMode !== 'boolean') s.devMode = false;
@@ -1201,7 +1246,11 @@ function pruneTitles(){
   const now = Date.now();
   const before = state.titles.length;
   state.titles = state.titles.filter(t => !t.expiresAt || new Date(t.expiresAt).getTime() > now);
-  return state.titles.length !== before;
+  const changed = state.titles.length !== before;
+  if (changed && state.equippedTitle && !state.titles.some(t => t.id === state.equippedTitle)){
+    state.equippedTitle = null;
+  }
+  return changed;
 }
 
 /* =========================================================
@@ -1803,7 +1852,12 @@ function renderHUD(){
   $('#hud').innerHTML = `
     <div class="panel hud">
       <div class="hud-left">
-        <div class="hud-name">${esc(state.playerName)}
+                <div class="hud-name">${esc(state.playerName)}${(() => {
+          const t = state.titles.find(x => x.id === state.equippedTitle);
+          if (!t) return '';
+          const cls = t.name === 'Fraud' ? ' danger' : '';
+          return `<span class="hud-title${cls}">${esc(t.name)}</span>`;
+        })()}
                     <small>SYSTEM LEVEL ${getSystemLevel()} · ${new Date().toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})} · <span style="color:var(--cyan)">Day #${getDayNumber()}</span></small>
         </div>
       </div>
@@ -1849,15 +1903,20 @@ function viewStatus(){
     `<button class="btn small" data-act="assign" data-stat="${k}" ${state.unassigned<=0?'disabled':''}>+ ${STAT_META[k].label}</button>`
   ).join('');
 
-  const titles = state.titles.length
-    ? state.titles.map(t => `
-        <div class="item">
-          <div>
-            <div style="color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};font-weight:600;letter-spacing:.1em">${esc(t.name)}</div>
+    const titles = state.titles.length
+    ? state.titles.map(t => {
+        const isEquipped = state.equippedTitle === t.id;
+        return `
+        <div class="item ${isEquipped ? 'title-equipped' : ''}">
+          <div style="flex:1;min-width:0">
+            <div style="color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};font-weight:600;letter-spacing:.1em">
+              ${esc(t.name)}${isEquipped ? '<span class="title-equipped-badge">EQUIPPED</span>' : ''}
+            </div>
             <div class="meta">${esc(t.desc||'')}</div>
           </div>
           ${t.expiresAt ? `<div class="meta">expires ${fmtDate(t.expiresAt)}</div>` : `<div class="meta">permanent</div>`}
-        </div>`).join('')
+        </div>`;
+      }).join('')
     : `<div class="empty">No titles yet.</div>`;
 
   // 30-day activity strip
@@ -2687,15 +2746,26 @@ function viewSystem(){
         </div>`).join('')
     : `<div class="empty">No lifestyle upgrades defined.</div>`;
 
-  const titles = state.titles.map(t => `
-    <div class="item">
-      <div>
-        <div style="font-weight:600;color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'}">${esc(t.name)}</div>
+    const titles = state.titles.map(t => {
+    const isEquipped = state.equippedTitle === t.id;
+    return `
+    <div class="item ${isEquipped ? 'title-equipped' : ''}">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};display:flex;align-items:center;flex-wrap:wrap">
+          ${esc(t.name)}${isEquipped ? '<span class="title-equipped-badge">EQUIPPED</span>' : ''}
+        </div>
         <div class="meta">${esc(t.desc||'')}</div>
+        <div class="meta">${t.expiresAt ? 'expires '+fmtDate(t.expiresAt) : 'permanent'}</div>
       </div>
-      <div class="meta">${t.expiresAt ? 'expires '+fmtDate(t.expiresAt) : 'permanent'}</div>
-    </div>`).join('') || `<div class="empty">No titles.</div>`;
-
+      <div class="row" style="gap:6px;flex-shrink:0">
+        ${isEquipped
+          ? `<button class="btn small ghost" data-act="unequip-title">Unequip</button>`
+          : `<button class="btn small gold" data-act="equip-title" data-id="${t.id}">Equip</button>`}
+        <button class="btn small ghost" data-act="edit-title" data-id="${t.id}">Edit</button>
+        <button class="btn small danger" data-act="del-title" data-id="${t.id}">✕</button>
+      </div>
+    </div>`;
+  }).join('') || `<div class="empty">No titles.</div>`;
   return `
     <div class="panel">
       <div class="panel-title">Hunter Profile</div>
@@ -3436,12 +3506,71 @@ document.addEventListener('click', (e) => {
       save(); render();
       break;
 
-    case 'add-title': {
+        case 'add-title': {
       const n = $('#ttName').value.trim();
       const d = $('#ttDesc').value.trim();
       if (!n) break;
       state.titles.push({id:uid(), name:n, desc:d, custom:true, expiresAt:null});
       save(); render();
+      break;
+    }
+
+    case 'equip-title': {
+      const t = state.titles.find(x => x.id === el.dataset.id);
+      if (!t) break;
+      state.equippedTitle = t.id;
+      save(); render();
+      toast(`Equipped — ${t.name}`, 'gold');
+      break;
+    }
+
+    case 'unequip-title': {
+      state.equippedTitle = null;
+      save(); render();
+      toast('Title unequipped.');
+      break;
+    }
+
+    case 'edit-title': {
+      const t = state.titles.find(x => x.id === el.dataset.id);
+      if (!t) break;
+      openModal(`
+        <h2>Edit Title</h2>
+        <label class="fld"><span>Title name</span>
+          <input id="titleEditName" value="${esc(t.name)}">
+        </label>
+        <label class="fld"><span>Description</span>
+          <input id="titleEditDesc" value="${esc(t.desc||'')}">
+        </label>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn ghost" data-act="close-modal">Cancel</button>
+          <button class="btn" data-act="save-title-edit" data-id="${t.id}">Save</button>
+        </div>
+      `);
+      break;
+    }
+
+    case 'save-title-edit': {
+      const t = state.titles.find(x => x.id === el.dataset.id);
+      if (!t) break;
+      const n = $('#titleEditName').value.trim();
+      const d = $('#titleEditDesc').value.trim();
+      if (!n){ toast('Title name is required.', 'bad'); break; }
+      t.name = n;
+      t.desc = d;
+      save(); closeModal(); render();
+      toast('Title updated.', 'gold');
+      break;
+    }
+
+    case 'del-title': {
+      const t = state.titles.find(x => x.id === el.dataset.id);
+      if (!t) break;
+      if (!confirm(`Delete the title "${t.name}"?`)) break;
+      state.titles = state.titles.filter(x => x.id !== t.id);
+      if (state.equippedTitle === t.id) state.equippedTitle = null;
+      save(); render();
+      toast('Title deleted.');
       break;
     }
 
