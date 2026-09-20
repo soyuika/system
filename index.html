@@ -147,7 +147,6 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .stat-val small{color:var(--dim);font-size:10px}
 .bar{height:8px;background:rgba(10,25,50,.9);border:1px solid rgba(47,143,255,.25);overflow:hidden;position:relative}
 .bar-fill{height:100%;background:linear-gradient(90deg,#1c5fd6,#4fd6ff);box-shadow:0 0 14px rgba(79,214,255,.7);transition:width .5s cubic-bezier(.2,.8,.3,1)}
-.bar-fill.locked{background:linear-gradient(90deg,#3a4a66,#6f8cb5);box-shadow:none}
 .stat-desc{font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.5}
 
 .assign-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
@@ -745,7 +744,7 @@ function openWeeklyReview(){
           </div>
           <div style="text-align:right">
             <div class="meta">FAILED ${fails}× THIS WEEK</div>
-            <div class="meta" style="color:${s.delta>1?'var(--gold)':s.delta<1?'var(--danger)':'var(--dim)'}">${s.label}</div>
+                        <div class="meta" style="color:${s.delta>0?'var(--gold)':s.delta<0?'var(--danger)':'var(--dim)'}">${s.label}</div>
           </div>
         </div>
         <input data-wk-floor="${q.id}" value="${esc(q.floor)}" placeholder="new floor text (optional)">
@@ -924,7 +923,7 @@ function viewStatus(){
           <span class="stat-name"><i>${STAT_META[k].icon}</i>${STAT_META[k].label}</span>
           <span class="stat-val">${val}<small> / ${barrier}</small></span>
         </div>
-        <div class="bar"><div class="bar-fill ${lagging?'':''}" style="width:${pct}%"></div></div>
+                <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
         <div class="stat-desc">${STAT_META[k].desc}</div>
       </div>`;
   }).join('');
@@ -1402,9 +1401,8 @@ document.addEventListener('click', (e) => {
         <label class="fld"><span>Quest Phase</span>
           <div style="padding:9px 11px;background:rgba(4,10,22,.85);border:1px solid rgba(47,143,255,.3);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:15px">PHASE ${q.phase ?? 1}</div>
         </label>
-        <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:14px">
+                <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:14px">
           Phase is adjusted automatically by the weekly reset. Quests must reflect effort you control — never outcomes.
-          Quests must reflect effort you control — never outcomes.
         </div>
         <div class="row" style="justify-content:flex-end">
           <button class="btn ghost" data-act="close-modal">Cancel</button>
