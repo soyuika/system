@@ -967,10 +967,24 @@ footer{font-size:11px}
   .hud-right{flex:0 0 auto;gap:10px}
   .hud-name{font-size:17px;letter-spacing:.14em;line-height:1.2}
     .hud-name small{font-size:10.5px;letter-spacing:.04em;line-height:1.5;white-space:normal}
-  .hud-title{font-size:9.5px;padding:1px 7px;margin-left:8px;letter-spacing:.14em}
+    .hud-title{font-size:9.5px;padding:1px 7px;margin-left:8px;letter-spacing:.14em}
   .lvl-label{font-size:9px;letter-spacing:.2em}
   .lvl-num{font-size:30px}
   .rank-badge{width:56px;height:56px;font-size:24px}
+
+  /* quest action row: phase on the left, buttons on the right */
+  .q-actions{
+    justify-content:space-between !important;
+    align-items:center;
+    flex-wrap:nowrap;
+    gap:8px;
+  }
+  .q-actions .q-phase{
+    flex-shrink:0;
+  }
+  .q-actions .btn.small{
+    flex:0 0 auto;
+  }
 }
 
 /* ---------- mobile performance diet ---------- */
@@ -2087,8 +2101,8 @@ function questCardHTML(q){
         </span>
         <span class="q-toggle">▸</span>
       </div>
-      <div class="q-detail">
-        <div class="row" style="justify-content:flex-end;gap:6px;margin-bottom:10px">
+            <div class="q-detail">
+        <div class="row q-actions" style="justify-content:flex-end;gap:6px;margin-bottom:10px">
           <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
           <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
           <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}" ${canEdit ? '' : 'disabled'} title="${isWeeklyWindow() ? 'Edit quest' : (state.editTokens > 0 ? 'Edit quest (uses 1 token — ' + state.editTokens + ' left)' : 'Editing unlocks Sunday 19:00–24:00')}">Edit</button>
