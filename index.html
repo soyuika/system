@@ -250,6 +250,79 @@ body::after{
   }
 }
 .hud-right{display:flex;align-items:center;gap:16px}
+
+/* ---------- arc banner ---------- */
+.arc-banner{
+  --arc-color:#4fd6ff;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  margin-bottom:14px;padding:10px 14px;
+  border:1px solid var(--arc-color);
+  background:linear-gradient(90deg, rgba(255,255,255,.04), transparent 80%);
+  font-family:'Share Tech Mono',monospace;font-size:12px;
+  letter-spacing:.14em;
+  box-shadow:0 0 18px rgba(79,214,255,.06), inset 0 0 20px rgba(79,214,255,.03);
+  clip-path:polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+.arc-banner-left,
+.arc-banner-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.arc-banner-label{color:var(--dim);font-size:10.5px;letter-spacing:.24em}
+.arc-banner-domain{
+  color:var(--arc-color);font-weight:600;
+  text-shadow:0 0 8px rgba(79,214,255,.4);
+}
+.arc-banner-phase{color:#eaf6ff;font-size:11px}
+.arc-banner-days{color:var(--dim);font-size:11px}
+.arc-banner-btn{
+  font-family:inherit;font-size:10.5px;letter-spacing:.14em;
+  padding:5px 10px;cursor:pointer;text-transform:uppercase;
+  background:rgba(4,10,22,.6);
+  border:1px solid var(--arc-color);
+  color:var(--arc-color);
+  transition:.15s;
+}
+.arc-banner-btn:hover{background:rgba(20,50,100,.5);color:#fff}
+.arc-banner-idle{--arc-color:rgba(79,214,255,.35)}
+.arc-banner-idle .arc-banner-domain{color:var(--dim);text-shadow:none}
+.arc-banner-expired{--arc-color:#ff3d6e !important}
+@media(max-width:620px){
+  .arc-banner{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 12px}
+  .arc-banner-right{width:100%;justify-content:space-between}
+}
+
+.arc-domain-grid{display:grid;grid-template-columns:1fr;gap:6px}
+.arc-domain-choice{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:10px 12px;
+  border:1px solid rgba(47,143,255,.25);
+  background:rgba(4,10,22,.6);
+  cursor:pointer;transition:.15s;
+}
+.arc-domain-choice:hover{border-color:rgba(79,214,255,.5)}
+.arc-domain-choice input{margin-top:3px;flex-shrink:0}
+.arc-domain-name{font-family:'Share Tech Mono',monospace;font-size:12.5px;letter-spacing:.14em;margin-bottom:3px}
+.arc-domain-desc{font-size:12px;color:var(--dim);line-height:1.5}
+.arc-domain-choice.selected{border-color:var(--cyan);background:rgba(20,60,120,.25)}
+
+/* ---------- domain badge ---------- */
+.domain-badge{
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;letter-spacing:.14em;
+  padding:1px 6px;
+  border:1px solid currentColor;
+  text-transform:uppercase;
+  vertical-align:middle;
+  margin-left:6px;
+}
+.domain-badge-mult{
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;letter-spacing:.06em;
+  padding:1px 5px;
+  margin-left:4px;
+  vertical-align:middle;
+  border:1px solid currentColor;
+}
+.domain-badge-mult.plus{color:#38ffb0}
+.domain-badge-mult.minus{color:#ff3d6e}
 .lvl-box{text-align:right}
 .lvl-label{display:block;font-size:9px;letter-spacing:.3em;color:var(--dim)}
 .lvl-num{font-family:'Share Tech Mono',monospace;font-size:34px;line-height:1;color:#fff;text-shadow:0 0 22px rgba(79,214,255,.85)}
@@ -1361,7 +1434,8 @@ footer{font-size:11px}
 <body>
 
 <div id="app" class="wrap">
-  <div id="hud"></div>
+    <div id="hud"></div>
+  <div id="arcBanner"></div>
   <nav class="tabs" id="tabs">
     <button class="tab active" data-act="tab" data-tab="status">Status</button>
     <button class="tab" data-act="tab" data-tab="quests">Quests</button>
@@ -1411,6 +1485,15 @@ const EDIT_TOKEN_CHANCE_IN_KEY_SLOT = 0.5; // inside the 20% "key" band, 50/50 k
 const DEV_PASSWORD = "I'm breaking the rules";
 const MISSION_BOUNTY = {E:5, D:10, C:30, B:70, A:100, S:150};
 const MISSION_MIN_DAYS = 14;
+
+const DOMAIN_KEYS = ['mind','spirit','body','aesthetics'];
+const DOMAIN_META = {
+  mind:       { label:'MIND',       icon:'◈', color:'#4fd6ff', desc:'Cognition, knowledge, craft, learning.' },
+  spirit:     { label:'SPIRIT',     icon:'◆', color:'#a06bff', desc:'Fortitude, calm, resilience, belief system.' },
+  body:       { label:'BODY',       icon:'⬢', color:'#38ffb0', desc:'Health, fitness, physical ability.' },
+  aesthetics: { label:'AESTHETICS', icon:'◎', color:'#ffcf5c', desc:'Appearance, home, immediate environment.' }
+};
+const ARC_TOTAL_DAYS = 28;
 
 /* =========================================================
    UTILS
@@ -1467,7 +1550,8 @@ function defaultState(){
         weekFails: {},
     weekStart: weekStartStr(),
     lastWeeklyPrompt: null,
-    weeklyApplied: null,
+        weeklyApplied: null,
+    arc: null,
     pendingPenalty: null,
     penalties: [
       {id:uid(), tier:1, text:'No screens for the first 60 minutes after waking.'},
@@ -1604,7 +1688,10 @@ function migrate(raw){
   s.missions.history.forEach(migrateMissionShape);
   s.log = (raw && raw.log) || {};
     s.weekFails = (raw && raw.weekFails) || {};
-  if (typeof s.weeklyApplied !== 'string') s.weeklyApplied = null;
+    if (typeof s.weeklyApplied !== 'string') s.weeklyApplied = null;
+  if (!s.arc || typeof s.arc !== 'object') s.arc = null;
+  if (s.arc && (!s.arc.domain || !DOMAIN_META[s.arc.domain])) s.arc = null;
+  if (s.arc && typeof s.arc.startedAt !== 'string') s.arc = null;
   s.penalties = (raw && raw.penalties) || d.penalties;
   s.rewards = (raw && raw.rewards) || d.rewards;
   if (!Array.isArray(s.quests) || s.quests.length !== 5){
@@ -1684,6 +1771,50 @@ function lowestStat(){
   let k = STAT_KEYS[0];
   STAT_KEYS.forEach(s => { if (state.stats[s] < state.stats[k]) k = s; });
   return k;
+}
+
+function getArcInfo(){
+  if (!state.arc || !state.arc.domain || !state.arc.startedAt){
+    return { active:false, expired:false, domain:null, phase:null, daysElapsed:0, daysRemaining:0 };
+  }
+  const start = new Date(state.arc.startedAt);
+  start.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const daysElapsed = Math.floor((today - start) / 86400000);
+
+  let phase = null, daysRemaining = 0;
+  if (daysElapsed < 0){ phase = 'DEVELOPMENT'; daysRemaining = 7; }
+  else if (daysElapsed < 7){ phase = 'DEVELOPMENT'; daysRemaining = 7 - daysElapsed; }
+  else if (daysElapsed < 21){ phase = 'COMPOUNDING'; daysRemaining = 21 - daysElapsed; }
+  else if (daysElapsed < 28){ phase = 'ANALYSIS'; daysRemaining = 28 - daysElapsed; }
+  else { phase = 'EXPIRED'; daysRemaining = 0; }
+
+  return {
+    active: phase !== 'EXPIRED',
+    expired: phase === 'EXPIRED',
+    domain: state.arc.domain,
+    phase,
+    daysElapsed: Math.max(0, daysElapsed),
+    daysRemaining
+  };
+}
+
+function getDomainMultiplier(itemDomain){
+  if (!state.arc || !state.arc.domain || !itemDomain) return 1;
+  return itemDomain === state.arc.domain ? 1.10 : 0.90;
+}
+
+function domainBadgeHTML(domain, multiplier){
+  if (!domain || !DOMAIN_META[domain]) return '';
+  const dm = DOMAIN_META[domain];
+  let multTag = '';
+  if (typeof multiplier === 'number' && multiplier !== 1){
+    const pct = Math.round((multiplier - 1) * 100);
+    const cls = pct > 0 ? 'plus' : 'minus';
+    multTag = `<span class="domain-badge-mult ${cls}">${pct > 0 ? '+' : ''}${pct}%</span>`;
+  }
+  return `<span class="domain-badge" style="color:${dm.color}">${dm.icon} ${dm.label}</span>${multTag}`;
 }
 
 /* =========================================================
@@ -2012,10 +2143,13 @@ function resolveMissionDeadline(){
     if (state.devMode){
       state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'completed', delta: 0});
       toast('DEV MODE — mission complete, no points awarded.');
-    } else {
-      state.unassigned += m.bounty;
-      state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'completed', delta: m.bounty});
-      toast(`MISSION COMPLETE — +${m.bounty} points`, 'gold');
+        } else {
+      const mult = getDomainMultiplier(m.domain);
+      const paid = Math.round(m.bounty * mult);
+      state.unassigned += paid;
+      state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'completed', delta: paid});
+      const multNote = mult !== 1 ? ` (arc ${mult > 1 ? '+' : ''}${Math.round((mult-1)*100)}%)` : '';
+      toast(`MISSION COMPLETE — +${paid} points${multNote}`, 'gold');
     }
   } else {
     const fine = Math.round(m.bounty * missing / m.criteria.length);
@@ -2206,11 +2340,12 @@ function openDungeon(id){
   }
 
   const days = DUNGEON_DAYS[d.rank];
-    state.dungeons.active = {
+      state.dungeons.active = {
     id: d.id,
     name: d.name,
     real: d.real || '',
     rank: d.rank,
+    domain: d.domain || null,
     tasks: d.tasks.map(t => ({...t, done:false})),
     startedAt: new Date().toISOString(),
     deadline: new Date(Date.now() + days*86400000).toISOString()
@@ -2231,20 +2366,24 @@ function toggleTask(taskId){
   t.done = !t.done;
 
   // Bank points the first time an objective is ticked. Unticking does not refund.
-    if (t.done && !t.paid){
+        if (t.done && !t.paid){
     t.paid = true;
+    const mult = getDomainMultiplier(a.domain);
+    const pts = Math.round(DUNGEON_OBJECTIVE_POINTS * mult);
+    t.pointsAwarded = state.devMode ? 0 : pts;
     if (state.devMode){
       toast('DEV MODE — objective logged, no points awarded.');
     } else {
-      state.unassigned += DUNGEON_OBJECTIVE_POINTS;
-      toast(`+${DUNGEON_OBJECTIVE_POINTS} STAT POINTS — OBJECTIVE COMPLETE`, 'gold');
+      state.unassigned += pts;
+      const multNote = mult !== 1 ? ` (arc ${mult > 1 ? '+' : ''}${Math.round((mult-1)*100)}%)` : '';
+      toast(`+${pts} STAT POINTS — OBJECTIVE COMPLETE${multNote}`, 'gold');
     }
   }
-
   if (a.tasks.every(x => x.done)){
-        const earned = state.devMode ? 0 : a.tasks.filter(x => x.paid).length * DUNGEON_OBJECTIVE_POINTS;
-    state.dungeons.cleared.push({
+                const earned = state.devMode ? 0 : a.tasks.reduce((sum, x) => sum + (x.pointsAwarded || 0), 0);
+        state.dungeons.cleared.push({
       id: a.id, name: a.name, real: a.real || '', rank: a.rank,
+      domain: a.domain || null,
       clearedAt: new Date().toISOString()
     });
     state.dungeons.active = null;
@@ -2285,6 +2424,7 @@ function abandonDungeon(){
    ========================================================= */
 function render(){
   renderHUD();
+  renderArcBanner();
   renderTabs();
   const v = $('#view');
   if (activeTab === 'status')   v.innerHTML = viewStatus();
@@ -2293,6 +2433,40 @@ function render(){
     if (activeTab === 'missions'){ v.innerHTML = viewMissions(); renderMissionFormBuilders(); }
   if (activeTab === 'system')   v.innerHTML = viewSystem();
   updateTimers();
+}
+
+function renderArcBanner(){
+  const el = document.getElementById('arcBanner');
+  if (!el) return;
+  const info = getArcInfo();
+
+  if (!info.domain){
+    el.innerHTML = `
+      <div class="arc-banner arc-banner-idle">
+        <div class="arc-banner-left">
+          <span class="arc-banner-label">ARC</span>
+          <span class="arc-banner-domain">no active focus</span>
+        </div>
+        <button class="arc-banner-btn" data-act="open-arc-modal">Set Focus</button>
+      </div>`;
+    return;
+  }
+
+  const dm = DOMAIN_META[info.domain];
+  const phaseLabel = info.expired ? 'EXPIRED' : info.phase;
+  const daysLabel = info.expired ? '—' : `${info.daysRemaining}d left`;
+  el.innerHTML = `
+    <div class="arc-banner ${info.expired ? 'arc-banner-expired' : ''}" style="--arc-color:${dm.color}">
+      <div class="arc-banner-left">
+        <span class="arc-banner-label">ARC</span>
+        <span class="arc-banner-domain">${dm.icon} ${dm.label}</span>
+      </div>
+      <div class="arc-banner-right">
+        <span class="arc-banner-phase">${phaseLabel}</span>
+        <span class="arc-banner-days">${daysLabel}</span>
+        <button class="arc-banner-btn" data-act="open-arc-modal">${info.expired ? 'New Arc' : 'Change'}</button>
+      </div>
+    </div>`;
 }
 
 function renderTabs(){
@@ -2987,9 +3161,10 @@ function viewDungeons(){
         return `
                     <div class="item dungeon">
             <div style="min-width:0">
-                            <div class="title">
+                                          <div class="title">
                 <span class="tag rank-${x.rank}">${x.rank}</span>
                 ${esc(x.name)}
+                ${domainBadgeHTML(x.domain, getDomainMultiplier(x.domain))}
               </div>
               ${x.real ? `<div class="dungeon-real">${esc(x.real)}</div>` : ''}
               <div class="meta">${x.tasks.length} objective${x.tasks.length===1?'':'s'} · ${DUNGEON_DAYS[x.rank]} day limit
@@ -3017,13 +3192,14 @@ function viewDungeons(){
         <div class="panel-title" style="color:var(--danger)">⚠ Active Dungeon</div>
         <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:12px">
           <div>
-                        <div style="font-size:17px;font-weight:700">
+                                    <div style="font-size:17px;font-weight:700">
               <span class="tag rank-${a.rank}" style="font-size:13px">${a.rank}</span>
               ${esc(a.name)}
+              ${domainBadgeHTML(a.domain, getDomainMultiplier(a.domain))}
             </div>
             ${a.real ? `<div class="dungeon-real" style="margin-top:2px">${esc(a.real)}</div>` : ''}
-                        <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:6px">
-              ${a.tasks.filter(t=>t.done).length}/${a.tasks.length} objectives · +${DUNGEON_OBJECTIVE_POINTS} pts each
+                                    <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:6px">
+              ${a.tasks.filter(t=>t.done).length}/${a.tasks.length} objectives · +${Math.round(DUNGEON_OBJECTIVE_POINTS * getDomainMultiplier(a.domain))} pts each
             </div>
           </div>
           <div style="text-align:right">
@@ -3042,9 +3218,10 @@ function viewDungeons(){
     ? d.cleared.slice().reverse().map(c => `
                                 <div class="item dungeon">
           <div style="min-width:0">
-            <div class="title" style="margin-bottom:0">
+                       <div class="title" style="margin-bottom:0">
               <span class="tag rank-${c.rank}">${c.rank}</span>
               ${esc(c.name)}
+              ${domainBadgeHTML(c.domain, 1)}
             </div>
             ${c.real ? `<div class="dungeon-real" style="margin:2px 0 0 0">${esc(c.real)}</div>` : ''}
           </div>
@@ -3078,8 +3255,14 @@ function viewDungeons(){
           </select>
                 </label>
       </div>
-      <label class="fld"><span>Real Meaning (optional)</span>
+            <label class="fld"><span>Real Meaning (optional)</span>
         <input id="dnReal" placeholder="What this actually is — e.g. 'my messy bedroom'">
+      </label>
+      <label class="fld"><span>Domain (optional — scales with active arc)</span>
+        <select id="dnDomain">
+          <option value="">— unassigned —</option>
+          ${DOMAIN_KEYS.map(k => `<option value="${k}">${DOMAIN_META[k].icon} ${DOMAIN_META[k].label}</option>`).join('')}
+        </select>
       </label>
       <label class="fld"><span>Objectives (one per line)</span>
         <textarea id="dnTasks" placeholder="Do a brain dump of every task&#10;Complete every task on the list"></textarea>
@@ -3276,9 +3459,10 @@ function viewActiveMission(m){
       <div class="panel-title">Active Mission</div>
 
       <div class="mission-name">${esc(m.name)}</div>
-      <div class="mission-meta">
+            <div class="mission-meta">
         <span class="tag rank-${m.rank}">${m.rank}</span>
-        <span class="mission-bounty">◆ BOUNTY +${m.bounty} PTS</span>
+        <span class="mission-bounty">◆ BOUNTY +${Math.round(m.bounty * getDomainMultiplier(m.domain))} PTS</span>
+        ${domainBadgeHTML(m.domain, getDomainMultiplier(m.domain))}
       </div>
 
       <div class="mission-dates">
@@ -3399,7 +3583,7 @@ function viewMissionForm(){
         <input id="msName" placeholder="e.g. Ship my portfolio site">
       </label>
 
-      <label class="fld"><span>Rank — determines bounty and fine</span>
+            <label class="fld"><span>Rank — determines bounty and fine</span>
         <select id="msRank">
           <option value="E">E — fairly easy (+5 pts)</option>
           <option value="D">D — somewhat easy (+10 pts)</option>
@@ -3407,6 +3591,13 @@ function viewMissionForm(){
           <option value="B">B — slightly harder (+70 pts)</option>
           <option value="A">A — hard (+100 pts)</option>
           <option value="S">S — almost impossible (+150 pts)</option>
+        </select>
+      </label>
+
+      <label class="fld"><span>Domain (optional — scales with active arc)</span>
+        <select id="msDomain">
+          <option value="">— unassigned —</option>
+          ${DOMAIN_KEYS.map(k => `<option value="${k}">${DOMAIN_META[k].icon} ${DOMAIN_META[k].label}</option>`).join('')}
         </select>
       </label>
 
@@ -3509,8 +3700,9 @@ function renderMissionFormBuilders(){
   const rows = list.map(m => `
     <div class="mission-log-item">
       <div style="min-width:0">
-        <div class="mission-log-name">
+                <div class="mission-log-name">
           <span class="tag rank-${m.rank}">${m.rank}</span>${esc(m.name)}
+          ${domainBadgeHTML(m.domain, 1)}
         </div>
         <div class="mission-log-meta">
           STORED · EST. ${m.presumedDuration} DAYS · ◆ +${m.bounty} PTS · ${m.criteria.length} CRITERIA
@@ -3549,8 +3741,9 @@ function viewMissionHistory(){
     return `
       <div class="mission-log-item ${h.outcome}">
         <div style="min-width:0">
-          <div class="mission-log-name">
+                    <div class="mission-log-name">
             <span class="tag rank-${h.rank}">${h.rank}</span>${esc(h.name)}
+            ${domainBadgeHTML(h.domain, 1)}
           </div>
           <div class="mission-log-meta">
             ${outcomeLabel}${detail} · ${fmtShort(h.finishedAt || h.startedAt)}
@@ -3865,9 +4058,68 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'close-modal':
+        case 'close-modal':
       closeModal();
       break;
+
+    case 'open-arc-modal': {
+      const info = getArcInfo();
+      const today = new Date().toISOString().slice(0,10);
+      const startVal = state.arc ? new Date(state.arc.startedAt).toISOString().slice(0,10) : today;
+      const currentDomain = info.domain || '';
+      const domainChoices = DOMAIN_KEYS.map(k => {
+        const dm = DOMAIN_META[k];
+        return `
+          <label class="arc-domain-choice ${currentDomain===k?'selected':''}">
+            <input type="radio" name="arcDomain" value="${k}" ${currentDomain===k?'checked':''} style="width:auto">
+            <div>
+              <div class="arc-domain-name" style="color:${dm.color}">${dm.icon} ${dm.label}</div>
+              <div class="arc-domain-desc">${dm.desc}</div>
+            </div>
+          </label>`;
+      }).join('');
+      openModal(`
+        <h2>Set Arc Focus</h2>
+        <p style="font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:14px">
+          Pick the domain you'll prioritize for the next 28 days. Dungeons and missions aligned with it earn <b style="color:var(--green)">+10%</b>; others earn <b style="color:var(--danger)">−10%</b>.
+        </p>
+        <div class="arc-domain-grid">${domainChoices}</div>
+        <label class="fld" style="margin-top:14px"><span>Start date</span>
+          <input id="arcStart" type="date" value="${startVal}" max="${today}">
+        </label>
+        <div class="row" style="justify-content:space-between;margin-top:16px;gap:8px">
+          ${state.arc ? `<button class="btn small danger" data-act="clear-arc">Clear Focus</button>` : '<span></span>'}
+          <div class="row" style="gap:8px">
+            <button class="btn ghost" data-act="close-modal">Cancel</button>
+            <button class="btn gold" data-act="set-arc">Confirm</button>
+          </div>
+        </div>
+      `);
+      break;
+    }
+
+    case 'set-arc': {
+      const selected = (document.querySelector('input[name="arcDomain"]:checked') || {}).value;
+      if (!selected || !DOMAIN_META[selected]){
+        toast('Pick a domain first.', 'bad');
+        break;
+      }
+      const startStr = $('#arcStart').value;
+      const startDate = startStr ? new Date(startStr + 'T00:00:00') : new Date();
+      if (isNaN(startDate.getTime())){ toast('Invalid start date.', 'bad'); break; }
+      state.arc = { domain: selected, startedAt: startDate.toISOString() };
+      save(); closeModal(); render();
+      toast(`ARC SET — ${DOMAIN_META[selected].label}`, 'gold');
+      break;
+    }
+
+    case 'clear-arc': {
+      if (!confirm('Clear the current arc? Domain bonuses will stop until you start a new one.')) break;
+      state.arc = null;
+      save(); closeModal(); render();
+      toast('Arc cleared.');
+      break;
+    }
 
                     case 'toggle': {
       const id = el.dataset.id, kind = el.dataset.kind;
@@ -4114,7 +4366,8 @@ document.addEventListener('click', (e) => {
       const rank = $('#msRank').value;
       const c1 = $('#msCrit1').value.trim();
       const c2 = $('#msCrit2').value.trim();
-      const c3 = $('#msCrit3').value.trim();
+            const c3 = $('#msCrit3').value.trim();
+      const domain = ($('#msDomain') || {}).value || null;
       const mode = (document.querySelector('input[name="msMode"]:checked') || {}).value || 'now';
 
       // Read pairs from the form builder
@@ -4142,9 +4395,10 @@ document.addEventListener('click', (e) => {
       if (!c1 || !c2 || !c3){ toast('All 3 success criteria are required.', 'bad'); break; }
       if (!MISSION_BOUNTY[rank]){ toast('Invalid rank.', 'bad'); break; }
 
-            const base = {
+                  const base = {
         id: uid(),
         name, rank,
+        domain,
         bounty: MISSION_BOUNTY[rank],
         criteria: [
           {id: uid(), text: c1, done: false},
@@ -4572,10 +4826,15 @@ document.addEventListener('click', (e) => {
         toast('DEV MODE — mission closed, no points awarded.');
         break;
       }
-      state.unassigned += m.bounty;
-      state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'completed', delta: m.bounty});
+            const mult = getDomainMultiplier(m.domain);
+      const paid = Math.round(m.bounty * mult);
+      state.unassigned += paid;
+      state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'completed', delta: paid});
       state.missions.active = null;
       save(); render();
+      const multNote = mult !== 1
+        ? `<div style="font-size:12px;color:var(--dim);margin-top:6px">Arc bonus ${mult > 1 ? '+' : ''}${Math.round((mult-1)*100)}%</div>`
+        : '';
       openModal(`
         <h2>Mission Complete</h2>
         <div style="text-align:center;padding:10px 0 20px">
@@ -4584,7 +4843,8 @@ document.addEventListener('click', (e) => {
             ${esc(m.name)}
           </div>
           <div style="font-size:11px;color:var(--dim);letter-spacing:.24em;text-transform:uppercase;margin-bottom:8px">Bounty Paid</div>
-          <div style="font-family:'Share Tech Mono',monospace;font-size:26px;color:var(--gold);text-shadow:0 0 20px rgba(255,207,92,.7)">+${m.bounty} STAT POINTS</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:26px;color:var(--gold);text-shadow:0 0 20px rgba(255,207,92,.7)">+${paid} STAT POINTS</div>
+          ${multNote}
           <div style="font-size:12px;color:var(--dim);margin-top:10px">Assign them in the Status tab.</div>
         </div>
         <div class="row" style="justify-content:center">
@@ -4836,11 +5096,12 @@ document.addEventListener('click', (e) => {
         case 'add-dungeon': {
       const name = $('#dnName').value.trim();
       const real = $('#dnReal').value.trim();
-      const rank = $('#dnRank').value;
+            const rank = $('#dnRank').value;
+      const domain = $('#dnDomain').value || null;
       const raw = $('#dnTasks').value.split('\n').map(s => s.trim()).filter(Boolean);
       if (!name || !raw.length) return toast('Name and at least one objective required.', 'bad');
       state.dungeons.inbox.push({
-        id: uid(), name, real, rank,
+        id: uid(), name, real, rank, domain,
         tasks: raw.map(t => ({id:uid(), text:t, done:false})),
         createdAt: new Date().toISOString()
       });
