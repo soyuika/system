@@ -163,6 +163,25 @@ body::after{
   text-transform:uppercase;
   vertical-align:middle;
 }
+.title-stored-badge{
+  display:inline-block;
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;
+  letter-spacing:.14em;
+  padding:1px 6px;
+  margin-left:8px;
+  color:var(--dim);
+  border:1px solid rgba(111,140,181,.5);
+  background:rgba(111,140,181,.06);
+  text-transform:uppercase;
+  vertical-align:middle;
+}
+.title-awarded-date{
+  color:var(--gold) !important;
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+  letter-spacing:.06em;
+}
 .item.title-equipped{
   border-color:rgba(255,207,92,.4);
   background:linear-gradient(90deg, rgba(255,207,92,.06), rgba(255,207,92,.01) 70%);
@@ -1140,9 +1159,16 @@ function migrate(raw){
       if (typeof t.paid !== 'boolean') t.paid = !!t.done;
     });
   }
-    s.titles = (raw && raw.titles) || [];
+      s.titles = (raw && raw.titles) || [];
+  s.titles.forEach(t => {
+    if (typeof t.awardedAt === 'undefined' || (t.awardedAt === null && raw && !raw.__titlesAwardedSupported)){
+      // Old saves had no notion of "stored" — everything in the list was awarded.
+      // Use createdAt as a conservative backfill.
+      t.awardedAt = s.createdAt || new Date().toISOString();
+    }
+  });
   if (typeof s.equippedTitle !== 'string') s.equippedTitle = null;
-  if (s.equippedTitle && !s.titles.some(t => t.id === s.equippedTitle)) s.equippedTitle = null;
+  if (s.equippedTitle && !s.titles.some(t => t.id === s.equippedTitle && t.awardedAt)) s.equippedTitle = null;
     s.keys = (raw && raw.keys) || [];
     if (typeof s.editTokens !== 'number') s.editTokens = 0;
     if (typeof s.devMode !== 'boolean') s.devMode = false;
@@ -1239,6 +1265,7 @@ function addTitle(name, desc, hours){
   state.titles = state.titles.filter(t => t.name !== name);
   state.titles.push({
     id: uid(), name, desc, custom:false,
+    awardedAt: new Date().toISOString(),
     expiresAt: hours ? new Date(Date.now() + hours*3600*1000).toISOString() : null
   });
 }
@@ -1852,9 +1879,9 @@ function renderHUD(){
   $('#hud').innerHTML = `
     <div class="panel hud">
       <div class="hud-left">
-                <div class="hud-name">${esc(state.playerName)}${(() => {
+                        <div class="hud-name">${esc(state.playerName)}${(() => {
           const t = state.titles.find(x => x.id === state.equippedTitle);
-          if (!t) return '';
+          if (!t || !t.awardedAt) return '';
           const cls = t.name === 'Fraud' ? ' danger' : '';
           return `<span class="hud-title${cls}">${esc(t.name)}</span>`;
         })()}
@@ -1903,8 +1930,9 @@ function viewStatus(){
     `<button class="btn small" data-act="assign" data-stat="${k}" ${state.unassigned<=0?'disabled':''}>+ ${STAT_META[k].label}</button>`
   ).join('');
 
-    const titles = state.titles.length
-    ? state.titles.map(t => {
+      const awardedTitles = state.titles.filter(t => t.awardedAt);
+  const titles = awardedTitles.length
+    ? awardedTitles.map(t => {
         const isEquipped = state.equippedTitle === t.id;
         return `
         <div class="item ${isEquipped ? 'title-equipped' : ''}">
@@ -1913,8 +1941,8 @@ function viewStatus(){
               ${esc(t.name)}${isEquipped ? '<span class="title-equipped-badge">EQUIPPED</span>' : ''}
             </div>
             <div class="meta">${esc(t.desc||'')}</div>
+            <div class="meta title-awarded-date">Awarded ${fmtShort(t.awardedAt)}${t.expiresAt ? ' · expires ' + fmtDate(t.expiresAt) : ''}</div>
           </div>
-          ${t.expiresAt ? `<div class="meta">expires ${fmtDate(t.expiresAt)}</div>` : `<div class="meta">permanent</div>`}
         </div>`;
       }).join('')
     : `<div class="empty">No titles yet.</div>`;
@@ -2746,21 +2774,31 @@ function viewSystem(){
         </div>`).join('')
     : `<div class="empty">No lifestyle upgrades defined.</div>`;
 
-    const titles = state.titles.map(t => {
+      const titles = state.titles.map(t => {
     const isEquipped = state.equippedTitle === t.id;
+    const awarded = !!t.awardedAt;
+    const stateBadge = awarded
+      ? (isEquipped ? '<span class="title-equipped-badge">EQUIPPED</span>' : '')
+      : '<span class="title-stored-badge">STORED</span>';
+    const dateLine = awarded
+      ? `<div class="meta title-awarded-date">Awarded ${fmtShort(t.awardedAt)}${t.expiresAt ? ' · expires ' + fmtDate(t.expiresAt) : ''}</div>`
+      : `<div class="meta" style="color:var(--dim);font-style:italic">Not yet awarded — sitting in storage</div>`;
     return `
     <div class="item ${isEquipped ? 'title-equipped' : ''}">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};display:flex;align-items:center;flex-wrap:wrap">
-          ${esc(t.name)}${isEquipped ? '<span class="title-equipped-badge">EQUIPPED</span>' : ''}
+          ${esc(t.name)}${stateBadge}
         </div>
         <div class="meta">${esc(t.desc||'')}</div>
-        <div class="meta">${t.expiresAt ? 'expires '+fmtDate(t.expiresAt) : 'permanent'}</div>
+        ${dateLine}
       </div>
       <div class="row" style="gap:6px;flex-shrink:0">
-        ${isEquipped
-          ? `<button class="btn small ghost" data-act="unequip-title">Unequip</button>`
-          : `<button class="btn small gold" data-act="equip-title" data-id="${t.id}">Equip</button>`}
+        ${awarded
+          ? (isEquipped
+              ? `<button class="btn small ghost" data-act="unequip-title">Unequip</button>`
+              : `<button class="btn small gold" data-act="equip-title" data-id="${t.id}">Equip</button>`)
+          : `<button class="btn small gold" data-act="award-title" data-id="${t.id}">Award</button>`}
+        ${awarded ? `<button class="btn small ghost" data-act="revoke-title" data-id="${t.id}">Revoke</button>` : ''}
         <button class="btn small ghost" data-act="edit-title" data-id="${t.id}">Edit</button>
         <button class="btn small danger" data-act="del-title" data-id="${t.id}">✕</button>
       </div>
@@ -2832,14 +2870,17 @@ function viewSystem(){
       </div>
     </div>
 
-    <div class="panel">
+        <div class="panel">
       <div class="panel-title">Titles</div>
       ${titles}
       <div class="grid2" style="margin-top:10px">
         <input id="ttName" placeholder="Title name">
         <input id="ttDesc" placeholder="Requirement / description">
       </div>
-      <button class="btn small" style="margin-top:8px" data-act="add-title">Add Title (award manually)</button>
+      <div class="row" style="margin-top:8px;gap:8px">
+        <button class="btn small" data-act="add-title">Store for Later</button>
+        <button class="btn small gold" data-act="add-title-award">Add &amp; Award</button>
+      </div>
     </div>
 
     <div class="panel">
@@ -3506,12 +3547,45 @@ document.addEventListener('click', (e) => {
       save(); render();
       break;
 
-        case 'add-title': {
+            case 'add-title': {
       const n = $('#ttName').value.trim();
       const d = $('#ttDesc').value.trim();
       if (!n) break;
-      state.titles.push({id:uid(), name:n, desc:d, custom:true, expiresAt:null});
+      state.titles.push({id:uid(), name:n, desc:d, custom:true, awardedAt:null, expiresAt:null});
       save(); render();
+      toast('Title stored — award it when earned.', 'gold');
+      break;
+    }
+
+    case 'add-title-award': {
+      const n = $('#ttName').value.trim();
+      const d = $('#ttDesc').value.trim();
+      if (!n) break;
+      state.titles.push({id:uid(), name:n, desc:d, custom:true, awardedAt:new Date().toISOString(), expiresAt:null});
+      save(); render();
+      toast('Title awarded.', 'gold');
+      break;
+    }
+
+    case 'award-title': {
+      const t = state.titles.find(x => x.id === el.dataset.id);
+      if (!t) break;
+      if (t.awardedAt){ toast('Already awarded.', 'bad'); break; }
+      t.awardedAt = new Date().toISOString();
+      save(); render();
+      toast(`Awarded — ${t.name}`, 'gold');
+      break;
+    }
+
+    case 'revoke-title': {
+      const t = state.titles.find(x => x.id === el.dataset.id);
+      if (!t) break;
+      if (!t.awardedAt){ toast('Not currently awarded.', 'bad'); break; }
+      if (!confirm(`Revoke "${t.name}"? It will return to storage and lose its award date.`)) break;
+      t.awardedAt = null;
+      if (state.equippedTitle === t.id) state.equippedTitle = null;
+      save(); render();
+      toast('Title revoked — returned to storage.');
       break;
     }
 
