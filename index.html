@@ -66,8 +66,18 @@ body::after{
 }
 @keyframes scan{ from{transform:translateY(0)} to{transform:translateY(100px)} }
 
-@media (max-width:900px), (prefers-reduced-motion:reduce){
-  body::after{ display:none }
+/* On mobile, keep the texture but stop the animation. */
+@media (max-width:900px){
+  body::after{
+    animation:none;
+    will-change:auto;
+    transform:none;
+    top:0;bottom:0;
+    opacity:.35;
+  }
+}
+@media (prefers-reduced-motion:reduce){
+  body::after{ animation:none; }
 }
 
 .wrap{position:relative;z-index:2;max-width:1080px;margin:0 auto;padding:18px 14px 40px}
@@ -969,7 +979,13 @@ footer{font-size:11px}
   body::before{ transform: translateZ(0); }
 
   .panel-title{ box-shadow:none; text-shadow:0 0 6px rgba(79,214,255,.4); }
-  .rank-badge{ animation:none; }          /* filter:brightness() repaints every frame */
+  .panel-title::before{ filter:none; }          /* drop-shadow is a per-paint raster */
+  .warn .panel-title::before{ filter:none; }
+  .life-panel .panel-title::before{ filter:none; }
+  .dev-panel .panel-title::before{ filter:none; }
+  .mission-panel .panel-title::before{ filter:none; }
+
+  .rank-badge{ animation:none; }
   .stat-desc{ transition:none; }
   .tab, .btn, .chk, .life-check, .chk-mini{ transition:none; }
   .bar-fill{ transition:width .2s ease; }
@@ -2023,68 +2039,115 @@ function viewStatus(){
     </div>`;
 }
 
-function viewQuests(){
+function questCardHTML(q){
+  const t = state.today;
+  const f = !!t.floor[q.id], c = !!t.ceil[q.id];
+  const done = f && c;
+  const isOpen = expandedQuests.has(q.id);
+  const hasHistory = q.history.length > 0;
+  const canEdit = canEditNow();
+  const gradDisabled = !hasHistory && !canEdit;
+  const gradLabel = hasHistory ? `Tree · ${q.history.length}` : 'Graduate';
+  const gradTitle = gradDisabled
+    ? 'Graduation unlocks Sunday 19:00–24:00'
+    : (hasHistory ? 'View quest tree' : 'Graduate this quest');
+
+  const rawCeil = t.ceil[q.id];
+  const ceilCount = typeof rawCeil === 'number' ? rawCeil : (rawCeil ? 1 : 0);
+  const cc = ceilCount > 0;
+  const allFloorsNow = state.quests.every(qq => t.floor[qq.id]);
+  const suspended = cc && !allFloorsNow;
+  const ceilLabel = q.ceilingRepeatable
+    ? (cc ? `✓ Ceiling ×${ceilCount}` : 'Ceiling')
+    : (cc ? '✓ Ceiling' : 'Ceiling');
+  const suspendedBadge = suspended ? '<span class="ceil-suspended">suspended</span>' : '';
+
+  return `
+    <div class="quest panel ${done ? 'done' : ''} ${isOpen ? 'open' : ''}" data-qid="${q.id}">
+      <div class="q-summary" data-act="toggle-quest" data-id="${q.id}">
+        <span class="q-stat">${STAT_META[q.stat].label}</span>
+        <span class="q-name">${esc(q.name || '— unnamed quest —')}</span>
+        <span class="q-summary-status">
+          <span class="q-dot ${f?'on':''}" title="Floor ${f?'done':'pending'}"></span>
+          <span class="q-dot ${cc?'on':''}" title="Ceiling ${cc?'done':'pending'}"></span>
+        </span>
+        <span class="q-toggle">▸</span>
+      </div>
+      <div class="q-detail">
+        <div class="row" style="justify-content:flex-end;gap:6px;margin-bottom:10px">
+          <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
+          <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
+          <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}" ${canEdit ? '' : 'disabled'} title="${isWeeklyWindow() ? 'Edit quest' : (state.editTokens > 0 ? 'Edit quest (uses 1 token — ' + state.editTokens + ' left)' : 'Editing unlocks Sunday 19:00–24:00')}">Edit</button>
+        </div>
+        <div class="q-line ${f?'on':''}">
+          <button class="chk ${f?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="floor">${f?'✓ Floor':'Floor'}</button>
+          <div class="q-text ${q.floor?'':'empty'}">${esc(q.floor || 'set a minimum that counts')}</div>
+        </div>
+        <div class="q-line ${cc?'on':''}">
+          <button class="chk ${cc?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="ceil">${ceilLabel}</button>
+          <div class="q-text ${q.ceiling?'':'empty'}">${esc(q.ceiling || 'set an ideal outcome to strive for')} ${suspendedBadge}</div>
+          ${q.ceilingRepeatable && ceilCount > 0 ? `<button class="chk-mini" data-act="dec-ceil" data-id="${q.id}" title="Decrease count">−</button>` : ''}
+        </div>
+        ${renderCeilingSteps(q, t)}
+      </div>
+    </div>`;
+}
+
+  function dailyBarHTML(){
   const t = state.today;
   const total = state.quests.length;
   const floorDone = state.quests.filter(q => t.floor[q.id]).length;
   const ceilDone  = state.quests.filter(q => t.ceil[q.id]).length;
-        const allCeil = ceilDone === total;
-  const canEdit = canEditNow();
+  return `
+    <div class="daily-bar" id="dailyBar">
+      <div class="daily-count">
+        FLOOR <b class="${floorDone===total?'ok':''}">${floorDone}</b>/${total}
+        &nbsp;·&nbsp;
+        CEILING <b class="${ceilDone===total?'ok':''}">${ceilDone}</b>/${total}
+      </div>
+      <div class="daily-count">
+        STAT POINTS TODAY: <b>${((t.floorPointGiven ? 5 : 0) + Object.values(t.ceilPaid || {}).filter(Boolean).length)}</b>
+      </div>
+    </div>`;
+}
 
-    const quests = state.quests.map(q => {
-    const f = !!t.floor[q.id], c = !!t.ceil[q.id];
-    const done = f && c;
-    const isOpen = expandedQuests.has(q.id);
-    const hasHistory = q.history.length > 0;
-    const gradDisabled = !hasHistory && !canEdit;
-    const gradLabel = hasHistory ? `Tree · ${q.history.length}` : 'Graduate';
-    const gradTitle = gradDisabled
-      ? 'Graduation unlocks Sunday 19:00–24:00'
-      : (hasHistory ? 'View quest tree' : 'Graduate this quest');
+  function refreshQuest(qid){
+  const q = state.quests.find(x => x.id === qid);
+  const el = document.querySelector(`.quest[data-qid="${qid}"]`);
+  if (!q || !el){ render(); return; }
+  el.outerHTML = questCardHTML(q);
+  const bar = document.getElementById('dailyBar');
+  if (bar) bar.outerHTML = dailyBarHTML();
+  const rp = document.getElementById('rewardPanel');
+  if (rp) rp.outerHTML = rewardPanelHTML();
+  renderHUD();
+  renderTabs();
+}
+  
+function viewQuests(){
+  const t = state.today;
 
-    const rawCeil = t.ceil[q.id];
-    const ceilCount = typeof rawCeil === 'number' ? rawCeil : (rawCeil ? 1 : 0);
-    const cc = ceilCount > 0;
-    const allFloorsNow = state.quests.every(qq => t.floor[qq.id]);
-    const suspended = cc && !allFloorsNow;
-    const ceilLabel = q.ceilingRepeatable
-      ? (cc ? `✓ Ceiling ×${ceilCount}` : 'Ceiling')
-      : (cc ? '✓ Ceiling' : 'Ceiling');
-    const suspendedBadge = suspended ? '<span class="ceil-suspended">suspended</span>' : '';
-
+  const quests = state.quests.map(q => questCardHTML(q)).join('');
+  
     return `
-      <div class="quest panel ${done ? 'done' : ''} ${isOpen ? 'open' : ''}" data-qid="${q.id}">
-        <div class="q-summary" data-act="toggle-quest" data-id="${q.id}">
-          <span class="q-stat">${STAT_META[q.stat].label}</span>
-          <span class="q-name">${esc(q.name || '— unnamed quest —')}</span>
-          <span class="q-summary-status">
-            <span class="q-dot ${f?'on':''}" title="Floor ${f?'done':'pending'}"></span>
-            <span class="q-dot ${cc?'on':''}" title="Ceiling ${cc?'done':'pending'}"></span>
-          </span>
-          <span class="q-toggle">▸</span>
-        </div>
-        <div class="q-detail">
-          <div class="row" style="justify-content:flex-end;gap:6px;margin-bottom:10px">
-            <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
-            <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
-            <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}" ${canEdit ? '' : 'disabled'} title="${isWeeklyWindow() ? 'Edit quest' : (state.editTokens > 0 ? 'Edit quest (uses 1 token — ' + state.editTokens + ' left)' : 'Editing unlocks Sunday 19:00–24:00')}">Edit</button>
-          </div>
-          <div class="q-line ${f?'on':''}">
-            <button class="chk ${f?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="floor">${f?'✓ Floor':'Floor'}</button>
-            <div class="q-text ${q.floor?'':'empty'}">${esc(q.floor || 'set a minimum that counts')}</div>
-          </div>
-          <div class="q-line ${cc?'on':''}">
-            <button class="chk ${cc?'on':''}" data-act="toggle" data-id="${q.id}" data-kind="ceil">${ceilLabel}</button>
-            <div class="q-text ${q.ceiling?'':'empty'}">${esc(q.ceiling || 'set an ideal outcome to strive for')} ${suspendedBadge}</div>
-            ${q.ceilingRepeatable && ceilCount > 0 ? `<button class="chk-mini" data-act="dec-ceil" data-id="${q.id}" title="Decrease count">−</button>` : ''}
-          </div>
-          ${renderCeilingSteps(q, t)}
-        </div>
-      </div>`;
-  }).join('');
-
-  const rewardPanel = `
     <div class="panel">
+      <div class="panel-title">Daily Quests — ${t.date}</div>
+      ${dailyBarHTML()}
+    </div>
+    ${quests}
+    ${lifestylePanelHTML()}
+    ${rewardPanelHTML()}
+    ${penaltyPanelHTML()}`;
+}
+
+  
+function rewardPanelHTML(){
+  const t = state.today;
+  const total = state.quests.length;
+  const ceilDone = state.quests.filter(q => t.ceil[q.id]).length;
+  const allCeil = ceilDone === total;
+  return `
+    <div class="panel" id="rewardPanel">
       <div class="panel-title">Daily Reward</div>
       ${t.rewardGiven
         ? `<div style="font-size:13px;color:var(--gold);line-height:1.8">◆ ${esc(t.rewardText)}</div>`
@@ -2093,26 +2156,6 @@ function viewQuests(){
              <button class="btn gold" data-act="claim-reward" ${allCeil?'':'disabled'}>Claim Reward</button>
            </div>`}
     </div>`;
-
-  return `
-    <div class="panel">
-      <div class="panel-title">Daily Quests — ${t.date}</div>
-      <div class="daily-bar">
-        <div class="daily-count">
-          FLOOR <b class="${floorDone===total?'ok':''}">${floorDone}</b>/${total}
-          &nbsp;·&nbsp;
-          CEILING <b class="${ceilDone===total?'ok':''}">${ceilDone}</b>/${total}
-        </div>
-                <div class="daily-count">
-          STAT POINTS TODAY: <b>${((t.floorPointGiven ? 5 : 0) + Object.values(t.ceilPaid || {}).filter(Boolean).length)}</b>
-        </div>
-      </div>
-    </div>
-
-        ${quests}
-    ${lifestylePanelHTML()}
-    ${rewardPanel}
-    ${penaltyPanelHTML()}`;
 }
 
 function renderCeilingSteps(q, t){
@@ -3031,25 +3074,25 @@ document.addEventListener('click', (e) => {
       } else {
         map[id] = !map[id];
       }
-      if (kind === 'ceil' && map[id]) state.today.floor[id] = true; // ceiling implies floor
+            if (kind === 'ceil' && map[id]) state.today.floor[id] = true; // ceiling implies floor
 
-      // checkDailyAwards() owns both the award and the refund now —
-      // ceiling points are conditional on floor state.
       checkDailyAwards();
-      save(); render();
+      save();
+      refreshQuest(id);
       break;
     }
 
-            case 'dec-ceil': {
+               case 'dec-ceil': {
       const id = el.dataset.id;
       const cur = state.today.ceil[id];
       const n = typeof cur === 'number' ? cur : (cur ? 1 : 0);
       state.today.ceil[id] = n <= 1 ? 0 : n - 1;
       checkDailyAwards();
-      save(); render();
+      save();
+      refreshQuest(id);
       break;
     }
-    case 'toggle-ceil-step': {
+        case 'toggle-ceil-step': {
       const qid = el.dataset.qid, sid = el.dataset.sid;
       const q = state.quests.find(x => x.id === qid);
       if (!q) break;
@@ -3064,17 +3107,19 @@ document.addEventListener('click', (e) => {
       } else {
         state.today.ceilSteps[qid][sid] = !cur;
       }
-      save(); render();
+      save();
+      refreshQuest(qid);
       break;
     }
 
-    case 'dec-ceil-step': {
+        case 'dec-ceil-step': {
       const qid = el.dataset.qid, sid = el.dataset.sid;
       if (!state.today.ceilSteps || !state.today.ceilSteps[qid]) break;
       const cur = state.today.ceilSteps[qid][sid];
       const n = typeof cur === 'number' ? cur : (cur ? 1 : 0);
       state.today.ceilSteps[qid][sid] = n <= 1 ? 0 : n - 1;
-      save(); render();
+      save();
+      refreshQuest(qid);
       break;
     }
 
