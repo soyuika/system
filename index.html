@@ -1624,11 +1624,14 @@ function migrate(raw){
   s.dungeons.locked = (raw && raw.dungeons && raw.dungeons.locked) || {};
   s.dungeons.cleared = (raw && raw.dungeons && raw.dungeons.cleared) || [];
   s.dungeons.inbox = (raw && raw.dungeons && raw.dungeons.inbox) || [];
-  if (s.dungeons.active && Array.isArray(s.dungeons.active.tasks)){
+    if (s.dungeons.active && Array.isArray(s.dungeons.active.tasks)){
     s.dungeons.active.tasks.forEach(t => {
       if (typeof t.paid !== 'boolean') t.paid = !!t.done;
     });
+    if (!s.dungeons.active.domain) s.dungeons.active.domain = 'mind';
   }
+  s.dungeons.inbox.forEach(x => { if (!x.domain) x.domain = 'mind'; });
+  s.dungeons.cleared.forEach(x => { if (!x.domain) x.domain = 'mind'; });
       s.titles = (raw && raw.titles) || [];
   s.titles.forEach(t => {
     if (typeof t.awardedAt === 'undefined' || (t.awardedAt === null && raw && !raw.__titlesAwardedSupported)){
@@ -1648,8 +1651,9 @@ function migrate(raw){
 
   // Mission schema evolution: convert legacy encounter/plan strings to pairs,
   // ensure milestones array exists and its shape is correct.
-  const migrateMissionShape = (m) => {
+    const migrateMissionShape = (m) => {
     if (!m) return;
+    if (!m.domain) m.domain = 'mind';
     if (!Array.isArray(m.encounterPairs)){
       const pairs = [];
       if (m.encounter || m.plan){
@@ -3147,6 +3151,73 @@ function penaltyPanelHTML(){
     </div>`;
 }
 
+ function openEditDungeonModal(id, isActive){
+  let d;
+  if (isActive){
+    d = state.dungeons.active;
+    if (!d || d.id !== id) return;
+  } else {
+    d = state.dungeons.inbox.find(x => x.id === id);
+    if (!d) return;
+  }
+
+  const domainOptions = DOMAIN_KEYS.map(k =>
+    `<option value="${k}" ${d.domain===k?'selected':''}>${DOMAIN_META[k].icon} ${DOMAIN_META[k].label}</option>`
+  ).join('');
+
+  const rankOptions = ['E','D','C','B','A','S'].map(r =>
+    `<option value="${r}" ${d.rank===r?'selected':''}>${r} — ${DUNGEON_DAYS[r]} day limit</option>`
+  ).join('');
+
+  const tasksBlock = isActive
+    ? `<div class="meta" style="color:var(--dim);font-size:11.5px;line-height:1.6;margin-bottom:12px">
+         Objectives can't be edited while a dungeon is active — payment tracking is tied to them. Finish or abandon first.
+       </div>
+       <label class="fld"><span>Objectives (read-only)</span>
+         <textarea readonly style="opacity:.7;cursor:not-allowed">${d.tasks.map(t => esc(t.text)).join('\n')}</textarea>
+       </label>`
+    : `<label class="fld"><span>Objectives (one per line)</span>
+         <textarea id="edTasks">${d.tasks.map(t => esc(t.text)).join('\n')}</textarea>
+       </label>`;
+
+  openModal(`
+    <h2>Edit Dungeon${isActive ? ' (Active)' : ''}</h2>
+    <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:14px">
+      Dev mode override.
+    </p>
+
+    <label class="fld"><span>Monster / Dungeon Name</span>
+      <input id="edName" value="${esc(d.name)}">
+    </label>
+
+    <label class="fld"><span>Real Meaning (optional)</span>
+      <input id="edReal" value="${esc(d.real || '')}">
+    </label>
+
+    <div class="grid2">
+          <label class="fld"><span>Rank</span>
+      <select id="emRank">${rankOptions}</select>
+    </label>
+
+    <label class="fld"><span>Domain</span>
+      <select id="emDomain">
+        ${DOMAIN_KEYS.map(k => `<option value="${k}" ${m.domain===k?'selected':''}>${DOMAIN_META[k].icon} ${DOMAIN_META[k].label}</option>`).join('')}
+      </select>
+    </label>
+      <label class="fld"><span>Domain</span>
+        <select id="edDomain">${domainOptions}</select>
+      </label>
+    </div>
+
+    ${tasksBlock}
+
+    <div class="row" style="justify-content:flex-end;gap:8px">
+      <button class="btn ghost" data-act="close-modal">Cancel</button>
+      <button class="btn gold" data-act="save-dungeon-edit" data-id="${d.id}" data-active="${isActive ? '1' : '0'}">Save</button>
+    </div>
+  `);
+} 
+  
 function viewDungeons(){
   const d = state.dungeons;
 
@@ -3171,7 +3242,8 @@ function viewDungeons(){
                 ${locked ? ` · <span style="color:var(--danger)">SEALED until ${fmtDate(lock.until)}</span>` : ''}
               </div>
             </div>
-            <div class="row">
+                        <div class="row">
+              ${state.devMode ? `<button class="btn small ghost" data-act="edit-dungeon" data-id="${x.id}">Edit</button>` : ''}
               <button class="btn small" data-act="open-dungeon" data-id="${x.id}">${locked?'Sealed':'Open'}</button>
               <button class="btn small danger" data-act="del-dungeon" data-id="${x.id}">✕</button>
                         </div>
@@ -3208,7 +3280,8 @@ function viewDungeons(){
           </div>
         </div>
         ${tasks}
-        <div class="row" style="justify-content:flex-end;margin-top:12px">
+                <div class="row" style="justify-content:flex-end;gap:6px;margin-top:12px">
+          ${state.devMode ? `<button class="btn small ghost" data-act="edit-dungeon" data-id="${a.id}">Edit</button>` : ''}
           <button class="btn small danger" data-act="abandon-dungeon">Abandon</button>
         </div>
       </div>`;
@@ -3258,10 +3331,9 @@ function viewDungeons(){
             <label class="fld"><span>Real Meaning (optional)</span>
         <input id="dnReal" placeholder="What this actually is — e.g. 'my messy bedroom'">
       </label>
-      <label class="fld"><span>Domain (optional — scales with active arc)</span>
+            <label class="fld"><span>Domain (scales with active arc)</span>
         <select id="dnDomain">
-          <option value="">— unassigned —</option>
-          ${DOMAIN_KEYS.map(k => `<option value="${k}">${DOMAIN_META[k].icon} ${DOMAIN_META[k].label}</option>`).join('')}
+          ${DOMAIN_KEYS.map(k => `<option value="${k}" ${k==='mind'?'selected':''}>${DOMAIN_META[k].icon} ${DOMAIN_META[k].label}</option>`).join('')}
         </select>
       </label>
       <label class="fld"><span>Objectives (one per line)</span>
@@ -3594,10 +3666,9 @@ function viewMissionForm(){
         </select>
       </label>
 
-      <label class="fld"><span>Domain (optional — scales with active arc)</span>
+            <label class="fld"><span>Domain (scales with active arc)</span>
         <select id="msDomain">
-          <option value="">— unassigned —</option>
-          ${DOMAIN_KEYS.map(k => `<option value="${k}">${DOMAIN_META[k].icon} ${DOMAIN_META[k].label}</option>`).join('')}
+          ${DOMAIN_KEYS.map(k => `<option value="${k}" ${k==='mind'?'selected':''}>${DOMAIN_META[k].icon} ${DOMAIN_META[k].label}</option>`).join('')}
         </select>
       </label>
 
@@ -4367,7 +4438,7 @@ document.addEventListener('click', (e) => {
       const c1 = $('#msCrit1').value.trim();
       const c2 = $('#msCrit2').value.trim();
             const c3 = $('#msCrit3').value.trim();
-      const domain = ($('#msDomain') || {}).value || null;
+            const domain = ($('#msDomain') || {}).value || 'mind';
       const mode = (document.querySelector('input[name="msMode"]:checked') || {}).value || 'now';
 
       // Read pairs from the form builder
@@ -4671,7 +4742,8 @@ document.addEventListener('click', (e) => {
       const deadlineStr = $('#emDeadline').value;
       const c1 = $('#emCrit1').value.trim();
       const c2 = $('#emCrit2').value.trim();
-      const c3 = $('#emCrit3').value.trim();
+            const c3 = $('#emCrit3').value.trim();
+      const domain = ($('#emDomain') || {}).value || 'mind';
 
       if (!name){ toast('Mission name is required.', 'bad'); break; }
       if (!c1 || !c2 || !c3){ toast('All 3 criteria are required.', 'bad'); break; }
@@ -4722,8 +4794,9 @@ document.addEventListener('click', (e) => {
         });
       });
 
-      m.name = name;
+            m.name = name;
       m.rank = rank;
+      m.domain = domain;
       m.bounty = MISSION_BOUNTY[rank];
       m.deadline = newDeadline.toISOString();
       m.criteria[0].text = c1;
@@ -5096,8 +5169,8 @@ document.addEventListener('click', (e) => {
         case 'add-dungeon': {
       const name = $('#dnName').value.trim();
       const real = $('#dnReal').value.trim();
-            const rank = $('#dnRank').value;
-      const domain = $('#dnDomain').value || null;
+                  const rank = $('#dnRank').value;
+      const domain = $('#dnDomain').value || 'mind';
       const raw = $('#dnTasks').value.split('\n').map(s => s.trim()).filter(Boolean);
       if (!name || !raw.length) return toast('Name and at least one objective required.', 'bad');
       state.dungeons.inbox.push({
@@ -5109,10 +5182,65 @@ document.addEventListener('click', (e) => {
       toast('Dungeon registered in inbox.');
       break;
     }
-    case 'del-dungeon':
+        case 'del-dungeon':
       state.dungeons.inbox = state.dungeons.inbox.filter(x => x.id !== el.dataset.id);
       save(); render();
       break;
+
+    case 'edit-dungeon': {
+      if (!state.devMode){
+        toast('Editing dungeons requires developer mode.', 'bad');
+        break;
+      }
+      const id = el.dataset.id;
+      const isActive = state.dungeons.active && state.dungeons.active.id === id;
+      openEditDungeonModal(id, isActive);
+      break;
+    }
+
+    case 'save-dungeon-edit': {
+      if (!state.devMode){
+        toast('Editing dungeons requires developer mode.', 'bad');
+        break;
+      }
+      const id = el.dataset.id;
+      const isActive = el.dataset.active === '1';
+      const name = $('#edName').value.trim();
+      const real = $('#edReal').value.trim();
+      const rank = $('#edRank').value;
+      const domain = $('#edDomain').value || 'mind';
+
+      if (!name){ toast('Dungeon name is required.', 'bad'); break; }
+      if (!DUNGEON_DAYS[rank]){ toast('Invalid rank.', 'bad'); break; }
+
+      if (isActive){
+        const d = state.dungeons.active;
+        if (!d || d.id !== id) break;
+        d.name = name;
+        d.real = real;
+        d.rank = rank;
+        d.domain = domain;
+      } else {
+        const d = state.dungeons.inbox.find(x => x.id === id);
+        if (!d) break;
+        const rawTasks = $('#edTasks').value.split('\n').map(s => s.trim()).filter(Boolean);
+        if (!rawTasks.length){ toast('At least one objective is required.', 'bad'); break; }
+        d.name = name;
+        d.real = real;
+        d.rank = rank;
+        d.domain = domain;
+        const oldTasks = d.tasks || [];
+        d.tasks = rawTasks.map((text, i) => {
+          const old = oldTasks[i];
+          const sameText = old && old.text === text;
+          return { id: sameText ? old.id : uid(), text, done: false };
+        });
+      }
+
+      save(); closeModal(); render();
+      toast('Dungeon updated.', 'gold');
+      break;
+    }
 
     case 'open-dungeon':
       openDungeon(el.dataset.id);
