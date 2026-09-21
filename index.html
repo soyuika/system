@@ -851,6 +851,81 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   font-size:13.5px;color:var(--text);line-height:1.6;
 }
 
+/* recon / field notes on encounter pairs */
+.mission-pair-head{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:6px;
+}
+.mission-pair-head .mission-pair-label{
+  margin-bottom:0;flex:1;
+}
+.mission-pair-badge{
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;letter-spacing:.16em;
+  padding:1px 6px;text-transform:uppercase;
+  flex-shrink:0;
+}
+.mission-pair-badge.planned{
+  color:var(--dim);
+  border:1px solid rgba(111,140,181,.45);
+}
+.mission-pair-badge.happened{
+  color:var(--mission);
+  border:1px solid rgba(255,95,168,.55);
+  background:rgba(255,95,168,.08);
+}
+.mission-pair-x{
+  background:transparent;border:none;
+  color:var(--dim);font-size:13px;
+  cursor:pointer;padding:0 4px;
+  transition:.15s;flex-shrink:0;
+}
+.mission-pair-x:hover{color:var(--danger)}
+.mission-pair textarea{
+  min-height:44px;
+  font-size:13.5px;
+  background:rgba(4,10,22,.75);
+  border:1px solid rgba(255,95,168,.2);
+  padding:7px 10px;
+}
+.mission-pair textarea:focus{
+  border-color:var(--mission);
+  box-shadow:0 0 12px rgba(255,95,168,.25);
+}
+.mission-pair-outcome{
+  display:flex;gap:6px;flex-wrap:wrap;
+  padding:10px 13px;
+  border-top:1px dashed rgba(255,95,168,.2);
+}
+.outcome-chip{
+  font-family:inherit;font-size:11px;letter-spacing:.14em;
+  padding:5px 11px;cursor:pointer;text-transform:uppercase;
+  background:rgba(8,18,36,.7);color:var(--dim);
+  border:1px solid rgba(111,140,181,.35);
+  transition:.15s;
+}
+.outcome-chip:hover{color:var(--cyan);border-color:var(--cyan)}
+.outcome-chip.on.worked{color:var(--green);border-color:var(--green);background:rgba(56,255,176,.12)}
+.outcome-chip.on.partial{color:var(--gold);border-color:var(--gold);background:rgba(255,207,92,.12)}
+.outcome-chip.on.failed{color:var(--danger);border-color:var(--danger);background:rgba(255,61,110,.12)}
+.mission-pair-notes{
+  padding:12px 13px;
+  border-top:1px dashed rgba(255,95,168,.2);
+  display:flex;flex-direction:column;gap:10px;
+}
+.mission-pair-notes label{display:block}
+.note-label{
+  display:block;
+  font-family:'Share Tech Mono',monospace;
+  font-size:10.5px;letter-spacing:.18em;
+  color:var(--dim);text-transform:uppercase;
+  margin-bottom:4px;
+}
+.mission-pair-actions{
+  display:flex;justify-content:flex-end;gap:8px;
+  padding:10px 13px 12px;
+  border-top:1px dashed rgba(255,95,168,.15);
+}
 /* form builder for pairs and milestones */
 .mission-pair-form,
 .mission-milestone-form{
@@ -1351,7 +1426,18 @@ function migrate(raw){
     }
     delete m.encounter;
     delete m.plan;
-    m.encounterPairs.forEach(p => { if (!p.id) p.id = uid(); });
+        m.encounterPairs.forEach(p => {
+      if (!p.id) p.id = uid();
+      if (typeof p.happened !== 'boolean') p.happened = false;
+      if (typeof p.outcome === 'undefined') p.outcome = null;
+      if (!p.fieldNotes || typeof p.fieldNotes !== 'object'){
+        p.fieldNotes = { worked: '', failed: '', change: '' };
+      } else {
+        ['worked','failed','change'].forEach(k => {
+          if (typeof p.fieldNotes[k] !== 'string') p.fieldNotes[k] = '';
+        });
+      }
+    });
     if (!Array.isArray(m.milestones)) m.milestones = [];
     m.milestones.forEach(ms => {
       if (!ms.id) ms.id = uid();
@@ -2781,21 +2867,59 @@ function viewActiveMission(m){
       <span class="crit-text">${esc(c.text)}</span>
     </div>`).join('');
 
-  const pairs = (m.encounterPairs || []).length
-    ? `
-      <div class="mission-section-label">Likely to Encounter / Plan</div>
-      ${m.encounterPairs.map(p => `
-        <div class="mission-pair">
-          <div class="mission-pair-enc">
-            <div class="mission-pair-label">Encounter</div>
-            <div class="mission-pair-text">${esc(p.encounter || '—')}</div>
+    const pairsList = (m.encounterPairs || []).map(p => {
+    const happened = !!p.happened;
+    const badge = happened
+      ? '<span class="mission-pair-badge happened">Happened</span>'
+      : '<span class="mission-pair-badge planned">Planned</span>';
+    const notes = p.fieldNotes || {worked:'', failed:'', change:''};
+    const outcomeRow = happened
+      ? `<div class="mission-pair-outcome">
+          <button class="outcome-chip ${p.outcome==='worked'?'on worked':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="worked">Worked</button>
+          <button class="outcome-chip ${p.outcome==='partial'?'on partial':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="partial">Partial</button>
+          <button class="outcome-chip ${p.outcome==='failed'?'on failed':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="failed">Failed</button>
+        </div>
+        <div class="mission-pair-notes">
+          <label><span class="note-label">What worked</span>
+            <textarea data-note-pid="${p.id}" data-note-field="worked" placeholder="What went right...">${esc(notes.worked)}</textarea>
+          </label>
+          <label><span class="note-label">What didn't</span>
+            <textarea data-note-pid="${p.id}" data-note-field="failed" placeholder="What went wrong...">${esc(notes.failed)}</textarea>
+          </label>
+          <label><span class="note-label">What needs to change</span>
+            <textarea data-note-pid="${p.id}" data-note-field="change" placeholder="How to adjust the plan...">${esc(notes.change)}</textarea>
+          </label>
+        </div>`
+      : '';
+    return `
+      <div class="mission-pair" data-pid="${p.id}">
+        <div class="mission-pair-enc">
+          <div class="mission-pair-head">
+            <span class="mission-pair-label">Encounter</span>
+            ${badge}
+            <button class="mission-pair-x" data-act="delete-encounter" data-pid="${p.id}" title="Remove">✕</button>
           </div>
-          <div class="mission-pair-plan">
-            <div class="mission-pair-label">Plan</div>
-            <div class="mission-pair-text">${esc(p.plan || '—')}</div>
-          </div>
-        </div>`).join('')}`
-    : '';
+          <textarea data-enc-encounter="${p.id}" placeholder="What might happen / what happened...">${esc(p.encounter || '')}</textarea>
+        </div>
+        <div class="mission-pair-plan">
+          <div class="mission-pair-label">Plan</div>
+          <textarea data-enc-plan="${p.id}" placeholder="How I'll handle it...">${esc(p.plan || '')}</textarea>
+        </div>
+        ${outcomeRow}
+        <div class="mission-pair-actions">
+          <button class="btn small ghost" data-act="toggle-encounter-happened" data-pid="${p.id}">${happened ? 'Unmark Happened' : 'Encounter Happened'}</button>
+          <button class="btn small" data-act="save-encounter" data-pid="${p.id}">Save</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  const pairs = `
+    <div class="mission-section-label">Encounters &amp; Recon</div>
+    ${pairsList}
+    <div class="row" style="gap:8px;margin-top:12px">
+      <button class="btn small ghost" data-act="add-planned-encounter">+ Planned Encounter</button>
+      <button class="btn small gold" data-act="add-unexpected-encounter">+ Log Unexpected Encounter</button>
+    </div>`;
 
   const mssDone = (m.milestones || []).filter(ms => ms.done).length;
   const milestones = (m.milestones || []).length
@@ -3801,12 +3925,117 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-        case 'toggle-milestone-collapse': {
+            case 'toggle-milestone-collapse': {
       const id = el.dataset.id;
       if (expandedMilestones.has(id)) expandedMilestones.delete(id);
       else expandedMilestones.add(id);
       const node = document.querySelector(`.mission-milestone[data-msid="${id}"]`);
       if (node) node.classList.toggle('open');
+      break;
+    }
+
+    case 'add-planned-encounter': {
+      const m = state.missions.active;
+      if (!m) break;
+      m.encounterPairs = m.encounterPairs || [];
+      m.encounterPairs.push({
+        id: uid(),
+        encounter: '',
+        plan: '',
+        happened: false,
+        outcome: null,
+        fieldNotes: { worked: '', failed: '', change: '' }
+      });
+      save(); render();
+      setTimeout(() => {
+        const inputs = document.querySelectorAll('[data-enc-encounter]');
+        const last = inputs[inputs.length-1];
+        if (last) last.focus();
+      }, 30);
+      break;
+    }
+
+    case 'add-unexpected-encounter': {
+      const m = state.missions.active;
+      if (!m) break;
+      m.encounterPairs = m.encounterPairs || [];
+      const newId = uid();
+      m.encounterPairs.push({
+        id: newId,
+        encounter: '',
+        plan: '',
+        happened: true,
+        outcome: null,
+        fieldNotes: { worked: '', failed: '', change: '' }
+      });
+      save(); render();
+      setTimeout(() => {
+        const input = document.querySelector(`[data-enc-encounter="${newId}"]`);
+        if (input) {
+          input.focus();
+          input.scrollIntoView({behavior:'smooth', block:'center'});
+        }
+      }, 30);
+      break;
+    }
+
+    case 'toggle-encounter-happened': {
+      const m = state.missions.active;
+      if (!m) break;
+      const p = (m.encounterPairs || []).find(x => x.id === el.dataset.pid);
+      if (!p) break;
+      p.happened = !p.happened;
+      if (!p.happened){
+        p.outcome = null;
+      }
+      save(); render();
+      break;
+    }
+
+    case 'set-encounter-outcome': {
+      const m = state.missions.active;
+      if (!m) break;
+      const p = (m.encounterPairs || []).find(x => x.id === el.dataset.pid);
+      if (!p) break;
+      const target = el.dataset.outcome;
+      p.outcome = (p.outcome === target) ? null : target;
+      save(); render();
+      break;
+    }
+
+    case 'save-encounter': {
+      const m = state.missions.active;
+      if (!m) break;
+      const pid = el.dataset.pid;
+      const p = (m.encounterPairs || []).find(x => x.id === pid);
+      if (!p) break;
+      const encEl = document.querySelector(`[data-enc-encounter="${pid}"]`);
+      const planEl = document.querySelector(`[data-enc-plan="${pid}"]`);
+      const workedEl = document.querySelector(`[data-note-pid="${pid}"][data-note-field="worked"]`);
+      const failedEl = document.querySelector(`[data-note-pid="${pid}"][data-note-field="failed"]`);
+      const changeEl = document.querySelector(`[data-note-pid="${pid}"][data-note-field="change"]`);
+      p.encounter = encEl ? encEl.value.trim() : '';
+      p.plan = planEl ? planEl.value.trim() : '';
+      p.fieldNotes = {
+        worked: workedEl ? workedEl.value.trim() : '',
+        failed: failedEl ? failedEl.value.trim() : '',
+        change: changeEl ? changeEl.value.trim() : ''
+      };
+      save(); render();
+      toast('Encounter saved.');
+      break;
+    }
+
+    case 'delete-encounter': {
+      const m = state.missions.active;
+      if (!m) break;
+      const pid = el.dataset.pid;
+      const p = (m.encounterPairs || []).find(x => x.id === pid);
+      if (!p) break;
+      const hasContent = p.encounter || p.plan || (p.fieldNotes && (p.fieldNotes.worked || p.fieldNotes.failed || p.fieldNotes.change));
+      if (hasContent && !confirm('Remove this encounter and any field notes attached to it?')) break;
+      m.encounterPairs = (m.encounterPairs || []).filter(x => x.id !== pid);
+      save(); render();
       break;
     }
 
