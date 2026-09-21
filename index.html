@@ -186,11 +186,29 @@ body::after{
   text-transform:uppercase;
   vertical-align:middle;
 }
+.title-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:12px;
+  flex-wrap:wrap;
+  width:100%;
+}
+.title-name-line{
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  min-width:0;
+}
 .title-awarded-date{
   color:var(--gold) !important;
   font-family:'Share Tech Mono',monospace;
   font-size:11px;
   letter-spacing:.06em;
+  white-space:nowrap;
+  flex-shrink:0;
 }
 .item.title-equipped{
   border-color:rgba(255,207,92,.4);
@@ -2466,13 +2484,15 @@ function viewStatus(){
     ? awardedTitles.map(t => {
         const isEquipped = state.equippedTitle === t.id;
         return `
-                <div class="item title-item ${isEquipped ? 'title-equipped' : ''}">
-          <div style="flex:1;min-width:0">
-            <div style="color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};font-weight:600;letter-spacing:.1em">
-              ${esc(t.name)}${isEquipped ? '<span class="title-equipped-badge">EQUIPPED</span>' : ''}
+                        <div class="item title-item ${isEquipped ? 'title-equipped' : ''}">
+          <div style="flex:1;min-width:0;width:100%">
+            <div class="title-row">
+              <div class="title-name-line" style="color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};letter-spacing:.1em">
+                ${esc(t.name)}${isEquipped ? '<span class="title-equipped-badge">EQUIPPED</span>' : ''}
+              </div>
+              <div class="meta title-awarded-date">Awarded ${fmtShort(t.awardedAt)}${t.expiresAt ? ' · expires ' + fmtDate(t.expiresAt) : ''}</div>
             </div>
             <div class="meta">${esc(t.desc||'')}</div>
-            <div class="meta title-awarded-date">Awarded ${fmtShort(t.awardedAt)}${t.expiresAt ? ' · expires ' + fmtDate(t.expiresAt) : ''}</div>
           </div>
         </div>`;
       }).join('')
@@ -3598,14 +3618,18 @@ function viewSystem(){
     const dateLine = awarded
       ? `<div class="meta title-awarded-date">Awarded ${fmtShort(t.awardedAt)}${t.expiresAt ? ' · expires ' + fmtDate(t.expiresAt) : ''}</div>`
       : `<div class="meta" style="color:var(--dim);font-style:italic">Not yet awarded — sitting in storage</div>`;
+        const canManage = state.devMode;
+    const manageTip = canManage ? '' : 'Developer mode only';
     return `
-        <div class="item title-item ${isEquipped ? 'title-equipped' : ''}">
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:600;color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};display:flex;align-items:center;flex-wrap:wrap">
-          ${esc(t.name)}${stateBadge}
+    <div class="item title-item ${isEquipped ? 'title-equipped' : ''}">
+      <div style="flex:1;min-width:0;width:100%">
+        <div class="title-row">
+          <div class="title-name-line" style="color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'}">
+            ${esc(t.name)}${stateBadge}
+          </div>
+          ${dateLine}
         </div>
         <div class="meta">${esc(t.desc||'')}</div>
-        ${dateLine}
       </div>
       <div class="row title-actions" style="gap:6px;flex-shrink:0">
         ${awarded
@@ -3613,8 +3637,8 @@ function viewSystem(){
               ? `<button class="btn small ghost" data-act="unequip-title">Unequip</button>`
               : `<button class="btn small gold" data-act="equip-title" data-id="${t.id}">Equip</button>`)
           : `<button class="btn small gold" data-act="award-title" data-id="${t.id}">Award</button>`}
-        ${awarded ? `<button class="btn small ghost" data-act="revoke-title" data-id="${t.id}">Revoke</button>` : ''}
-        <button class="btn small ghost" data-act="edit-title" data-id="${t.id}">Edit</button>
+        ${awarded ? `<button class="btn small ghost" data-act="revoke-title" data-id="${t.id}" ${canManage ? '' : 'disabled'} title="${manageTip}">Revoke</button>` : ''}
+        <button class="btn small ghost" data-act="edit-title" data-id="${t.id}" ${canManage ? '' : 'disabled'} title="${manageTip}">Edit</button>
         <button class="btn small danger" data-act="del-title" data-id="${t.id}">✕</button>
       </div>
     </div>`;
@@ -4725,7 +4749,11 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'revoke-title': {
+        case 'revoke-title': {
+      if (!state.devMode){
+        toast('Revoking titles requires developer mode.', 'bad');
+        break;
+      }
       const t = state.titles.find(x => x.id === el.dataset.id);
       if (!t) break;
       if (!t.awardedAt){ toast('Not currently awarded.', 'bad'); break; }
@@ -4753,7 +4781,11 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'edit-title': {
+        case 'edit-title': {
+      if (!state.devMode){
+        toast('Editing titles requires developer mode.', 'bad');
+        break;
+      }
       const t = state.titles.find(x => x.id === el.dataset.id);
       if (!t) break;
       openModal(`
