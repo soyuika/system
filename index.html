@@ -823,6 +823,132 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   background:rgba(4,10,22,.6);
   border-left:2px solid rgba(255,95,168,.4);
 }
+
+/* encounter / plan pairs */
+.mission-pair{
+  margin-bottom:12px;
+  border:1px solid rgba(255,95,168,.22);
+  background:rgba(4,10,22,.5);
+  overflow:hidden;
+}
+.mission-pair:last-child{margin-bottom:0}
+.mission-pair-enc,
+.mission-pair-plan{
+  padding:10px 13px;
+}
+.mission-pair-enc{
+  border-bottom:1px dashed rgba(255,95,168,.2);
+}
+.mission-pair-label{
+  font-family:'Share Tech Mono',monospace;
+  font-size:10.5px;letter-spacing:.2em;
+  color:var(--dim);text-transform:uppercase;
+  margin-bottom:5px;
+}
+.mission-pair-enc .mission-pair-label{color:var(--mission)}
+.mission-pair-plan .mission-pair-label{color:var(--cyan)}
+.mission-pair-text{
+  font-size:13.5px;color:var(--text);line-height:1.6;
+}
+
+/* form builder for pairs and milestones */
+.mission-pair-form,
+.mission-milestone-form{
+  position:relative;
+  padding:12px 44px 12px 14px;
+  margin-bottom:10px;
+  border:1px solid rgba(255,95,168,.25);
+  background:rgba(4,10,22,.5);
+}
+.mission-pair-form .pair-x,
+.mission-milestone-form .ms-x{
+  position:absolute;top:10px;right:10px;
+  padding:4px 9px !important;
+  font-size:11px !important;
+}
+
+/* milestone collapsibles in the active mission */
+.mission-milestone{
+  border:1px solid rgba(255,95,168,.22);
+  background:rgba(4,10,22,.5);
+  margin-bottom:8px;
+}
+.mission-milestone:last-child{margin-bottom:0}
+.mission-milestone-head{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 13px;cursor:pointer;user-select:none;
+  transition:.15s;
+}
+.mission-milestone-head:hover{background:rgba(255,95,168,.05)}
+.mission-milestone-chk{
+  font-family:'Share Tech Mono',monospace;font-size:14px;
+  width:26px;height:26px;min-width:26px;padding:0;
+  background:rgba(8,18,36,.8);
+  border:1px solid rgba(255,95,168,.35);
+  color:var(--dim);cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:.15s;flex-shrink:0;
+}
+.mission-milestone-chk:hover{border-color:var(--mission);color:var(--mission)}
+.mission-milestone-chk.on{
+  background:linear-gradient(180deg,rgba(56,255,176,.3),rgba(10,80,55,.3));
+  border-color:var(--green);color:#c9fff0;
+  box-shadow:0 0 12px rgba(56,255,176,.3);
+}
+.mission-milestone-title{
+  flex:1;font-size:14px;color:var(--text);
+  font-weight:500;line-height:1.4;
+  min-width:0;
+}
+.mission-milestone.done .mission-milestone-title{
+  color:var(--green);
+  text-decoration:line-through;
+  text-decoration-color:rgba(56,255,176,.4);
+}
+.mission-milestone-progress{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11.5px;color:var(--dim);
+  letter-spacing:.06em;flex-shrink:0;
+}
+.mission-milestone-chevron{
+  color:var(--dim);font-size:13px;
+  transition:transform .15s;flex-shrink:0;
+  line-height:1;
+}
+.mission-milestone.open .mission-milestone-chevron{
+  transform:rotate(90deg);
+}
+.mission-milestone-body{
+  display:none;
+  padding:4px 13px 12px 51px;
+  border-top:1px dashed rgba(255,95,168,.15);
+}
+.mission-milestone.open .mission-milestone-body{display:block}
+.mission-milestone-step{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:6px 0;font-size:13.5px;color:var(--text);
+  line-height:1.5;transition:color .15s;
+}
+.mission-milestone-step .step-chk{
+  font-family:'Share Tech Mono',monospace;font-size:11px;
+  width:20px;height:20px;min-width:20px;padding:0;
+  background:rgba(8,18,36,.8);
+  border:1px solid rgba(255,95,168,.3);
+  color:var(--dim);cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:.15s;flex-shrink:0;margin-top:1px;
+}
+.mission-milestone-step .step-chk:hover{border-color:var(--mission);color:var(--mission)}
+.mission-milestone-step .step-chk.on{
+  background:linear-gradient(180deg,rgba(56,255,176,.3),rgba(10,80,55,.3));
+  border-color:var(--green);color:#c9fff0;
+}
+.mission-milestone-step.on .step-text{
+  color:var(--green);
+  text-decoration:line-through;
+  text-decoration-color:rgba(56,255,176,.4);
+}
+.mission-milestone-step .step-text{flex:1}
 .mission-ready{
   padding:12px 14px;margin:18px 0 8px;
   border:1px solid rgba(56,255,176,.5);
@@ -1147,6 +1273,7 @@ let state = defaultState();
 let activeTab = 'status';
 const expandedStats = new Set();  // which stat descriptions are expanded this session
 const expandedQuests = new Set();  // which quest cards are expanded this session
+const expandedMilestones = new Set();  // which mission milestones are expanded this session
 let saveTimer = null, saveDirty = false;
 
 function save(){
@@ -1207,9 +1334,39 @@ function migrate(raw){
     s.keys = (raw && raw.keys) || [];
     if (typeof s.editTokens !== 'number') s.editTokens = 0;
     if (typeof s.devMode !== 'boolean') s.devMode = false;
-    s.missions = Object.assign({active: null, backlog: [], history: []}, (raw && raw.missions) || {});
+        s.missions = Object.assign({active: null, backlog: [], history: []}, (raw && raw.missions) || {});
   if (!Array.isArray(s.missions.history)) s.missions.history = [];
   if (!Array.isArray(s.missions.backlog)) s.missions.backlog = [];
+
+  // Mission schema evolution: convert legacy encounter/plan strings to pairs,
+  // ensure milestones array exists and its shape is correct.
+  const migrateMissionShape = (m) => {
+    if (!m) return;
+    if (!Array.isArray(m.encounterPairs)){
+      const pairs = [];
+      if (m.encounter || m.plan){
+        pairs.push({ id: uid(), encounter: m.encounter || '', plan: m.plan || '' });
+      }
+      m.encounterPairs = pairs;
+    }
+    delete m.encounter;
+    delete m.plan;
+    m.encounterPairs.forEach(p => { if (!p.id) p.id = uid(); });
+    if (!Array.isArray(m.milestones)) m.milestones = [];
+    m.milestones.forEach(ms => {
+      if (!ms.id) ms.id = uid();
+      if (typeof ms.done !== 'boolean') ms.done = false;
+      if (!Array.isArray(ms.steps)) ms.steps = [];
+      ms.steps.forEach(st => {
+        if (!st.id) st.id = uid();
+        if (typeof st.done !== 'boolean') st.done = false;
+      });
+    });
+  };
+
+  if (s.missions.active) migrateMissionShape(s.missions.active);
+  s.missions.backlog.forEach(migrateMissionShape);
+  s.missions.history.forEach(migrateMissionShape);
   s.log = (raw && raw.log) || {};
     s.weekFails = (raw && raw.weekFails) || {};
   if (typeof s.weeklyApplied !== 'string') s.weeklyApplied = null;
@@ -1898,7 +2055,7 @@ function render(){
   if (activeTab === 'status')   v.innerHTML = viewStatus();
   if (activeTab === 'quests')   v.innerHTML = viewQuests();
     if (activeTab === 'dungeons') v.innerHTML = viewDungeons();
-  if (activeTab === 'missions') v.innerHTML = viewMissions();
+    if (activeTab === 'missions'){ v.innerHTML = viewMissions(); renderMissionFormBuilders(); }
   if (activeTab === 'system')   v.innerHTML = viewSystem();
   updateTimers();
 }
@@ -2624,6 +2781,51 @@ function viewActiveMission(m){
       <span class="crit-text">${esc(c.text)}</span>
     </div>`).join('');
 
+  const pairs = (m.encounterPairs || []).length
+    ? `
+      <div class="mission-section-label">Likely to Encounter / Plan</div>
+      ${m.encounterPairs.map(p => `
+        <div class="mission-pair">
+          <div class="mission-pair-enc">
+            <div class="mission-pair-label">Encounter</div>
+            <div class="mission-pair-text">${esc(p.encounter || '—')}</div>
+          </div>
+          <div class="mission-pair-plan">
+            <div class="mission-pair-label">Plan</div>
+            <div class="mission-pair-text">${esc(p.plan || '—')}</div>
+          </div>
+        </div>`).join('')}`
+    : '';
+
+  const mssDone = (m.milestones || []).filter(ms => ms.done).length;
+  const milestones = (m.milestones || []).length
+    ? `
+      <div class="mission-section-label">Milestones — ${mssDone}/${m.milestones.length} done</div>
+      ${m.milestones.map(ms => {
+        const msOpen = expandedMilestones.has(ms.id);
+        const stepDone = (ms.steps || []).filter(s => s.done).length;
+        const stepTotal = (ms.steps || []).length;
+        const progress = stepTotal > 0 ? `<span class="mission-milestone-progress">${stepDone}/${stepTotal}</span>` : '';
+        const stepsHTML = stepTotal > 0
+          ? ms.steps.map(s => `
+              <div class="mission-milestone-step ${s.done ? 'on' : ''}">
+                <button class="step-chk ${s.done ? 'on' : ''}" data-act="toggle-milestone-step" data-msid="${ms.id}" data-sid="${s.id}">${s.done ? '✓' : '○'}</button>
+                <span class="step-text">${esc(s.text)}</span>
+              </div>`).join('')
+          : `<div class="meta" style="color:var(--dim);font-style:italic;padding:4px 0">No steps defined.</div>`;
+        return `
+          <div class="mission-milestone ${ms.done ? 'done' : ''} ${msOpen ? 'open' : ''}" data-msid="${ms.id}">
+            <div class="mission-milestone-head" data-act="toggle-milestone-collapse" data-id="${ms.id}">
+              <button class="mission-milestone-chk ${ms.done ? 'on' : ''}" data-act="toggle-milestone" data-id="${ms.id}">${ms.done ? '✓' : ''}</button>
+              <span class="mission-milestone-title">${esc(ms.title)}</span>
+              ${progress}
+              <span class="mission-milestone-chevron">▸</span>
+            </div>
+            <div class="mission-milestone-body">${stepsHTML}</div>
+          </div>`;
+      }).join('')}`
+    : '';
+
   return `
     <div class="panel mission-panel">
       <div class="panel-title">Active Mission</div>
@@ -2645,17 +2847,12 @@ function viewActiveMission(m){
       ${criteria}
       <div class="mission-progress">PROGRESS: <b>${done}</b> / ${total}${allDone ? ' — ALL CRITERIA MET' : ''}</div>
 
-      ${m.encounter ? `
-        <div class="mission-section-label">Likely to Encounter</div>
-        <div class="mission-field-value">${esc(m.encounter)}</div>` : ''}
-
-      ${m.plan ? `
-        <div class="mission-section-label">Plan to Deal With It</div>
-        <div class="mission-field-value">${esc(m.plan)}</div>` : ''}
+      ${pairs}
+      ${milestones}
 
       ${allDone ? `<div class="mission-ready">◆ All criteria met — ready to close</div>` : ''}
 
-            <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px">
+      <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px">
         <button class="btn small ghost" data-act="hold-mission">Return to Backlog</button>
         <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
         ${allDone ? `<button class="btn gold" data-act="finish-mission">Finish Mission · +${m.bounty} pts</button>` : ''}
@@ -2728,18 +2925,61 @@ function viewMissionForm(){
         <input id="msCrit3" placeholder="Objective, specific, measurable">
       </label>
 
-      <label class="fld"><span>Likely to Encounter</span>
-        <textarea id="msEncounter" placeholder="What obstacles do you realistically expect?"></textarea>
-      </label>
+      <div class="mission-section-label">Likely to Encounter / Plan to Deal With It</div>
+      <p style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px">
+        Optional. Pair each obstacle with the plan for it.
+      </p>
+      <div id="msPairsContainer"></div>
+      <button class="btn small ghost" data-act="add-mission-pair" style="margin-bottom:16px">+ Add Pair</button>
 
-      <label class="fld"><span>Plan to Deal With It</span>
-        <textarea id="msPlan" placeholder="How will you respond when those obstacles hit?"></textarea>
-      </label>
+      <div class="mission-section-label">Milestones (optional)</div>
+      <p style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px">
+        Break the mission into checkpoints. Each can have steps if you want granular tracking.
+      </p>
+      <div id="msMilestonesContainer"></div>
+      <button class="btn small ghost" data-act="add-mission-milestone" style="margin-bottom:16px">+ Add Milestone</button>
 
       <div class="row" style="justify-content:flex-end;margin-top:12px">
         <button class="btn gold" data-act="start-mission">Accept Mission</button>
       </div>
     </div>`;
+}
+
+function missionPairFormHTML(pair){
+  return `
+    <div class="mission-pair-form" data-pair-id="${pair.id}">
+      <button class="btn small danger pair-x" data-act="remove-mission-pair" data-id="${pair.id}" title="Remove">✕</button>
+      <label class="fld"><span>Likely to Encounter</span>
+        <input data-pair-encounter placeholder="e.g. I get distracted by my phone">
+      </label>
+      <label class="fld" style="margin-bottom:0"><span>Plan to Deal With It</span>
+        <input data-pair-plan placeholder="e.g. Phone stays in another room during focus blocks">
+      </label>
+    </div>`;
+}
+
+function missionMilestoneFormHTML(ms){
+  return `
+    <div class="mission-milestone-form" data-ms-id="${ms.id}">
+      <button class="btn small danger ms-x" data-act="remove-mission-milestone" data-id="${ms.id}" title="Remove">✕</button>
+      <label class="fld"><span>Milestone Title</span>
+        <input data-ms-title placeholder="e.g. First draft complete">
+      </label>
+      <label class="fld" style="margin-bottom:0"><span>Steps (one per line — optional)</span>
+        <textarea data-ms-steps placeholder="Outline chapters&#10;Write 1000 words/day&#10;Self-edit pass"></textarea>
+      </label>
+    </div>`;
+}
+
+function renderMissionFormBuilders(){
+  const pairs = document.getElementById('msPairsContainer');
+  const mss = document.getElementById('msMilestonesContainer');
+  if (pairs && !pairs.children.length){
+    pairs.insertAdjacentHTML('beforeend', missionPairFormHTML({ id: uid() }));
+  }
+  if (mss && !mss.children.length){
+    // start empty — milestones are opt-in
+  }
 }
 
   function viewMissionBacklog(){
@@ -3345,21 +3585,40 @@ document.addEventListener('click', (e) => {
       toast('Developer mode off. Everything counts again.');
       break;
 
-            case 'start-mission': {
+                case 'start-mission': {
       const name = $('#msName').value.trim();
       const rank = $('#msRank').value;
       const c1 = $('#msCrit1').value.trim();
       const c2 = $('#msCrit2').value.trim();
       const c3 = $('#msCrit3').value.trim();
-      const encounter = $('#msEncounter').value.trim();
-      const plan = $('#msPlan').value.trim();
       const mode = (document.querySelector('input[name="msMode"]:checked') || {}).value || 'now';
+
+      // Read pairs from the form builder
+      const encounterPairs = [];
+      document.querySelectorAll('#msPairsContainer [data-pair-id]').forEach(el => {
+        const enc = (el.querySelector('[data-pair-encounter]') || {}).value || '';
+        const plan = (el.querySelector('[data-pair-plan]') || {}).value || '';
+        if (enc.trim() || plan.trim()){
+          encounterPairs.push({ id: uid(), encounter: enc.trim(), plan: plan.trim() });
+        }
+      });
+
+      // Read milestones from the form builder
+      const milestones = [];
+      document.querySelectorAll('#msMilestonesContainer [data-ms-id]').forEach(el => {
+        const title = ((el.querySelector('[data-ms-title]') || {}).value || '').trim();
+        if (!title) return;
+        const stepsText = ((el.querySelector('[data-ms-steps]') || {}).value || '');
+        const steps = stepsText.split('\n').map(s => s.trim()).filter(Boolean)
+          .map(text => ({ id: uid(), text, done: false }));
+        milestones.push({ id: uid(), title, done: false, steps });
+      });
 
       if (!name){ toast('Mission name is required.', 'bad'); break; }
       if (!c1 || !c2 || !c3){ toast('All 3 success criteria are required.', 'bad'); break; }
       if (!MISSION_BOUNTY[rank]){ toast('Invalid rank.', 'bad'); break; }
 
-      const base = {
+            const base = {
         id: uid(),
         name, rank,
         bounty: MISSION_BOUNTY[rank],
@@ -3368,7 +3627,8 @@ document.addEventListener('click', (e) => {
           {id: uid(), text: c2, done: false},
           {id: uid(), text: c3, done: false}
         ],
-        encounter, plan
+        encounterPairs,
+        milestones
       };
 
       if (mode === 'now'){
@@ -3407,12 +3667,71 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'mission-mode': {
+        case 'mission-mode': {
       const mode = el.value;
       const dW = document.getElementById('msDeadlineWrap');
       const uW = document.getElementById('msDurationWrap');
       if (dW) dW.style.display = (mode === 'now') ? '' : 'none';
       if (uW) uW.style.display = (mode === 'later') ? '' : 'none';
+      break;
+    }
+
+    case 'add-mission-pair': {
+      const container = document.getElementById('msPairsContainer');
+      if (!container) break;
+      container.insertAdjacentHTML('beforeend', missionPairFormHTML({ id: uid() }));
+      break;
+    }
+
+    case 'remove-mission-pair': {
+      const id = el.dataset.id;
+      const node = document.querySelector(`#msPairsContainer [data-pair-id="${id}"]`);
+      if (node) node.remove();
+      break;
+    }
+
+    case 'add-mission-milestone': {
+      const container = document.getElementById('msMilestonesContainer');
+      if (!container) break;
+      container.insertAdjacentHTML('beforeend', missionMilestoneFormHTML({ id: uid() }));
+      break;
+    }
+
+    case 'remove-mission-milestone': {
+      const id = el.dataset.id;
+      const node = document.querySelector(`#msMilestonesContainer [data-ms-id="${id}"]`);
+      if (node) node.remove();
+      break;
+    }
+
+    case 'toggle-milestone': {
+      const m = state.missions.active;
+      if (!m) break;
+      const ms = (m.milestones || []).find(x => x.id === el.dataset.id);
+      if (!ms) break;
+      ms.done = !ms.done;
+      save(); render();
+      break;
+    }
+
+    case 'toggle-milestone-step': {
+      const m = state.missions.active;
+      if (!m) break;
+      const ms = (m.milestones || []).find(x => x.id === el.dataset.msid);
+      if (!ms) break;
+      const s = (ms.steps || []).find(x => x.id === el.dataset.sid);
+      if (!s) break;
+      s.done = !s.done;
+      save(); render();
+      break;
+    }
+
+    case 'toggle-milestone-collapse': {
+      const id = el.dataset.id;
+      if (expandedMilestones.has(id)) expandedMilestones.delete(id);
+      else expandedMilestones.add(id);
+      const node = document.querySelector(`.mission-milestone[data-msid="${id}"]`);
+      if (node) node.classList.toggle('open');
       break;
     }
 
@@ -3448,14 +3767,18 @@ document.addEventListener('click', (e) => {
       if (!m) break;
       if (!confirm('Return this mission to the backlog? The deadline resets from a fresh start when you re-launch it.')) break;
       const durDefault = m.presumedDuration || Math.max(MISSION_MIN_DAYS, Math.ceil((new Date(m.deadline) - new Date(m.startedAt)) / 86400000));
-      state.missions.backlog.push({
+            state.missions.backlog.push({
         id: m.id,
         name: m.name,
         rank: m.rank,
         bounty: m.bounty,
         criteria: m.criteria.map(c => ({...c, done: false})),
-        encounter: m.encounter,
-        plan: m.plan,
+        encounterPairs: (m.encounterPairs || []).map(p => ({...p})),
+        milestones: (m.milestones || []).map(ms => ({
+          ...ms,
+          done: false,
+          steps: (ms.steps || []).map(st => ({...st, done: false}))
+        })),
         presumedDuration: durDefault,
         storedAt: new Date().toISOString()
       });
