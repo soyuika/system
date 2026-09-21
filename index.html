@@ -973,14 +973,18 @@ footer{font-size:11px}
   .rank-badge{width:56px;height:56px;font-size:24px}
 
   /* quest action row: phase on the left, buttons on the right */
-  .q-actions{
-    justify-content:space-between !important;
+    .q-actions{
+    justify-content:flex-start !important;
     align-items:center;
     flex-wrap:nowrap;
     gap:8px;
   }
   .q-actions .q-phase{
     flex-shrink:0;
+  }
+  /* push the button group to the right edge */
+  .q-actions button:first-of-type{
+    margin-left:auto;
   }
   .q-actions .btn.small{
     flex:0 0 auto;
