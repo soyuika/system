@@ -1098,9 +1098,10 @@ function defaultState(){
         lifestyle: [],
             today: {date: localDateStr(), floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, ceilSteps:{}, floorPointGiven:false, rewardGiven:false, rewardText:null},
     log: {},
-    weekFails: {},
+        weekFails: {},
     weekStart: weekStartStr(),
     lastWeeklyPrompt: null,
+    weeklyApplied: null,
     pendingPenalty: null,
     penalties: [
       {id:uid(), tier:1, text:'No screens for the first 60 minutes after waking.'},
@@ -1192,7 +1193,8 @@ function migrate(raw){
   if (!Array.isArray(s.missions.history)) s.missions.history = [];
   if (!Array.isArray(s.missions.backlog)) s.missions.backlog = [];
   s.log = (raw && raw.log) || {};
-  s.weekFails = (raw && raw.weekFails) || {};
+    s.weekFails = (raw && raw.weekFails) || {};
+  if (typeof s.weeklyApplied !== 'string') s.weeklyApplied = null;
   s.penalties = (raw && raw.penalties) || d.penalties;
   s.rewards = (raw && raw.rewards) || d.rewards;
   if (!Array.isArray(s.quests) || s.quests.length !== 5){
@@ -1643,7 +1645,7 @@ function checkWeeklyWindow(){
   const now = new Date();
   if (now.getDay() === 0 && now.getHours() >= 19){
     const ws = weekStartStr();
-    if (state.lastWeeklyPrompt !== ws){
+    if (state.lastWeeklyPrompt !== ws && state.weeklyApplied !== ws){
       state.lastWeeklyPrompt = ws;
       save();
       if (hasFullWeekOfData()){
@@ -1741,6 +1743,17 @@ function openWeeklyReview(){
 }
 
 function applyWeekly(){
+  const ws = weekStartStr();
+  if (!state.devMode && !isWeeklyWindow()){
+    toast('Weekly reset only available Sunday 19:00–24:00.', 'bad');
+    closeModal(); render();
+    return;
+  }
+  if (!state.devMode && state.weeklyApplied === ws){
+    toast('Weekly reset already applied this week.', 'bad');
+    closeModal(); render();
+    return;
+  }
   state.quests.forEach(q => {
     const inp = document.querySelector(`[data-wk-floor="${q.id}"]`);
     if (inp && inp.value.trim()) q.floor = inp.value.trim();
@@ -1754,7 +1767,8 @@ function applyWeekly(){
     }
   });
   state.weekFails = {};
-  state.lastWeeklyPrompt = weekStartStr();
+  state.lastWeeklyPrompt = ws;
+  state.weeklyApplied = ws;
   save(); closeModal(); render();
   toast('WEEKLY RESET COMPLETE');
 }
@@ -2940,7 +2954,19 @@ function viewSystem(){
           }).filter(Boolean).join(' · ') || 'none recorded'
         }
       </div>
-      <button class="btn small" data-act="weekly">Open Weekly Review</button>
+            ${(() => {
+        const ws = weekStartStr();
+        const applied = state.weeklyApplied === ws;
+        const inWindow = isWeeklyWindow();
+        const canOpen = state.devMode || (inWindow && !applied);
+        const label = applied
+          ? 'Weekly Reset — Applied ✓'
+          : (inWindow ? 'Open Weekly Review' : 'Window Closed');
+        const tip = applied
+          ? 'Already applied this week'
+          : (inWindow ? 'Open the reset modal' : 'Available Sunday 19:00–24:00');
+        return `<button class="btn small" data-act="weekly" ${canOpen ? '' : 'disabled'} title="${tip}">${label}</button>`;
+      })()}
     </div>
 
         <div class="panel">
@@ -3142,11 +3168,15 @@ document.addEventListener('click', (e) => {
         <label class="fld"><span>Ceiling Steps (one per line — optional)</span>
           <textarea id="eqSteps" placeholder="[r] Drink a glass of water&#10;Finish the report&#10;— prefix a line with [r] to make it repeatable">${(q.ceilingSteps||[]).map(s => (s.repeatable ? '[r] ' : '') + s.text).join('\n')}</textarea>
         </label>
-        <label class="fld"><span>Quest Phase</span>
-          <div style="padding:9px 11px;background:rgba(4,10,22,.85);border:1px solid rgba(47,143,255,.3);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:15px">PHASE ${q.phase ?? 1}</div>
+                <label class="fld"><span>Quest Phase${state.devMode ? ' — DEV: editable' : ''}</span>
+          ${state.devMode
+            ? `<input id="eqPhase" type="number" step="1" value="${q.phase ?? 1}">`
+            : `<div style="padding:9px 11px;background:rgba(4,10,22,.85);border:1px solid rgba(47,143,255,.3);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:15px">PHASE ${q.phase ?? 1}</div>`}
         </label>
                 <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:14px">
-          Phase is adjusted automatically by the weekly reset. Quests must reflect effort you control — never outcomes.
+          ${state.devMode
+            ? 'Dev mode: you can set the phase directly. In normal mode it is adjusted only by the weekly reset (once per week).'
+            : 'Phase is adjusted by the weekly reset, once per week. Quests must reflect effort you control — never outcomes.'}
         </div>
         <div class="row" style="justify-content:flex-end">
           <button class="btn ghost" data-act="close-modal">Cancel</button>
@@ -3166,7 +3196,15 @@ document.addEventListener('click', (e) => {
                   q.name = $('#eqName').value.trim();
       q.floor = $('#eqFloor').value.trim();
             q.ceiling = $('#eqCeil').value.trim();
-      q.ceilingRepeatable = !!$('#eqCeilRepeatable').checked;
+            q.ceilingRepeatable = !!$('#eqCeilRepeatable').checked;
+      // Dev mode: allow direct phase override.
+      if (state.devMode){
+        const phaseInput = $('#eqPhase');
+        if (phaseInput){
+          const p = parseInt(phaseInput.value, 10);
+          if (!isNaN(p)) q.phase = p;
+        }
+      }
       // Convert today's ceiling tick to the right type if the flag flipped.
       if (q.ceilingRepeatable && state.today.ceil[q.id] === true) state.today.ceil[q.id] = 1;
       if (!q.ceilingRepeatable && typeof state.today.ceil[q.id] === 'number') state.today.ceil[q.id] = state.today.ceil[q.id] > 0;
