@@ -305,13 +305,18 @@ body::after{
 
 /* ---------- domain badge ---------- */
 .domain-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
   font-family:'Share Tech Mono',monospace;
-  font-size:10px;letter-spacing:.14em;
-  padding:1px 6px;
+  font-size:10px;
+  letter-spacing:.12em;
+  padding:2px 7px;
   border:1px solid currentColor;
   text-transform:uppercase;
-  vertical-align:middle;
-  margin-left:6px;
+  white-space:nowrap;
+  flex-shrink:0;
+  line-height:1.2;
 }
 .domain-badge-mult{
   font-family:'Share Tech Mono',monospace;
@@ -824,6 +829,12 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   font-weight:600;
   line-height:1.35;
   margin-bottom:7px;
+  flex-wrap:wrap;
+  word-break:break-word;
+}
+.item.dungeon .meta .domain-badge{
+  margin-left:0;
+  margin-right:2px;
 }
 .item.dungeon .title .tag{
   flex-shrink:0;
@@ -3194,16 +3205,10 @@ function penaltyPanelHTML(){
       <input id="edReal" value="${esc(d.real || '')}">
     </label>
 
-    <div class="grid2">
-          <label class="fld"><span>Rank</span>
-      <select id="emRank">${rankOptions}</select>
-    </label>
-
-    <label class="fld"><span>Domain</span>
-      <select id="emDomain">
-        ${DOMAIN_KEYS.map(k => `<option value="${k}" ${m.domain===k?'selected':''}>${DOMAIN_META[k].icon} ${DOMAIN_META[k].label}</option>`).join('')}
-      </select>
-    </label>
+        <div class="grid2">
+      <label class="fld"><span>Rank</span>
+        <select id="edRank">${rankOptions}</select>
+      </label>
       <label class="fld"><span>Domain</span>
         <select id="edDomain">${domainOptions}</select>
       </label>
@@ -3232,13 +3237,13 @@ function viewDungeons(){
         return `
                     <div class="item dungeon">
             <div style="min-width:0">
-                                          <div class="title">
+                                                        <div class="title">
                 <span class="tag rank-${x.rank}">${x.rank}</span>
                 ${esc(x.name)}
-                ${domainBadgeHTML(x.domain, getDomainMultiplier(x.domain))}
               </div>
               ${x.real ? `<div class="dungeon-real">${esc(x.real)}</div>` : ''}
-              <div class="meta">${x.tasks.length} objective${x.tasks.length===1?'':'s'} · ${DUNGEON_DAYS[x.rank]} day limit
+              <div class="meta">${domainBadgeHTML(x.domain, getDomainMultiplier(x.domain))}
+                <span style="margin-left:6px">${x.tasks.length} objective${x.tasks.length===1?'':'s'} · ${DUNGEON_DAYS[x.rank]} day limit</span>
                 ${locked ? ` · <span style="color:var(--danger)">SEALED until ${fmtDate(lock.until)}</span>` : ''}
               </div>
             </div>
@@ -3264,14 +3269,14 @@ function viewDungeons(){
         <div class="panel-title" style="color:var(--danger)">⚠ Active Dungeon</div>
         <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:12px">
           <div>
-                                    <div style="font-size:17px;font-weight:700">
+                                                <div style="font-size:17px;font-weight:700">
               <span class="tag rank-${a.rank}" style="font-size:13px">${a.rank}</span>
               ${esc(a.name)}
-              ${domainBadgeHTML(a.domain, getDomainMultiplier(a.domain))}
             </div>
             ${a.real ? `<div class="dungeon-real" style="margin-top:2px">${esc(a.real)}</div>` : ''}
-                                    <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:6px">
-              ${a.tasks.filter(t=>t.done).length}/${a.tasks.length} objectives · +${Math.round(DUNGEON_OBJECTIVE_POINTS * getDomainMultiplier(a.domain))} pts each
+            <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:6px">
+              ${domainBadgeHTML(a.domain, getDomainMultiplier(a.domain))}
+              <span style="margin-left:6px">${a.tasks.filter(t=>t.done).length}/${a.tasks.length} objectives · +${Math.round(DUNGEON_OBJECTIVE_POINTS * getDomainMultiplier(a.domain))} pts each</span>
             </div>
           </div>
           <div style="text-align:right">
@@ -3291,12 +3296,12 @@ function viewDungeons(){
     ? d.cleared.slice().reverse().map(c => `
                                 <div class="item dungeon">
           <div style="min-width:0">
-                       <div class="title" style="margin-bottom:0">
+                                   <div class="title" style="margin-bottom:0">
               <span class="tag rank-${c.rank}">${c.rank}</span>
               ${esc(c.name)}
-              ${domainBadgeHTML(c.domain, 1)}
             </div>
             ${c.real ? `<div class="dungeon-real" style="margin:2px 0 0 0">${esc(c.real)}</div>` : ''}
+            <div class="meta" style="margin-top:4px">${domainBadgeHTML(c.domain, 1)}</div>
           </div>
           <div class="meta">cleared ${fmtDate(c.clearedAt)}</div>
         </div>`).join('')
