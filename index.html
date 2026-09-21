@@ -846,6 +846,23 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   letter-spacing:.04em !important;
   line-height:1.55;
   color:var(--dim);
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:4px 8px;
+}
+.item.dungeon .meta > span{
+  white-space:nowrap;
+}
+/* active dungeon panel uses the same row layout */
+.dungeon-meta-row{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:4px 8px;
+}
+.dungeon-meta-row > span{
+  white-space:nowrap;
 }
 .item.dungeon .row{
   gap:9px;
@@ -3242,9 +3259,9 @@ function viewDungeons(){
                 ${esc(x.name)}
               </div>
               ${x.real ? `<div class="dungeon-real">${esc(x.real)}</div>` : ''}
-              <div class="meta">${domainBadgeHTML(x.domain, getDomainMultiplier(x.domain))}
-                <span style="margin-left:6px">${x.tasks.length} objective${x.tasks.length===1?'':'s'} · ${DUNGEON_DAYS[x.rank]} day limit</span>
-                ${locked ? ` · <span style="color:var(--danger)">SEALED until ${fmtDate(lock.until)}</span>` : ''}
+                            <div class="meta">${domainBadgeHTML(x.domain, getDomainMultiplier(x.domain))}
+                <span>${x.tasks.length} objective${x.tasks.length===1?'':'s'} · ${DUNGEON_DAYS[x.rank]} day limit</span>
+                ${locked ? `<span style="color:var(--danger)">SEALED until ${fmtDate(lock.until)}</span>` : ''}
               </div>
             </div>
                         <div class="row">
@@ -3274,9 +3291,9 @@ function viewDungeons(){
               ${esc(a.name)}
             </div>
             ${a.real ? `<div class="dungeon-real" style="margin-top:2px">${esc(a.real)}</div>` : ''}
-            <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:6px">
+                        <div class="meta dungeon-meta-row" style="color:var(--dim);font-size:10.5px;margin-top:6px">
               ${domainBadgeHTML(a.domain, getDomainMultiplier(a.domain))}
-              <span style="margin-left:6px">${a.tasks.filter(t=>t.done).length}/${a.tasks.length} objectives · +${Math.round(DUNGEON_OBJECTIVE_POINTS * getDomainMultiplier(a.domain))} pts each</span>
+              <span>${a.tasks.filter(t=>t.done).length}/${a.tasks.length} objectives · +${Math.round(DUNGEON_OBJECTIVE_POINTS * getDomainMultiplier(a.domain))} pts each</span>
             </div>
           </div>
           <div style="text-align:right">
