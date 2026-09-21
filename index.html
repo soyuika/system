@@ -2852,7 +2852,8 @@ function viewActiveMission(m){
 
       ${allDone ? `<div class="mission-ready">◆ All criteria met — ready to close</div>` : ''}
 
-      <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px">
+            <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px">
+        ${state.devMode ? `<button class="btn small gold" data-act="edit-mission">Edit Mission (DEV)</button>` : ''}
         <button class="btn small ghost" data-act="hold-mission">Return to Backlog</button>
         <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
         ${allDone ? `<button class="btn gold" data-act="finish-mission">Finish Mission · +${m.bounty} pts</button>` : ''}
@@ -2860,6 +2861,80 @@ function viewActiveMission(m){
     </div>`;
 }
 
+function openEditMissionModal(m){
+  const RANK_LABELS = {E:'fairly easy', D:'somewhat easy', C:'medium', B:'slightly harder', A:'hard', S:'almost impossible'};
+  const rankOptions = ['E','D','C','B','A','S'].map(r => {
+    return `<option value="${r}" ${m.rank===r?'selected':''}>${r} — ${RANK_LABELS[r]} (+${MISSION_BOUNTY[r]} pts)</option>`;
+  }).join('');
+
+  const deadlineStr = new Date(m.deadline).toISOString().slice(0,10);
+
+  const pairRows = (m.encounterPairs || []).map(p => `
+    <div class="mission-pair-form" data-pair-id="${p.id}">
+      <button class="btn small danger pair-x" data-act="remove-mission-pair" data-id="${p.id}" title="Remove">✕</button>
+      <label class="fld"><span>Likely to Encounter</span>
+        <input data-pair-encounter value="${esc(p.encounter || '')}">
+      </label>
+      <label class="fld" style="margin-bottom:0"><span>Plan to Deal With It</span>
+        <input data-pair-plan value="${esc(p.plan || '')}">
+      </label>
+    </div>`).join('');
+
+  const msRows = (m.milestones || []).map(ms => `
+    <div class="mission-milestone-form" data-ms-id="${ms.id}">
+      <button class="btn small danger ms-x" data-act="remove-mission-milestone" data-id="${ms.id}" title="Remove">✕</button>
+      <label class="fld"><span>Milestone Title</span>
+        <input data-ms-title value="${esc(ms.title)}">
+      </label>
+      <label class="fld" style="margin-bottom:0"><span>Steps (one per line — optional)</span>
+        <textarea data-ms-steps>${(ms.steps || []).map(s => esc(s.text)).join('\n')}</textarea>
+      </label>
+    </div>`).join('');
+
+  openModal(`
+    <h2>Edit Mission</h2>
+    <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:14px">
+      Dev mode override. Milestone and step completion is preserved where the title/step text is unchanged.
+    </p>
+
+    <label class="fld"><span>Mission Name</span>
+      <input id="emName" value="${esc(m.name)}">
+    </label>
+
+    <label class="fld"><span>Rank</span>
+      <select id="emRank">${rankOptions}</select>
+    </label>
+
+    <label class="fld"><span>Deadline</span>
+      <input id="emDeadline" type="date" value="${deadlineStr}">
+    </label>
+
+    <div class="mission-section-label">Success Criteria</div>
+    <label class="fld"><span>1</span>
+      <input id="emCrit1" value="${esc(m.criteria[0].text)}">
+    </label>
+    <label class="fld"><span>2</span>
+      <input id="emCrit2" value="${esc(m.criteria[1].text)}">
+    </label>
+    <label class="fld"><span>3</span>
+      <input id="emCrit3" value="${esc(m.criteria[2].text)}">
+    </label>
+
+    <div class="mission-section-label">Likely to Encounter / Plan</div>
+    <div id="emPairsContainer">${pairRows}</div>
+    <button class="btn small ghost" data-act="add-mission-pair" style="margin-bottom:16px">+ Add Pair</button>
+
+    <div class="mission-section-label">Milestones</div>
+    <div id="emMilestonesContainer">${msRows}</div>
+    <button class="btn small ghost" data-act="add-mission-milestone" style="margin-bottom:16px">+ Add Milestone</button>
+
+    <div class="row" style="justify-content:flex-end;gap:8px">
+      <button class="btn ghost" data-act="close-modal">Cancel</button>
+      <button class="btn gold" data-act="save-mission-edit">Save Changes</button>
+    </div>
+  `);
+}
+  
 function viewMissionForm(){
   const minDate = new Date(Date.now() + MISSION_MIN_DAYS * 86400000);
   const defaultDate = new Date(Date.now() + 30 * 86400000);
@@ -3676,8 +3751,8 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'add-mission-pair': {
-      const container = document.getElementById('msPairsContainer');
+        case 'add-mission-pair': {
+      const container = document.getElementById('msPairsContainer') || document.getElementById('emPairsContainer');
       if (!container) break;
       container.insertAdjacentHTML('beforeend', missionPairFormHTML({ id: uid() }));
       break;
@@ -3685,13 +3760,13 @@ document.addEventListener('click', (e) => {
 
     case 'remove-mission-pair': {
       const id = el.dataset.id;
-      const node = document.querySelector(`#msPairsContainer [data-pair-id="${id}"]`);
+      const node = document.querySelector(`#msPairsContainer [data-pair-id="${id}"], #emPairsContainer [data-pair-id="${id}"]`);
       if (node) node.remove();
       break;
     }
 
     case 'add-mission-milestone': {
-      const container = document.getElementById('msMilestonesContainer');
+      const container = document.getElementById('msMilestonesContainer') || document.getElementById('emMilestonesContainer');
       if (!container) break;
       container.insertAdjacentHTML('beforeend', missionMilestoneFormHTML({ id: uid() }));
       break;
@@ -3699,7 +3774,7 @@ document.addEventListener('click', (e) => {
 
     case 'remove-mission-milestone': {
       const id = el.dataset.id;
-      const node = document.querySelector(`#msMilestonesContainer [data-ms-id="${id}"]`);
+      const node = document.querySelector(`#msMilestonesContainer [data-ms-id="${id}"], #emMilestonesContainer [data-ms-id="${id}"]`);
       if (node) node.remove();
       break;
     }
@@ -3726,12 +3801,102 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'toggle-milestone-collapse': {
+        case 'toggle-milestone-collapse': {
       const id = el.dataset.id;
       if (expandedMilestones.has(id)) expandedMilestones.delete(id);
       else expandedMilestones.add(id);
       const node = document.querySelector(`.mission-milestone[data-msid="${id}"]`);
       if (node) node.classList.toggle('open');
+      break;
+    }
+
+    case 'edit-mission': {
+      if (!state.devMode){
+        toast('Mission editing requires dev mode.', 'bad');
+        break;
+      }
+      const m = state.missions.active;
+      if (!m) break;
+      openEditMissionModal(m);
+      break;
+    }
+
+    case 'save-mission-edit': {
+      if (!state.devMode){
+        toast('Mission editing requires dev mode.', 'bad');
+        break;
+      }
+      const m = state.missions.active;
+      if (!m) break;
+
+      const name = $('#emName').value.trim();
+      const rank = $('#emRank').value;
+      const deadlineStr = $('#emDeadline').value;
+      const c1 = $('#emCrit1').value.trim();
+      const c2 = $('#emCrit2').value.trim();
+      const c3 = $('#emCrit3').value.trim();
+
+      if (!name){ toast('Mission name is required.', 'bad'); break; }
+      if (!c1 || !c2 || !c3){ toast('All 3 criteria are required.', 'bad'); break; }
+      if (!MISSION_BOUNTY[rank]){ toast('Invalid rank.', 'bad'); break; }
+      if (!deadlineStr){ toast('Deadline is required.', 'bad'); break; }
+
+      const newDeadline = new Date(deadlineStr + 'T23:59:59');
+      if (isNaN(newDeadline.getTime())){ toast('Invalid deadline.', 'bad'); break; }
+
+      // Read pairs
+      const encounterPairs = [];
+      document.querySelectorAll('#emPairsContainer [data-pair-id]').forEach(pel => {
+        const id = pel.dataset.pairId || uid();
+        const enc = (pel.querySelector('[data-pair-encounter]') || {}).value || '';
+        const plan = (pel.querySelector('[data-pair-plan]') || {}).value || '';
+        if (enc.trim() || plan.trim()){
+          encounterPairs.push({ id, encounter: enc.trim(), plan: plan.trim() });
+        }
+      });
+
+      // Read milestones, preserving done flags by ID (milestone) and by step text (step)
+      const oldMilestones = m.milestones || [];
+      const milestones = [];
+      document.querySelectorAll('#emMilestonesContainer [data-ms-id]').forEach(msel => {
+        const id = msel.dataset.msId || uid();
+        const title = ((msel.querySelector('[data-ms-title]') || {}).value || '').trim();
+        if (!title) return;
+        const stepsText = ((msel.querySelector('[data-ms-steps]') || {}).value || '');
+        const stepLines = stepsText.split('\n').map(s => s.trim()).filter(Boolean);
+        const oldMs = oldMilestones.find(x => x.id === id);
+        const oldSteps = oldMs ? (oldMs.steps || []) : [];
+
+        const steps = stepLines.map((text, i) => {
+          const oldStep = oldSteps[i];
+          const sameText = oldStep && oldStep.text === text;
+          return {
+            id: sameText ? oldStep.id : uid(),
+            text,
+            done: sameText ? !!oldStep.done : false
+          };
+        });
+
+        milestones.push({
+          id,
+          title,
+          done: oldMs ? !!oldMs.done : false,
+          steps
+        });
+      });
+
+      m.name = name;
+      m.rank = rank;
+      m.bounty = MISSION_BOUNTY[rank];
+      m.deadline = newDeadline.toISOString();
+      m.criteria[0].text = c1;
+      m.criteria[1].text = c2;
+      m.criteria[2].text = c3;
+      m.encounterPairs = encounterPairs;
+      m.milestones = milestones;
+
+      save(); closeModal(); render();
+      toast('Mission updated.', 'gold');
       break;
     }
 
