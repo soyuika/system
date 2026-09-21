@@ -371,7 +371,7 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 
 /* ---------- stat pentagon (Blue Lock style) ---------- */
 .stat-pentagon-wrap{
-  max-width:340px;
+  max-width:400px;
   margin:18px auto 4px;
   padding-top:14px;
   border-top:1px dashed rgba(47,143,255,.2);
@@ -2287,10 +2287,12 @@ function renderHUD(){
 }
 
   function statPentagonHTML(){
-  const W = 320, H = 280;
+  const W = 420, H = 300;
   const cx = W/2, cy = H/2;
-  const R = 92;
-  const angleFor = (i) => -Math.PI/2 + i * (2*Math.PI/5); // top, then clockwise
+  const R = 90;
+  const letterR = R + 22;
+  const labelR  = R + 44;
+  const angleFor = (i) => -Math.PI/2 + i * (2*Math.PI/5);
 
   const barrier = nextLevelBarrier();
   const values = STAT_KEYS.map(k => state.stats[k]);
@@ -2306,9 +2308,10 @@ function renderHUD(){
       angle: a,
       value: v,
       ratio,
-      outer: { x: cx + Math.cos(a)*R,        y: cy + Math.sin(a)*R },
-      inner: { x: cx + Math.cos(a)*R*ratio,  y: cy + Math.sin(a)*R*ratio },
-      label: { x: cx + Math.cos(a)*(R+26),   y: cy + Math.sin(a)*(R+26) }
+      outer: { x: cx + Math.cos(a)*R,          y: cy + Math.sin(a)*R },
+      inner: { x: cx + Math.cos(a)*R*ratio,    y: cy + Math.sin(a)*R*ratio },
+      letterPos: { x: cx + Math.cos(a)*letterR, y: cy + Math.sin(a)*letterR },
+      labelPos:  { x: cx + Math.cos(a)*labelR,  y: cy + Math.sin(a)*labelR }
     };
   });
 
@@ -2355,27 +2358,21 @@ function renderHUD(){
         <!-- filled polygon for current values -->
         <polygon points="${dataPoly}" fill="url(#pentagonFill)" stroke="#4fd6ff" stroke-width="2" stroke-linejoin="round"/>
 
-        <!-- grade letters at each vertex -->
+        <!-- grade letters, positioned between the polygon and the stat name -->
         ${axes.map(p => {
           const g = gradeFor(p.ratio);
           const s = g === 'S';
-          const offX = Math.cos(p.angle) * 14;
-          const offY = Math.sin(p.angle) * 14;
-          const lx = (p.inner.x + offX).toFixed(1);
-          const ly = (p.inner.y + offY).toFixed(1);
-          return `
-            <circle cx="${lx}" cy="${ly}" r="11" fill="rgba(4,6,13,.8)"/>
-            <text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle"
-                  font-family="'Share Tech Mono',monospace" font-size="15" font-weight="700"
-                  fill="${s ? '#ffcf5c' : '#eaf6ff'}"
-                  style="filter:drop-shadow(0 0 4px ${s ? 'rgba(255,207,92,.7)' : 'rgba(79,214,255,.5)'})">${g}</text>
-          `;
+          return `<text x="${p.letterPos.x.toFixed(1)}" y="${p.letterPos.y.toFixed(1)}"
+                        text-anchor="middle" dominant-baseline="middle"
+                        font-family="'Share Tech Mono',monospace" font-size="20" font-weight="700"
+                        fill="${s ? '#ffcf5c' : '#eaf6ff'}"
+                        style="filter:drop-shadow(0 0 5px ${s ? 'rgba(255,207,92,.75)' : 'rgba(79,214,255,.55)'})">${g}</text>`;
         }).join('')}
 
-        <!-- axis labels -->
+        <!-- stat name labels, positioned further out -->
         ${axes.map(p => {
-          const anchor = Math.abs(p.label.x - cx) < 5 ? 'middle' : (p.label.x > cx ? 'start' : 'end');
-          return `<text x="${p.label.x.toFixed(1)}" y="${p.label.y.toFixed(1)}"
+          const anchor = Math.abs(p.labelPos.x - cx) < 5 ? 'middle' : (p.labelPos.x > cx ? 'start' : 'end');
+          return `<text x="${p.labelPos.x.toFixed(1)}" y="${p.labelPos.y.toFixed(1)}"
                         text-anchor="${anchor}" dominant-baseline="middle"
                         font-family="'Chakra Petch',sans-serif" font-size="11" font-weight="600"
                         letter-spacing="1.5" fill="#6f8cb5">${STAT_META[p.key].label}</text>`;
