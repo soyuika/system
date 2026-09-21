@@ -849,6 +849,55 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .mission-pair-plan .mission-pair-label{color:var(--cyan)}
 .mission-pair-text{
   font-size:13.5px;color:var(--text);line-height:1.6;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.mission-pair-text.empty{
+  color:var(--dim);
+  font-style:italic;
+}
+
+/* collapsible section header */
+.encounters-toggle{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 0 8px 0;
+  margin:18px 0 8px;
+  border-bottom:1px dashed rgba(255,95,168,.25);
+  cursor:pointer;user-select:none;
+  transition:.15s;
+}
+.encounters-toggle:hover .encounters-toggle-label{color:var(--mission)}
+.encounters-toggle-label{
+  font-size:11px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--dim);flex:1;
+  transition:color .15s;
+}
+.encounters-toggle-meta{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;color:var(--dim);
+  letter-spacing:.06em;flex-shrink:0;
+}
+.encounters-toggle-chevron{
+  color:var(--dim);font-size:13px;
+  transition:transform .15s;flex-shrink:0;
+  display:inline-block;line-height:1;
+}
+.encounters-toggle.open .encounters-toggle-chevron{transform:rotate(90deg)}
+.encounters-body{display:none}
+.encounters-body.open{display:block}
+
+/* static field-note display */
+.mission-pair-note-static{
+  padding:6px 0;
+}
+.mission-pair-note-static:first-child{padding-top:0}
+.mission-pair-note-static .note-label{margin-bottom:2px}
+.mission-pair-note-static .note-body{
+  font-size:13px;color:var(--text);line-height:1.6;
+  white-space:pre-wrap;word-break:break-word;
+}
+.mission-pair-note-static .note-body.empty{
+  color:var(--dim);font-style:italic;
 }
 
 /* recon / field notes on encounter pairs */
@@ -1349,6 +1398,8 @@ let activeTab = 'status';
 const expandedStats = new Set();  // which stat descriptions are expanded this session
 const expandedQuests = new Set();  // which quest cards are expanded this session
 const expandedMilestones = new Set();  // which mission milestones are expanded this session
+const editingEncounters = new Set();   // which encounter pairs are in edit mode this session
+let encountersSectionOpen = true;      // whether the encounters section is expanded
 let saveTimer = null, saveDirty = false;
 
 function save(){
@@ -2867,30 +2918,85 @@ function viewActiveMission(m){
       <span class="crit-text">${esc(c.text)}</span>
     </div>`).join('');
 
-    const pairsList = (m.encounterPairs || []).map(p => {
+      const pairsAll = m.encounterPairs || [];
+  const happenedCount = pairsAll.filter(x => x.happened).length;
+
+  const pairsList = pairsAll.map(p => {
+    const editing = editingEncounters.has(p.id);
     const happened = !!p.happened;
     const badge = happened
       ? '<span class="mission-pair-badge happened">Happened</span>'
       : '<span class="mission-pair-badge planned">Planned</span>';
     const notes = p.fieldNotes || {worked:'', failed:'', change:''};
+    const hasNotes = !!(notes.worked || notes.failed || notes.change);
+
+    const encBlock = editing
+      ? `<textarea data-enc-encounter="${p.id}" placeholder="What might happen / what happened...">${esc(p.encounter || '')}</textarea>`
+      : `<div class="mission-pair-text ${p.encounter ? '' : 'empty'}">${esc(p.encounter || 'no description yet')}</div>`;
+
+    const planBlock = editing
+      ? `<textarea data-enc-plan="${p.id}" placeholder="How I'll handle it...">${esc(p.plan || '')}</textarea>`
+      : `<div class="mission-pair-text ${p.plan ? '' : 'empty'}">${esc(p.plan || 'no plan yet')}</div>`;
+
     const outcomeRow = happened
       ? `<div class="mission-pair-outcome">
           <button class="outcome-chip ${p.outcome==='worked'?'on worked':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="worked">Worked</button>
           <button class="outcome-chip ${p.outcome==='partial'?'on partial':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="partial">Partial</button>
           <button class="outcome-chip ${p.outcome==='failed'?'on failed':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="failed">Failed</button>
-        </div>
-        <div class="mission-pair-notes">
-          <label><span class="note-label">What worked</span>
-            <textarea data-note-pid="${p.id}" data-note-field="worked" placeholder="What went right...">${esc(notes.worked)}</textarea>
-          </label>
-          <label><span class="note-label">What didn't</span>
-            <textarea data-note-pid="${p.id}" data-note-field="failed" placeholder="What went wrong...">${esc(notes.failed)}</textarea>
-          </label>
-          <label><span class="note-label">What needs to change</span>
-            <textarea data-note-pid="${p.id}" data-note-field="change" placeholder="How to adjust the plan...">${esc(notes.change)}</textarea>
-          </label>
         </div>`
       : '';
+
+    let notesBlock = '';
+    if (happened){
+      if (editing){
+        notesBlock = `
+          <div class="mission-pair-notes">
+            <label><span class="note-label">What worked</span>
+              <textarea data-note-pid="${p.id}" data-note-field="worked" placeholder="What went right...">${esc(notes.worked)}</textarea>
+            </label>
+            <label><span class="note-label">What didn't</span>
+              <textarea data-note-pid="${p.id}" data-note-field="failed" placeholder="What went wrong...">${esc(notes.failed)}</textarea>
+            </label>
+            <label><span class="note-label">What needs to change</span>
+              <textarea data-note-pid="${p.id}" data-note-field="change" placeholder="How to adjust the plan...">${esc(notes.change)}</textarea>
+            </label>
+          </div>`;
+      } else if (hasNotes){
+        notesBlock = `
+          <div class="mission-pair-notes">
+            <div class="mission-pair-note-static">
+              <span class="note-label">What worked</span>
+              <div class="note-body ${notes.worked?'':'empty'}">${esc(notes.worked || '—')}</div>
+            </div>
+            <div class="mission-pair-note-static">
+              <span class="note-label">What didn't</span>
+              <div class="note-body ${notes.failed?'':'empty'}">${esc(notes.failed || '—')}</div>
+            </div>
+            <div class="mission-pair-note-static">
+              <span class="note-label">What needs to change</span>
+              <div class="note-body ${notes.change?'':'empty'}">${esc(notes.change || '—')}</div>
+            </div>
+          </div>`;
+      } else {
+        notesBlock = `
+          <div class="mission-pair-notes">
+            <div class="mission-pair-note-static">
+              <div class="note-body empty">No field notes yet. Click Edit to add recon.</div>
+            </div>
+          </div>`;
+      }
+    }
+
+    const actions = editing
+      ? `<div class="mission-pair-actions">
+          <button class="btn small ghost" data-act="cancel-edit-encounter" data-pid="${p.id}">Cancel</button>
+          <button class="btn small" data-act="save-encounter" data-pid="${p.id}">Save</button>
+        </div>`
+      : `<div class="mission-pair-actions">
+          <button class="btn small ghost" data-act="edit-encounter" data-pid="${p.id}">Edit</button>
+          <button class="btn small" data-act="toggle-encounter-happened" data-pid="${p.id}">${happened ? 'Unmark Happened' : 'Encounter Happened'}</button>
+        </div>`;
+
     return `
       <div class="mission-pair" data-pid="${p.id}">
         <div class="mission-pair-enc">
@@ -2899,28 +3005,33 @@ function viewActiveMission(m){
             ${badge}
             <button class="mission-pair-x" data-act="delete-encounter" data-pid="${p.id}" title="Remove">✕</button>
           </div>
-          <textarea data-enc-encounter="${p.id}" placeholder="What might happen / what happened...">${esc(p.encounter || '')}</textarea>
+          ${encBlock}
         </div>
         <div class="mission-pair-plan">
           <div class="mission-pair-label">Plan</div>
-          <textarea data-enc-plan="${p.id}" placeholder="How I'll handle it...">${esc(p.plan || '')}</textarea>
+          ${planBlock}
         </div>
         ${outcomeRow}
-        <div class="mission-pair-actions">
-          <button class="btn small ghost" data-act="toggle-encounter-happened" data-pid="${p.id}">${happened ? 'Unmark Happened' : 'Encounter Happened'}</button>
-          <button class="btn small" data-act="save-encounter" data-pid="${p.id}">Save</button>
-        </div>
+        ${notesBlock}
+        ${actions}
       </div>`;
   }).join('');
 
-  const pairs = `
-    <div class="mission-section-label">Encounters &amp; Recon</div>
-    ${pairsList}
-    <div class="row" style="gap:8px;margin-top:12px">
-      <button class="btn small ghost" data-act="add-planned-encounter">+ Planned Encounter</button>
-      <button class="btn small gold" data-act="add-unexpected-encounter">+ Log Unexpected Encounter</button>
-    </div>`;
-
+  const pairs = pairsAll.length || true
+    ? `
+      <div class="encounters-toggle ${encountersSectionOpen?'open':''}" data-act="toggle-encounters-section">
+        <span class="encounters-toggle-label">Encounters &amp; Recon</span>
+        <span class="encounters-toggle-meta">${pairsAll.length} total · ${happenedCount} happened</span>
+        <span class="encounters-toggle-chevron">▸</span>
+      </div>
+      <div class="encounters-body ${encountersSectionOpen?'open':''}">
+        ${pairsList || '<div class="empty">No encounters logged yet.</div>'}
+        <div class="row" style="gap:8px;margin-top:12px">
+          <button class="btn small ghost" data-act="add-planned-encounter">+ Planned Encounter</button>
+          <button class="btn small gold" data-act="add-unexpected-encounter">+ Log Unexpected Encounter</button>
+        </div>
+      </div>`
+    : '';
   const mssDone = (m.milestones || []).filter(ms => ms.done).length;
   const milestones = (m.milestones || []).length
     ? `
@@ -3934,23 +4045,28 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'add-planned-encounter': {
+        case 'add-planned-encounter': {
       const m = state.missions.active;
       if (!m) break;
       m.encounterPairs = m.encounterPairs || [];
+      const newId = uid();
       m.encounterPairs.push({
-        id: uid(),
+        id: newId,
         encounter: '',
         plan: '',
         happened: false,
         outcome: null,
         fieldNotes: { worked: '', failed: '', change: '' }
       });
+      editingEncounters.add(newId);
+      encountersSectionOpen = true;
       save(); render();
       setTimeout(() => {
-        const inputs = document.querySelectorAll('[data-enc-encounter]');
-        const last = inputs[inputs.length-1];
-        if (last) last.focus();
+        const input = document.querySelector(`[data-enc-encounter="${newId}"]`);
+        if (input) {
+          input.focus();
+          input.scrollIntoView({behavior:'smooth', block:'center'});
+        }
       }, 30);
       break;
     }
@@ -3968,6 +4084,8 @@ document.addEventListener('click', (e) => {
         outcome: null,
         fieldNotes: { worked: '', failed: '', change: '' }
       });
+      editingEncounters.add(newId);
+      encountersSectionOpen = true;
       save(); render();
       setTimeout(() => {
         const input = document.querySelector(`[data-enc-encounter="${newId}"]`);
@@ -4003,7 +4121,7 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'save-encounter': {
+        case 'save-encounter': {
       const m = state.missions.active;
       if (!m) break;
       const pid = el.dataset.pid;
@@ -4021,8 +4139,30 @@ document.addEventListener('click', (e) => {
         failed: failedEl ? failedEl.value.trim() : '',
         change: changeEl ? changeEl.value.trim() : ''
       };
+      editingEncounters.delete(pid);
       save(); render();
       toast('Encounter saved.');
+      break;
+    }
+
+    case 'edit-encounter': {
+      editingEncounters.add(el.dataset.pid);
+      render();
+      break;
+    }
+
+    case 'cancel-edit-encounter': {
+      editingEncounters.delete(el.dataset.pid);
+      render();
+      break;
+    }
+
+    case 'toggle-encounters-section': {
+      encountersSectionOpen = !encountersSectionOpen;
+      const node = document.querySelector('.encounters-toggle');
+      const body = document.querySelector('.encounters-body');
+      if (node) node.classList.toggle('open', encountersSectionOpen);
+      if (body) body.classList.toggle('open', encountersSectionOpen);
       break;
     }
 
