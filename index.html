@@ -196,6 +196,41 @@ body::after{
   border-color:rgba(255,207,92,.4);
   background:linear-gradient(90deg, rgba(255,207,92,.06), rgba(255,207,92,.01) 70%);
 }
+
+/* Titles: stack vertically on mobile so text and buttons each get full width */
+@media(max-width:620px){
+  .item.title-item{
+    flex-direction:column;
+    align-items:stretch;
+    gap:0;
+    padding:12px 13px;
+  }
+  .item.title-item > div:first-child{
+    width:100%;
+  }
+  .item.title-item .title-awarded-date{
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .item.title-item .title-actions{
+    width:100%;
+    padding-top:12px;
+    margin-top:12px;
+    border-top:1px dashed rgba(47,143,255,.18);
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .item.title-item .title-actions .btn{
+    flex:1 1 calc(50% - 3px);
+    min-width:0;
+    text-align:center;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+}
 .hud-right{display:flex;align-items:center;gap:16px}
 .lvl-box{text-align:right}
 .lvl-label{display:block;font-size:9px;letter-spacing:.3em;color:var(--dim)}
@@ -2431,7 +2466,7 @@ function viewStatus(){
     ? awardedTitles.map(t => {
         const isEquipped = state.equippedTitle === t.id;
         return `
-        <div class="item ${isEquipped ? 'title-equipped' : ''}">
+                <div class="item title-item ${isEquipped ? 'title-equipped' : ''}">
           <div style="flex:1;min-width:0">
             <div style="color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};font-weight:600;letter-spacing:.1em">
               ${esc(t.name)}${isEquipped ? '<span class="title-equipped-badge">EQUIPPED</span>' : ''}
@@ -3564,7 +3599,7 @@ function viewSystem(){
       ? `<div class="meta title-awarded-date">Awarded ${fmtShort(t.awardedAt)}${t.expiresAt ? ' · expires ' + fmtDate(t.expiresAt) : ''}</div>`
       : `<div class="meta" style="color:var(--dim);font-style:italic">Not yet awarded — sitting in storage</div>`;
     return `
-    <div class="item ${isEquipped ? 'title-equipped' : ''}">
+        <div class="item title-item ${isEquipped ? 'title-equipped' : ''}">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};display:flex;align-items:center;flex-wrap:wrap">
           ${esc(t.name)}${stateBadge}
@@ -3572,7 +3607,7 @@ function viewSystem(){
         <div class="meta">${esc(t.desc||'')}</div>
         ${dateLine}
       </div>
-      <div class="row" style="gap:6px;flex-shrink:0">
+      <div class="row title-actions" style="gap:6px;flex-shrink:0">
         ${awarded
           ? (isEquipped
               ? `<button class="btn small ghost" data-act="unequip-title">Unequip</button>`
