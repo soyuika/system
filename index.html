@@ -369,6 +369,51 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   text-transform:uppercase;font-weight:500;
 }
 
+/* ---------- stat pentagon (Blue Lock style) ---------- */
+.stat-pentagon-wrap{
+  max-width:340px;
+  margin:18px auto 4px;
+  padding-top:14px;
+  border-top:1px dashed rgba(47,143,255,.2);
+}
+.stat-pentagon{
+  width:100%;
+  height:auto;
+  display:block;
+  overflow:visible;
+}
+.stat-pentagon-caption{
+  text-align:center;
+  margin-top:6px;
+}
+.stat-pentagon-total{
+  display:inline-flex;
+  align-items:baseline;
+  gap:8px;
+  margin-bottom:6px;
+}
+.stat-pentagon-total .label{
+  font-family:'Share Tech Mono',monospace;
+  font-size:10.5px;
+  letter-spacing:.24em;
+  color:var(--dim);
+}
+.stat-pentagon-total .value{
+  font-family:'Share Tech Mono',monospace;
+  font-size:24px;
+  color:#fff;
+  text-shadow:0 0 14px rgba(79,214,255,.6);
+}
+.stat-pentagon-caption .meta{
+  font-size:11.5px;
+  color:var(--dim);
+  letter-spacing:.04em;
+  line-height:1.6;
+}
+@media(max-width:620px){
+  .stat-pentagon-wrap{max-width:300px}
+}
+
 /* unassigned-points lag warning */
 .lag-warn{
   margin-top:11px;padding:10px 13px;
@@ -2240,6 +2285,118 @@ function renderHUD(){
     </div>
     ${state.devMode ? '<div class="dev-banner">⚠ Developer Mode Active — points &amp; penalties disabled</div>' : ''}`;
 }
+
+  function statPentagonHTML(){
+  const W = 320, H = 280;
+  const cx = W/2, cy = H/2;
+  const R = 92;
+  const angleFor = (i) => -Math.PI/2 + i * (2*Math.PI/5); // top, then clockwise
+
+  const barrier = nextLevelBarrier();
+  const values = STAT_KEYS.map(k => state.stats[k]);
+  const maxVal = Math.max(barrier, ...values);
+  const totalVal = values.reduce((a,b) => a+b, 0);
+
+  const axes = STAT_KEYS.map((k, i) => {
+    const a = angleFor(i);
+    const v = state.stats[k];
+    const ratio = maxVal > 0 ? v/maxVal : 0;
+    return {
+      key: k,
+      angle: a,
+      value: v,
+      ratio,
+      outer: { x: cx + Math.cos(a)*R,        y: cy + Math.sin(a)*R },
+      inner: { x: cx + Math.cos(a)*R*ratio,  y: cy + Math.sin(a)*R*ratio },
+      label: { x: cx + Math.cos(a)*(R+26),   y: cy + Math.sin(a)*(R+26) }
+    };
+  });
+
+  const gridPoly = (r) => axes.map(p => {
+    const x = cx + Math.cos(p.angle)*R*r;
+    const y = cy + Math.sin(p.angle)*R*r;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  const dataPoly = axes.map(p => `${p.inner.x.toFixed(1)},${p.inner.y.toFixed(1)}`).join(' ');
+
+  const gradeFor = (ratio) => {
+    const pct = ratio * 100;
+    if (pct >= 90) return 'S';
+    if (pct >= 80) return 'A';
+    if (pct >= 70) return 'B';
+    if (pct >= 60) return 'C';
+    if (pct >= 50) return 'D';
+    if (pct >= 40) return 'E';
+    if (pct >= 30) return 'F';
+    return 'G';
+  };
+
+  return `
+    <div class="stat-pentagon-wrap">
+      <svg viewBox="0 0 ${W} ${H}" class="stat-pentagon" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <radialGradient id="pentagonFill" cx="50%" cy="50%" r="60%">
+            <stop offset="0%" stop-color="#4fd6ff" stop-opacity=".32"/>
+            <stop offset="100%" stop-color="#4fd6ff" stop-opacity=".08"/>
+          </radialGradient>
+        </defs>
+
+        <!-- concentric grid rings -->
+        ${[0.25,0.5,0.75,1].map(r =>
+          `<polygon points="${gridPoly(r)}" fill="none" stroke="rgba(47,143,255,${r===1?0.45:0.18})" stroke-width="1"/>`
+        ).join('')}
+
+        <!-- axes -->
+        ${axes.map(p =>
+          `<line x1="${cx}" y1="${cy}" x2="${p.outer.x.toFixed(1)}" y2="${p.outer.y.toFixed(1)}" stroke="rgba(47,143,255,.22)" stroke-width="1"/>`
+        ).join('')}
+
+        <!-- filled polygon for current values -->
+        <polygon points="${dataPoly}" fill="url(#pentagonFill)" stroke="#4fd6ff" stroke-width="2" stroke-linejoin="round"/>
+
+        <!-- grade letters at each vertex -->
+        ${axes.map(p => {
+          const g = gradeFor(p.ratio);
+          const s = g === 'S';
+          const offX = Math.cos(p.angle) * 14;
+          const offY = Math.sin(p.angle) * 14;
+          const lx = (p.inner.x + offX).toFixed(1);
+          const ly = (p.inner.y + offY).toFixed(1);
+          return `
+            <circle cx="${lx}" cy="${ly}" r="11" fill="rgba(4,6,13,.8)"/>
+            <text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle"
+                  font-family="'Share Tech Mono',monospace" font-size="15" font-weight="700"
+                  fill="${s ? '#ffcf5c' : '#eaf6ff'}"
+                  style="filter:drop-shadow(0 0 4px ${s ? 'rgba(255,207,92,.7)' : 'rgba(79,214,255,.5)'})">${g}</text>
+          `;
+        }).join('')}
+
+        <!-- axis labels -->
+        ${axes.map(p => {
+          const anchor = Math.abs(p.label.x - cx) < 5 ? 'middle' : (p.label.x > cx ? 'start' : 'end');
+          return `<text x="${p.label.x.toFixed(1)}" y="${p.label.y.toFixed(1)}"
+                        text-anchor="${anchor}" dominant-baseline="middle"
+                        font-family="'Chakra Petch',sans-serif" font-size="11" font-weight="600"
+                        letter-spacing="1.5" fill="#6f8cb5">${STAT_META[p.key].label}</text>`;
+        }).join('')}
+      </svg>
+
+      <div class="stat-pentagon-caption">
+        <div class="stat-pentagon-total">
+          <span class="label">TOTAL</span>
+          <span class="value">${totalVal}</span>
+        </div>
+        <div class="meta">
+          Graded against <b style="color:var(--cyan)">${maxVal}</b>
+          ${maxVal > barrier
+            ? ' — highest stat is now the target'
+            : ` · next barrier ${barrier}`}
+        </div>
+      </div>
+    </div>`;
+}
+  
 function viewStatus(){
   const lv = getLevel();
   const rk = rankForLevel(lv);
@@ -2316,10 +2473,11 @@ function viewStatus(){
        </div>`
     : `<div style="font-size:12.5px">MAXIMUM RANK REACHED. <span style="color:var(--danger)">S-RANK.</span> The System has nothing left to offer you.</div>`;
 
-  return `
+    return `
     <div class="panel">
       <div class="panel-title">Attributes</div>
       ${statRows}
+      ${statPentagonHTML()}
     </div>
 
         <div class="panel">
