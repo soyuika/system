@@ -1805,11 +1805,10 @@ function normalizeTask(t){
     target: 1,
     unit: typeof t.unit === 'string' ? t.unit : ''
   };
-  if (type === 'binary'){ out.target = 1; out.unit = ''; }
+    if (type === 'binary'){ out.target = 1; out.unit = ''; }
   else {
     const n = Number(t.target);
     out.target = Number.isFinite(n) && n > 0 ? Math.max(1, Math.floor(n)) : 1;
-    if (type !== 'counter') out.unit = '';
   }
   return out;
 }
@@ -3303,10 +3302,11 @@ function renderTaskRow(kind, q, task, value, opts){
         ${textHTML}
       </div>`;
   }
-  // reps
+    // reps
+  const unitSuffix = task.unit ? ` ${esc(task.unit)}` : '';
   return `
     <div class="q-line ${complete?'on':''}">
-      <button class="chk reps ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ ':''}${value}/${target}</button>
+      <button class="chk reps ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ ':''}${value}/${target}${unitSuffix}</button>
       ${value > 0 ? `<button class="chk-mini" data-act="task-dec" ${commonAttrs}>−</button>` : ''}
       ${textHTML}
     </div>`;
@@ -4873,7 +4873,7 @@ document.addEventListener('click', (e) => {
             </select>
             <input id="eqFloorTarget" type="number" min="1" value="${q.floor.type==='binary'?1:(q.floor.target||1)}" placeholder="Target">
           </div>
-          <input id="eqFloorUnit" placeholder="Unit — e.g. words, minutes (counter only)" value="${esc(q.floor.unit||'')}" style="margin-top:6px">
+                    <input id="eqFloorUnit" placeholder="Unit — e.g. words, sets (counter / reps)" value="${esc(q.floor.unit||'')}" style="margin-top:6px">
         </div>
 
         <div class="task-edit-group">
@@ -4887,14 +4887,14 @@ document.addEventListener('click', (e) => {
             </select>
             <input id="eqCeilTarget" type="number" min="1" value="${q.ceiling.type==='binary'?1:(q.ceiling.target||1)}" placeholder="Target">
           </div>
-          <input id="eqCeilUnit" placeholder="Unit — e.g. words, minutes (counter only)" value="${esc(q.ceiling.unit||'')}" style="margin-top:6px">
+                    <input id="eqCeilUnit" placeholder="Unit — e.g. words, sets (counter / reps)" value="${esc(q.ceiling.unit||'')}" style="margin-top:6px">
         </div>
 
         <label class="fld"><span>Ceiling Steps — one per line, optional</span>
-          <textarea id="eqSteps" placeholder="[c:300|words] Write 300 words&#10;[r:3] 3 sets of pushups&#10;Just a plain binary step">${(q.ceilingSteps||[]).map(stepToLine).join('\n')}</textarea>
+                    <textarea id="eqSteps" placeholder="[c:300|words] Write 300 words&#10;[r:3|sets] 3 sets of pushups&#10;Just a plain binary step">${(q.ceilingSteps||[]).map(stepToLine).join('\n')}</textarea>
         </label>
         <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:14px;line-height:1.7">
-          Step syntax: <b style="color:var(--cyan)">[c:300|words]</b> counter · <b style="color:var(--cyan)">[r:3]</b> reps · no prefix = binary.
+          Step syntax: <b style="color:var(--cyan)">[c:300|words]</b> counter · <b style="color:var(--cyan)">[r:3|sets]</b> reps (unit optional) · no prefix = binary.
         </div>
 
         <label class="fld"><span>Quest Phase${state.devMode ? ' — DEV: editable' : ''}</span>
