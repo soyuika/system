@@ -584,6 +584,109 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 }
 .lag-warn b{color:var(--gold)}
 
+/* ---------- rank progress info button ---------- */
+.rank-info-btn{
+  margin-left:auto;
+  width:22px;
+  height:22px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px;
+  font-weight:700;
+  color:var(--cyan);
+  background:transparent;
+  border:1px solid rgba(79,214,255,.5);
+  border-radius:50%;
+  cursor:pointer;
+  transition:.15s;
+  flex-shrink:0;
+  padding:0;
+  line-height:1;
+  text-shadow:none;
+}
+.rank-info-btn:hover{
+  background:rgba(79,214,255,.15);
+  box-shadow:0 0 12px rgba(79,214,255,.4);
+  color:#fff;
+}
+
+/* ---------- rank progression modal ---------- */
+.rank-prog-list{ display:flex; flex-direction:column; gap:8px; }
+.rank-prog-card{
+  padding:11px 13px;
+  border:1px solid rgba(47,143,255,.22);
+  background:rgba(4,10,22,.55);
+}
+.rank-prog-card.completed{ border-color:rgba(56,255,176,.35); }
+.rank-prog-card.current{
+  border-color:rgba(255,207,92,.55);
+  background:linear-gradient(90deg, rgba(255,207,92,.07), rgba(255,207,92,.01) 80%);
+  box-shadow:0 0 16px rgba(255,207,92,.10);
+}
+.rank-prog-card.final{ border-color:rgba(255,61,110,.4); }
+.rank-prog-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:9px;
+  padding-bottom:7px;
+  border-bottom:1px dashed rgba(47,143,255,.18);
+}
+.rank-prog-badge{
+  font-family:'Share Tech Mono',monospace;
+  font-size:14px;
+  font-weight:700;
+  width:26px;
+  height:26px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid currentColor;
+  flex-shrink:0;
+}
+.rank-prog-name{
+  font-family:'Share Tech Mono',monospace;
+  font-size:12.5px;
+  letter-spacing:.18em;
+  flex:1;
+}
+.rank-prog-status{
+  font-family:'Share Tech Mono',monospace;
+  font-size:9.5px;
+  letter-spacing:.16em;
+  padding:2px 7px;
+  border:1px solid currentColor;
+  flex-shrink:0;
+  text-transform:uppercase;
+}
+.rank-prog-status.completed{ color:var(--green); }
+.rank-prog-status.current{ color:var(--gold); }
+.rank-prog-status.locked{ color:var(--dim); }
+.rank-prog-status.final{ color:var(--danger); }
+.rank-prog-rows{ display:flex; flex-direction:column; gap:4px; }
+.rank-prog-row{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  font-size:12.5px;
+  line-height:1.5;
+}
+.rank-prog-row .label{
+  color:var(--dim);
+  letter-spacing:.06em;
+  flex-shrink:0;
+}
+.rank-prog-row .val{
+  font-family:'Share Tech Mono',monospace;
+  color:#eaf6ff;
+  text-align:right;
+}
+.rank-prog-row .val.lag{ color:var(--gold); }
+.rank-prog-row .val.done{ color:var(--green); }
+.rank-prog-row .val.dim{ color:var(--dim); }
+
 /* distribution modal */
 .dist-row{
   display:flex;align-items:center;gap:14px;
@@ -3707,10 +3810,9 @@ function viewStatus(){
     : `<div style="font-size:12.5px">MAXIMUM RANK REACHED. <span style="color:var(--danger)">S-RANK.</span> The System has nothing left to offer you.</div>`;
 
     return `
-    <div class="panel">
-      <div class="panel-title">Attributes</div>
-      ${statRows}
-      ${statPentagonHTML()}
+        <div class="panel">
+      <div class="panel-title">Rank Progress<button class="rank-info-btn" data-act="open-rank-progress" title="Rank progression details" aria-label="Show rank progression table">?</button></div>
+      ${nextRankLine}
     </div>
 
         <div class="panel">
@@ -4000,6 +4102,100 @@ function renderStepsToggle(q){
     <span class="q-steps-chevron ${collapsed?'collapsed':''}">▾</span>
     <span>${doneCount}/${steps.length}</span>
   </button>`;
+}
+
+  function openRankProgressModal(){
+  const currentLevel = getLevel();
+
+  const rows = RANKS.map(r => {
+    const isInfinite = r.max === Infinity;
+    const enterLevel  = r.min;
+    const enterPoints = pointsForLevel(enterLevel);
+    const exitLevel   = isInfinite ? null : r.max + 1;
+    const exitPoints  = isInfinite ? null : pointsForLevel(exitLevel);
+    const rankCost    = isInfinite ? null : exitPoints - enterPoints;
+    const levelsInRank = isInfinite ? '∞' : (r.max - r.min + 1);
+    const perLevelLow  = enterLevel + 1;
+    const perLevelHigh = isInfinite ? '∞' : exitLevel;
+
+    // Status pill
+    let status, statusLabel;
+    if (isInfinite){
+      status = currentLevel >= r.min ? 'final' : 'locked';
+      statusLabel = currentLevel >= r.min ? 'ENDGAME' : 'LOCKED';
+    } else if (currentLevel > r.max){
+      status = 'completed';
+      statusLabel = 'CLEARED';
+    } else if (currentLevel >= r.min){
+      status = 'current';
+      statusLabel = 'CURRENT';
+    } else {
+      status = 'locked';
+      statusLabel = 'LOCKED';
+    }
+
+    // Personal progress toward entering this rank
+    let totalRemaining = 0;
+    STAT_KEYS.forEach(k => {
+      totalRemaining += Math.max(0, enterPoints - state.stats[k]);
+    });
+    const minStat = Math.min(...STAT_KEYS.map(k => state.stats[k]));
+    const laggingRemaining = Math.max(0, enterPoints - minStat);
+
+    let fromYouHTML;
+    if (status === 'completed'){
+      fromYouHTML = `<div class="rank-prog-row"><span class="label">From you</span><span class="val done">cleared ✓</span></div>`;
+    } else if (status === 'final'){
+      fromYouHTML = `<div class="rank-prog-row"><span class="label">From you</span><span class="val dim">endgame reached</span></div>`;
+    } else if (status === 'current'){
+      fromYouHTML = `<div class="rank-prog-row"><span class="label">From you</span><span class="val dim">in progress</span></div>`;
+    } else {
+      fromYouHTML = `<div class="rank-prog-row"><span class="label">To enter</span><span class="val lag">${laggingRemaining} lagging · ${totalRemaining} total</span></div>`;
+    }
+
+    return `
+      <div class="rank-prog-card ${status}">
+        <div class="rank-prog-head">
+          <span class="rank-prog-badge" style="color:${r.color}">${r.name}</span>
+          <span class="rank-prog-name" style="color:${r.color}">${r.name}-RANK</span>
+          <span class="rank-prog-status ${status}">${statusLabel}</span>
+        </div>
+        <div class="rank-prog-rows">
+          <div class="rank-prog-row">
+            <span class="label">Enter at</span>
+            <span class="val">Lv ${enterLevel} · ${enterPoints} pts</span>
+          </div>
+          <div class="rank-prog-row">
+            <span class="label">Spans</span>
+            <span class="val">${levelsInRank} levels</span>
+          </div>
+          <div class="rank-prog-row">
+            <span class="label">Cost</span>
+            <span class="val">${rankCost !== null ? rankCost + ' pts' : '∞'}</span>
+          </div>
+          <div class="rank-prog-row">
+            <span class="label">Per level</span>
+            <span class="val">${perLevelLow} → ${perLevelHigh}</span>
+          </div>
+          ${fromYouHTML}
+        </div>
+      </div>`;
+  }).join('');
+
+  openModal(`
+    <h2>Rank Progression</h2>
+    <p style="font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:14px">
+      Level N costs <b style="color:#fff">N points</b> to enter, so reaching level N requires
+      the sum 1+2+…+N. Your level is gated by your
+      <b style="color:var(--cyan)">lowest stat</b> — every stat must hit the same
+      point threshold to advance. <b style="color:#fff">Lagging</b> is the deficit in
+      your minimum stat; <b style="color:#fff">total</b> sums the deficits across all five.
+    </p>
+    <div class="rank-prog-list">${rows}</div>
+    <div class="row" style="justify-content:center;margin-top:16px">
+      <button class="btn" data-act="close-modal">Close</button>
+    </div>
+  `);
 }
   
   function openDistributeModal(){
@@ -5761,8 +5957,12 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'distribute-points':
+        case 'distribute-points':
       openDistributeModal();
+      break;
+
+    case 'open-rank-progress':
+      openRankProgressModal();
       break;
 
     case 'apply-distribution': {
