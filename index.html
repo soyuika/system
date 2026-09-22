@@ -689,45 +689,108 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .chk-mini:hover{border-color:var(--danger);color:var(--danger);background:rgba(60,10,25,.5)}
 .q-line.on .q-text{color:var(--green);text-decoration:line-through;text-decoration-color:rgba(56,255,176,.4)}
 
-/* ---------- task types: counter / reps ---------- */
+/* ---------- task rows ---------- */
+.q-line{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  padding:8px 0;
+  border-top:1px solid rgba(47,143,255,.13);
+}
+
 .task-counter{
   display:flex;
   align-items:center;
-  gap:6px;
+  gap:4px;
   flex-shrink:0;
 }
-.task-counter-input{
-  width:76px !important;
-  padding:5px 8px !important;
+.task-counter.done .task-counter-input{
+  border-color:var(--green);
+  color:var(--green);
+  background:rgba(56,255,176,.08);
+  box-shadow:0 0 10px rgba(56,255,176,.22);
+}
+.task-counter.done .task-counter-target{
+  color:var(--green);
+}
+
+.task-counter-btn{
+  height:34px;
+  min-width:34px;
+  padding:0 6px;
+  border-radius:8px;
+  border:1px solid rgba(47,143,255,.35);
+  background:rgba(8,18,36,.8);
+  color:var(--dim);
   font-family:'Share Tech Mono',monospace;
-  font-size:14px !important;
+  font-size:15px;
+  font-weight:600;
+  line-height:1;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+  touch-action:manipulation;
+  transition:.15s;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.task-counter-btn:active{
+  background:rgba(30,60,120,.6);
+  color:#fff;
+}
+.task-counter-reset{ font-size:11px; opacity:.65; }
+.task-counter-reset:hover{ color:var(--danger); border-color:var(--danger); opacity:1; }
+.task-counter-inc{ color:var(--cyan); font-size:18px; }
+.task-counter-inc:hover{ border-color:var(--cyan); background:rgba(20,50,100,.5); color:#fff; }
+
+.task-counter-input{
+  width:60px !important;
+  height:34px;
+  padding:4px 6px !important;
+  font-family:'Share Tech Mono',monospace;
+  font-size:15px !important;
   text-align:center;
   background:rgba(8,18,36,.8);
   border:1px solid rgba(47,143,255,.35);
+  border-radius:8px;
   color:#fff;
+  box-sizing:border-box;
+  -webkit-appearance:none;
+  appearance:none;
 }
-.task-counter-input:focus{border-color:var(--cyan)}
-.task-counter-target{
-  font-family:'Share Tech Mono',monospace;
-  font-size:11px;
-  color:var(--dim);
-  white-space:nowrap;
-}
-.task-counter-done{
-  color:var(--green);
-  font-size:14px;
-  flex-shrink:0;
+.task-counter-input:focus{ border-color:var(--cyan); box-shadow:0 0 10px rgba(79,214,255,.25); }
+.task-counter-input::-webkit-inner-spin-button,
+.task-counter-input::-webkit-outer-spin-button{
+  -webkit-appearance:none; margin:0;
 }
 .task-time-input{
-  width:96px !important;
-  font-family:'Share Tech Mono',monospace;
+  width:82px !important;
+  font-size:13px !important;
 }
-.task-time-input::placeholder{ color:var(--dim); }
+.task-counter-target{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11.5px;
+  color:var(--dim);
+  white-space:nowrap;
+  padding:0 2px;
+}
+
 .chk.reps{
-  min-width:64px;
+  height:34px;
+  min-width:58px;
+  padding:0 11px;
   font-family:'Share Tech Mono',monospace;
+  font-size:12.5px;
   letter-spacing:.06em;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
 }
+
 .task-edit-group{
   margin-bottom:14px;
   padding:10px 12px;
@@ -742,6 +805,36 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   margin-bottom:6px;
 }
 
+/* ---------- step builder (edit modal) ---------- */
+#eqStepsBuilder{ margin-top:6px; }
+.step-builder{
+  position:relative;
+  margin-bottom:10px;
+  padding:10px 40px 10px 12px;
+  border:1px solid rgba(47,143,255,.22);
+  background:rgba(4,10,22,.5);
+  border-radius:8px;
+}
+.step-builder-x{
+  position:absolute;
+  top:8px;
+  right:8px;
+  padding:3px 8px !important;
+  font-size:12px !important;
+}
+.step-builder-row{
+  display:flex;
+  gap:6px;
+  margin-bottom:6px;
+}
+.step-builder-row:last-child{ margin-bottom:0; }
+.step-builder-row > *{ flex:1; min-width:0; }
+.step-builder-type{ flex:0 0 110px !important; }
+.step-builder-extra input[data-step-target]{ flex:0 0 76px; }
+.step-builder-extra input[data-step-unit]{ flex:1; }
+.step-builder-extra input[data-step-repeat]{ flex:0 0 90px; }
+.step-builder.type-check .step-builder-extra{ display:none; }
+.step-builder.type-time input[data-step-unit]{ display:none; }
 /* ---------- ceiling sub-steps ---------- */
 .ceil-steps{
   margin:0 0 0 0;
@@ -3381,7 +3474,7 @@ function renderTaskRow(kind, q, task, value, opts){
   const textHTML = `<div class="q-text ${task.text?'':'empty'}">${esc(txt)} ${opts.suffixHTML || ''}</div>`;
 
   const repeatBadgeHTML = task.repeatTarget
-    ? `<button class="chk reps ${reps >= task.repeatTarget ? 'on' : ''}" data-act="task-rep" ${commonAttrs}>${reps}/${task.repeatTarget}</button>`
+    ? `<button class="chk reps ${reps >= task.repeatTarget ? 'on' : ''}" data-act="task-rep" ${commonAttrs} title="Tap to add a rep — tap at target to reset">${reps}/${task.repeatTarget}</button>`
     : '';
 
   if (task.type === 'check'){
@@ -3393,11 +3486,10 @@ function renderTaskRow(kind, q, task, value, opts){
           ${textHTML}
         </div>`;
     }
-    // check + repeat: single tap counter, one slot per tap
     const needed = task.repeatTarget;
     return `
       <div class="q-line ${complete?'on':''}">
-        <button class="chk reps ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ ':''}${value}/${needed}</button>
+        ${repeatBadgeHTML}
         ${value > 0 ? `<button class="chk-mini" data-act="task-dec" ${commonAttrs}>−</button>` : ''}
         ${textHTML}
       </div>`;
@@ -3408,13 +3500,14 @@ function renderTaskRow(kind, q, task, value, opts){
     const targetStr = task.target != null ? `/ ${task.target}${unit}` : '';
     return `
       <div class="q-line ${complete?'on':''}">
-        <div class="task-counter">
+        ${repeatBadgeHTML}
+        <div class="task-counter${complete?' done':''}">
+          <button class="task-counter-btn task-counter-reset" data-act="task-reset" ${commonAttrs} title="Reset to 0">0</button>
           <input class="task-counter-input" type="number" inputmode="numeric" min="0"
                  value="${value}" data-act="task-set" ${commonAttrs}>
           ${targetStr ? `<span class="task-counter-target">${targetStr}</span>` : ''}
-          ${complete ? '<span class="task-counter-done">✓</span>' : ''}
+          <button class="task-counter-btn task-counter-inc" data-act="task-inc" data-delta="1" ${commonAttrs} title="Tap +1 · hold for more">+</button>
         </div>
-        ${repeatBadgeHTML}
         ${textHTML}
       </div>`;
   }
@@ -3423,14 +3516,15 @@ function renderTaskRow(kind, q, task, value, opts){
   const targetStr = task.target != null ? `/ ${formatMinutes(task.target)}` : '';
   return `
     <div class="q-line ${complete?'on':''}">
-      <div class="task-counter">
+      ${repeatBadgeHTML}
+      <div class="task-counter${complete?' done':''}">
+        <button class="task-counter-btn task-counter-reset" data-act="task-reset" ${commonAttrs} title="Reset to 0">0</button>
         <input class="task-counter-input task-time-input" type="text" inputmode="text"
                value="${value ? formatMinutes(value) : ''}" placeholder="0m"
                data-act="task-set-time" ${commonAttrs}>
         ${targetStr ? `<span class="task-counter-target">${targetStr}</span>` : ''}
-        ${complete ? '<span class="task-counter-done">✓</span>' : ''}
+        <button class="task-counter-btn task-counter-inc" data-act="task-inc" data-delta="5" ${commonAttrs} title="Tap +5m · hold for more">+</button>
       </div>
-      ${repeatBadgeHTML}
       ${textHTML}
     </div>`;
 }
@@ -4805,6 +4899,67 @@ function closeModal(){
   m.innerHTML = '';
 }
 
+/* Tap-and-hold auto-increment for [data-act="task-inc"]. */
+document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('[data-act="task-inc"]');
+  if (!el || (e.button != null && e.button !== 0)) return;
+
+  const kind  = el.dataset.kind, qid = el.dataset.qid, sid = el.dataset.sid;
+  const base  = parseInt(el.dataset.delta, 10) || 1;
+  let fired = 0, interval = null;
+
+  const tick = () => {
+    fired++;
+    // Accelerate on long holds.
+    const mult = fired > 40 ? 10 : fired > 15 ? 5 : 1;
+    const cur = getTaskValue(kind, qid, sid);
+    setTaskValue(kind, qid, sid, cur + base * mult);
+  };
+
+  const holdTimer = setTimeout(() => {
+    tick();
+    interval = setInterval(tick, 100);
+  }, 420);
+
+  const cleanup = () => {
+    clearTimeout(holdTimer);
+    if (interval) { clearInterval(interval); interval = null; }
+    if (fired > 0) {
+      el.dataset.suppressClick = '1';
+      setTimeout(() => { delete el.dataset.suppressClick; }, 150);
+      checkDailyAwards();
+      save();
+      refreshQuest(qid);
+    }
+  };
+  el.addEventListener('pointerup',     cleanup, { once:true });
+  el.addEventListener('pointerleave',  cleanup, { once:true });
+  el.addEventListener('pointercancel', cleanup, { once:true });
+});
+  
+function stepBuilderHTML(step){
+  step = step || {};
+  const id = step.id || uid();
+  const type = step.type || 'check';
+  return `
+    <div class="step-builder type-${type}" data-step-id="${id}">
+      <button class="btn small danger step-builder-x" data-act="remove-step-builder" data-id="${id}" title="Remove">✕</button>
+      <div class="step-builder-row">
+        <select data-step-type class="step-builder-type">
+          <option value="check" ${type==='check'?'selected':''}>Check</option>
+          <option value="count" ${type==='count'?'selected':''}>Counter</option>
+          <option value="time"  ${type==='time' ?'selected':''}>Time</option>
+        </select>
+        <input data-step-text placeholder="Step description" value="${esc(step.text||'')}">
+      </div>
+      <div class="step-builder-row step-builder-extra">
+        <input data-step-target type="number" min="1" placeholder="Target" value="${step.target ?? ''}">
+        <input data-step-unit placeholder="Unit" value="${esc(step.unit||'')}">
+        <input data-step-repeat type="number" min="2" placeholder="Repeat ×N" value="${step.repeatTarget ?? ''}">
+      </div>
+    </div>`;
+}
+
 /* =========================================================
    ACTIONS
    ========================================================= */
@@ -4839,6 +4994,20 @@ document.addEventListener('click', (e) => {
       break;
     }
 
+        case 'add-step-builder': {
+      const c = document.getElementById('eqStepsBuilder');
+      if (!c) break;
+      c.insertAdjacentHTML('beforeend', stepBuilderHTML({}));
+      break;
+    }
+
+    case 'remove-step-builder': {
+      const id = el.dataset.id;
+      const node = document.querySelector(`#eqStepsBuilder [data-step-id="${id}"]`);
+      if (node) node.remove();
+      break;
+    }
+      
         case 'close-modal':
       closeModal();
       break;
@@ -4943,7 +5112,7 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-              case 'task-toggle': {
+                  case 'task-toggle': {
       const kind = el.dataset.kind, qid = el.dataset.qid, sid = el.dataset.sid;
       const task = getTaskDef(qid, kind, sid);
       if (!task) break;
@@ -4983,6 +5152,30 @@ document.addEventListener('click', (e) => {
       const cur = getTaskReps(kind, qid, sid);
       const next = cur >= task.repeatTarget ? 0 : cur + 1;
       setTaskReps(kind, qid, sid, next);
+      checkDailyAwards();
+      save();
+      refreshQuest(qid);
+      break;
+    }
+
+    case 'task-reset': {
+      const kind = el.dataset.kind, qid = el.dataset.qid, sid = el.dataset.sid;
+      setTaskValue(kind, qid, sid, 0);
+      checkDailyAwards();
+      save();
+      refreshQuest(qid);
+      break;
+    }
+
+        case 'task-inc': {
+      if (el.dataset.suppressClick === '1') break;
+      const kind = el.dataset.kind, qid = el.dataset.qid, sid = el.dataset.sid;
+      const delta = parseInt(el.dataset.delta, 10) || 1;
+      const cur = getTaskValue(kind, qid, sid);
+      setTaskValue(kind, qid, sid, cur + delta);
+      if (kind === 'ceil' && cur + delta > 0){
+        state.today.floor[qid] = Math.max(Number(state.today.floor[qid]) || 0, 1);
+      }
       checkDailyAwards();
       save();
       refreshQuest(qid);
@@ -5034,12 +5227,11 @@ document.addEventListener('click', (e) => {
           </div>
         </div>
 
-        <label class="fld"><span>Ceiling Steps — one per line, optional</span>
-          <textarea id="eqSteps" placeholder="[c:300|words] Write 300 words&#10;[t:30] 30 minutes of reading&#10;[r:3] 3× Do a set of pushups&#10;Plain text = a simple check">${(q.ceilingSteps||[]).map(stepToLine).join('\n')}</textarea>
-        </label>
-        <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:14px;line-height:1.7">
-          Step syntax: <b style="color:var(--cyan)">[c:N|unit]</b> counter · <b style="color:var(--cyan)">[t:N]</b> time (minutes) · <b style="color:var(--cyan)">[r:N]</b> check repeated N times · plain text = simple check.
+                <label class="fld"><span>Ceiling Steps — optional</span></label>
+        <div id="eqStepsBuilder">
+          ${(q.ceilingSteps||[]).map(stepBuilderHTML).join('')}
         </div>
+        <button class="btn small ghost" data-act="add-step-builder" style="margin-bottom:14px">+ Add Step</button>
 
         <label class="fld"><span>Quest Phase${state.devMode ? ' — DEV: editable' : ''}</span>
           ${state.devMode
@@ -5092,19 +5284,18 @@ document.addEventListener('click', (e) => {
         }
       }
 
-      const stepLines = $('#eqSteps').value.split('\n').map(s => s.trim()).filter(Boolean);
-      const oldSteps = q.ceilingSteps || [];
-      q.ceilingSteps = stepLines.map((line, i) => {
-        const parsed = parseStepLine(line);
-        const old = oldSteps[i];
-        const same = old
-          && old.text === parsed.text
-          && old.type === parsed.type
-          && old.target === parsed.target
-          && (old.unit || '') === (parsed.unit || '')
-          && (old.repeatTarget || 0) === (parsed.repeatTarget || 0);
-        return { id: same ? old.id : uid(), ...parsed };
-      });
+            const oldSteps = q.ceilingSteps || [];
+      q.ceilingSteps = [...document.querySelectorAll('#eqStepsBuilder [data-step-id]')].map(el => {
+        const id = el.dataset.stepId;
+        const type = el.querySelector('[data-step-type]').value;
+        const text = el.querySelector('[data-step-text]').value.trim();
+        if (!text) return null;
+        const target = el.querySelector('[data-step-target]').value;
+        const unit = el.querySelector('[data-step-unit]').value.trim();
+        const repeatTarget = el.querySelector('[data-step-repeat]').value;
+        const norm = normalizeTask({ type, text, target, unit, repeatTarget });
+        return { id, ...norm };
+      }).filter(Boolean);
 
       // Clean stale repeat entries
       if (state.today.reps && state.today.reps.step && state.today.reps.step[q.id]){
@@ -5136,10 +5327,10 @@ document.addEventListener('click', (e) => {
       clampReps('ceil',  q.ceiling);
       q.ceilingSteps.forEach(s => clampReps('step', s, s.id));
            
-      save(); closeModal(); render();
+            save(); closeModal(); render();
       break;
     }
-      
+
     case 'view-tree': {
       const q = state.quests.find(x => x.id === el.dataset.id);
       if (!q) break;
@@ -6198,6 +6389,14 @@ document.addEventListener('click', (e) => {
 
 /* change events — file import + counter inputs */
 document.addEventListener('change', (e) => {
+  if (e.target.matches && e.target.matches('[data-step-type]')){
+    const parent = e.target.closest('.step-builder');
+    if (parent){
+      parent.classList.remove('type-check','type-count','type-time');
+      parent.classList.add('type-' + e.target.value);
+    }
+    return;
+  }
   const act = e.target.dataset && e.target.dataset.act;
   if (act === 'task-set' || act === 'task-set-time'){
     const kind = e.target.dataset.kind;
