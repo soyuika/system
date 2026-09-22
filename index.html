@@ -4407,61 +4407,9 @@ function updateTimers(){
 }
 setInterval(updateTimers, 1000);
 setInterval(tick, 20000);
-/* Mobile-safe tab switching: fire on pointerdown, then swallow the follow-up click. */
-let tabPointerHandledAt = 0;
-document.addEventListener('pointerdown', (e) => {
-  const el = e.target.closest('.tab[data-act="tab"]');
-  if (!el) return;
-  tabPointerHandledAt = Date.now();
-  const next = el.dataset.tab;
-  if (activeTab === next) return;
-  activeTab = next;
-  render();
-}, { passive: true });
-
-document.addEventListener('click', (e) => {
-  const el = e.target.closest('.tab[data-act="tab"]');
-  if (!el) return;
-  // If pointerdown already handled this tap within the last 500ms, ignore the click.
-  if (Date.now() - tabPointerHandledAt < 500) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-}, true);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden){ tick(); updateTimers(); }
 });
-/* Mobile-safe tab switching. Fires on pointerdown (the earliest, most reliable
-   touch event) and swallows the follow-up click so the tab doesn't render twice. */
-let lastTabPointerHandledAt = 0;
-
-function activateTab(nextTab){
-  if (!nextTab || activeTab === nextTab) return false;
-  activeTab = nextTab;
-  render();
-  return true;
-}
-
-if (window.PointerEvent){
-  document.addEventListener('pointerdown', (e) => {
-    const tab = e.target.closest && e.target.closest('.tab[data-act="tab"]');
-    if (!tab) return;
-    lastTabPointerHandledAt = Date.now();
-    activateTab(tab.dataset.tab);
-  });
-}
-
-/* If pointerdown already handled this tap, block the synthesized click
-   from reaching the main click handler (which would re-render). */
-document.addEventListener('click', (e) => {
-  const tab = e.target.closest && e.target.closest('.tab[data-act="tab"]');
-  if (!tab) return;
-  if (Date.now() - lastTabPointerHandledAt < 600) {
-    e.stopPropagation();
-    e.preventDefault();
-  }
-}, true);
-  
 window.addEventListener('pageshow', () => { tick(); updateTimers(); });
 
 /* =========================================================
@@ -5837,6 +5785,32 @@ function showOath(){
   });
 }
 
+/* On-screen error overlay — mobile-friendly debugging without a Mac. */
+function showErrorBox(label, text){
+  let box = document.getElementById('__err_box');
+  if (!box){
+    box = document.createElement('div');
+    box.id = '__err_box';
+    box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:999999;background:#1a0004;color:#ff9db5;padding:12px;font-family:monospace;font-size:12px;max-height:50vh;overflow:auto;border:2px solid #ff3d6e;white-space:pre-wrap;';
+    document.body.appendChild(box);
+  }
+  box.textContent = label + '\n\n' + text;
+  box.style.display = 'block';
+}
+window.addEventListener('error', (e) => {
+  const stack = e.error && e.error.stack ? e.error.stack.split('\n').slice(0, 8).join('\n') : '(no stack)';
+  showErrorBox(
+    'ERROR: ' + (e.message || 'unknown'),
+    (e.filename || '') + ':' + (e.lineno || '') + ':' + (e.colno || '') + '\n\n' + stack
+  );
+});
+window.addEventListener('unhandledrejection', (e) => {
+  const r = e.reason;
+  showErrorBox('PROMISE REJECTION', (r && r.stack) ? r.stack : String(r));
+});
+
+init();
+  
 function init(){
   const loaded = load();
   if (loaded) state = loaded;
