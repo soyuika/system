@@ -1730,8 +1730,19 @@ function defaultState(){
         keys: [],
     skips: 0,
     editTokens: 0,
-        dungeons: {inbox:[], active:null, locked:{}, cleared:[]},
-        missions: {active:null, backlog:[], history:[]}
+                dungeons: {inbox:[], active:null, locked:{}, cleared:[]},
+        missions: {active:null, backlog:[], history:[]},
+        ui: {
+      expandedStats: [],
+      expandedQuests: [],
+      expandedMilestones: [],
+      collapsedEncounters: [],
+      encountersSectionOpen: true,
+      missionCollapsed: false,
+      criteriaSectionOpen: true,
+      milestonesSectionOpen: true,
+      missionFormCollapsed: false
+    }
   };
 }
 
@@ -1765,6 +1776,40 @@ function flushSave(){
 
 window.addEventListener('pagehide', flushSave);
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushSave(); });
+
+/* Persist / restore UI collapse state across reloads. */
+function syncUI(){
+  state.ui = {
+    expandedStats: [...expandedStats],
+    expandedQuests: [...expandedQuests],
+    expandedMilestones: [...expandedMilestones],
+    collapsedEncounters: [...collapsedEncounters],
+    encountersSectionOpen,
+    missionCollapsed,
+    criteriaSectionOpen,
+    milestonesSectionOpen,
+    missionFormCollapsed
+  };
+  save();
+}
+
+function hydrateUI(){
+  const ui = (state && state.ui) || {};
+  const arr = v => Array.isArray(v) ? v : [];
+  expandedStats.clear();
+  arr(ui.expandedStats).forEach(x => expandedStats.add(x));
+  expandedQuests.clear();
+  arr(ui.expandedQuests).forEach(x => expandedQuests.add(x));
+  expandedMilestones.clear();
+  arr(ui.expandedMilestones).forEach(x => expandedMilestones.add(x));
+  collapsedEncounters.clear();
+  arr(ui.collapsedEncounters).forEach(x => collapsedEncounters.add(x));
+  encountersSectionOpen = ui.encountersSectionOpen !== false;
+  missionCollapsed      = !!ui.missionCollapsed;
+  criteriaSectionOpen   = ui.criteriaSectionOpen !== false;
+  milestonesSectionOpen = ui.milestonesSectionOpen !== false;
+  missionFormCollapsed  = !!ui.missionFormCollapsed;
+}
 
 function migrate(raw){
   const d = defaultState();
@@ -1878,9 +1923,21 @@ function migrate(raw){
     q.ceilingSteps.forEach(st => {
       if (typeof st.repeatable !== 'boolean') st.repeatable = false;
     });
-    if (!q.origin) q.origin = s.createdAt || new Date().toISOString();
+        if (!q.origin) q.origin = s.createdAt || new Date().toISOString();
     delete q.mult;
   });
+  if (!s.ui || typeof s.ui !== 'object') s.ui = {};
+  s.ui = Object.assign({
+    expandedStats: [],
+    expandedQuests: [],
+    expandedMilestones: [],
+    collapsedEncounters: [],
+    encountersSectionOpen: true,
+    missionCollapsed: false,
+    criteriaSectionOpen: true,
+    milestonesSectionOpen: true,
+    missionFormCollapsed: false
+  }, s.ui);
   return s;
 }
 
@@ -4328,17 +4385,19 @@ document.addEventListener('click', (e) => {
       const k = el.dataset.stat;
       const open = expandedStats.has(k);
       if (open) expandedStats.delete(k); else expandedStats.add(k);
-      el.classList.toggle('open', !open);
+            el.classList.toggle('open', !open);
       const desc = el.parentElement.querySelector('.stat-desc');
       if (desc) desc.classList.toggle('open', !open);
+      syncUI();
       break;
     }
         case 'toggle-quest': {
       const id = el.dataset.id;
       if (expandedQuests.has(id)) expandedQuests.delete(id);
       else expandedQuests.add(id);
-      const card = el.closest('.quest');
+            const card = el.closest('.quest');
       if (card) card.classList.toggle('open');
+      syncUI();
       break;
     }
 
@@ -4794,8 +4853,9 @@ document.addEventListener('click', (e) => {
       const id = el.dataset.id;
       if (expandedMilestones.has(id)) expandedMilestones.delete(id);
       else expandedMilestones.add(id);
-      const node = document.querySelector(`.mission-milestone[data-msid="${id}"]`);
+            const node = document.querySelector(`.mission-milestone[data-msid="${id}"]`);
       if (node) node.classList.toggle('open');
+      syncUI();
       break;
     }
 
@@ -4925,36 +4985,41 @@ document.addEventListener('click', (e) => {
       encountersSectionOpen = !encountersSectionOpen;
       const node = document.querySelector('.encounters-toggle');
       const body = document.querySelector('.encounters-body');
-      if (node) node.classList.toggle('open', encountersSectionOpen);
+            if (node) node.classList.toggle('open', encountersSectionOpen);
       if (body) body.classList.toggle('open', encountersSectionOpen);
+      syncUI();
       break;
     }
 
         case 'toggle-mission-collapse': {
       missionCollapsed = !missionCollapsed;
-      const node = el.closest('.mission-panel');
+            const node = el.closest('.mission-panel');
       if (node) node.classList.toggle('collapsed', missionCollapsed);
+      syncUI();
       break;
     }
 
     case 'toggle-mission-form-collapse': {
       missionFormCollapsed = !missionFormCollapsed;
-      const node = el.closest('.mission-panel');
+            const node = el.closest('.mission-panel');
       if (node) node.classList.toggle('collapsed', missionFormCollapsed);
+      syncUI();
       break;
     }
 
     case 'toggle-criteria-section': {
       criteriaSectionOpen = !criteriaSectionOpen;
-      const node = el.closest('.mission-collapsible-section');
+            const node = el.closest('.mission-collapsible-section');
       if (node) node.classList.toggle('open', criteriaSectionOpen);
+      syncUI();
       break;
     }
 
     case 'toggle-milestones-section': {
       milestonesSectionOpen = !milestonesSectionOpen;
-      const node = el.closest('.mission-collapsible-section');
+            const node = el.closest('.mission-collapsible-section');
       if (node) node.classList.toggle('open', milestonesSectionOpen);
+      syncUI();
       break;
     }
 
@@ -4963,8 +5028,9 @@ document.addEventListener('click', (e) => {
       if (!pid) break;
       if (collapsedEncounters.has(pid)) collapsedEncounters.delete(pid);
       else collapsedEncounters.add(pid);
-      const node = document.querySelector(`.mission-pair[data-pid="${pid}"]`);
+            const node = document.querySelector(`.mission-pair[data-pid="${pid}"]`);
       if (node) node.classList.toggle('collapsed', collapsedEncounters.has(pid));
+      syncUI();
       break;
     }
     case 'delete-encounter': {
@@ -5578,8 +5644,9 @@ document.addEventListener('change', (e) => {
   const r = new FileReader();
   r.onload = () => {
     try {
-      const data = JSON.parse(r.result);
+            const data = JSON.parse(r.result);
       state = migrate(data);
+      hydrateUI();
       save(); render();
       toast('Data imported successfully.', 'gold');
     } catch(err){
@@ -5622,9 +5689,10 @@ function init(){
   const loaded = load();
   if (loaded) state = loaded;
 
+  hydrateUI();
+
   tick();
   render();
-
   if (!state.oathTaken) showOath();
   else tick();
 }
