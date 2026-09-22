@@ -389,32 +389,16 @@ body::after{
 }
 
 @media(max-width:620px){
-    .tabs{flex-wrap:nowrap;gap:4px;overflow:visible}
-    .tab{
-    flex:1 1 0;
-    min-width:0;
-    text-align:center;
-    font-size:10.5px !important;
-    padding:9px 4px !important;
-    letter-spacing:.06em !important;
-    touch-action:manipulation;
-    -webkit-tap-highlight-color:transparent;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-    clip-path:none !important;
-    -webkit-clip-path:none !important;
-  }
+  .tabs{flex-wrap:nowrap;gap:5px;overflow:visible}
+  .tab{flex:1 1 auto;min-width:0;text-align:center;font-size:11px !important;padding:9px 6px !important;letter-spacing:.12em !important}
   .tab-full{display:none}
   .tab-icon{
     display:flex;align-items:center;justify-content:center;
-    flex:0 0 38px;
+    flex:0 0 42px;
     padding:9px 0 !important;
     font-size:18px !important;
     letter-spacing:0 !important;
     font-family:'Share Tech Mono',monospace !important;
-    touch-action:manipulation;
-    -webkit-tap-highlight-color:transparent;
   }
   /* unassigned points: stack the number above a 2-column grid of buttons */
   .unassigned-row{
@@ -4447,6 +4431,37 @@ document.addEventListener('click', (e) => {
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden){ tick(); updateTimers(); }
 });
+/* Mobile-safe tab switching. Fires on pointerdown (the earliest, most reliable
+   touch event) and swallows the follow-up click so the tab doesn't render twice. */
+let lastTabPointerHandledAt = 0;
+
+function activateTab(nextTab){
+  if (!nextTab || activeTab === nextTab) return false;
+  activeTab = nextTab;
+  render();
+  return true;
+}
+
+if (window.PointerEvent){
+  document.addEventListener('pointerdown', (e) => {
+    const tab = e.target.closest && e.target.closest('.tab[data-act="tab"]');
+    if (!tab) return;
+    lastTabPointerHandledAt = Date.now();
+    activateTab(tab.dataset.tab);
+  });
+}
+
+/* If pointerdown already handled this tap, block the synthesized click
+   from reaching the main click handler (which would re-render). */
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest && e.target.closest('.tab[data-act="tab"]');
+  if (!tab) return;
+  if (Date.now() - lastTabPointerHandledAt < 600) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+}, true);
+  
 window.addEventListener('pageshow', () => { tick(); updateTimers(); });
 
 /* =========================================================
