@@ -690,13 +690,55 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .q-line.on .q-text{color:var(--green);text-decoration:line-through;text-decoration-color:rgba(56,255,176,.4)}
 
 /* ---------- task rows ---------- */
-.q-line{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:8px;
-  padding:8px 0;
+.q-task{
+  padding:12px 0;
   border-top:1px solid rgba(47,143,255,.13);
+}
+.q-task:first-child{
+  border-top:none;
+}
+.q-task-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+.q-task-tag{
+  font-family:'Share Tech Mono',monospace;
+  font-size:10.5px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  padding:3px 9px;
+  border:1px solid rgba(47,143,255,.4);
+  color:var(--dim);
+  flex-shrink:0;
+  transition:color .18s, border-color .18s, background .18s, box-shadow .18s;
+  clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+}
+.q-task.done .q-task-tag{
+  color:var(--green);
+  border-color:var(--green);
+  background:rgba(56,255,176,.1);
+  box-shadow:0 0 14px rgba(56,255,176,.4);
+  text-shadow:0 0 8px rgba(56,255,176,.7);
+}
+.q-task-name{
+  flex:1;
+  min-width:0;
+  font-size:13.5px;
+  color:var(--text);
+  line-height:1.4;
+  word-break:break-word;
+}
+.q-task.done .q-task-name{
+  color:var(--green);
+}
+.q-task-stats{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
 }
 
 .task-counter{
@@ -716,10 +758,9 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 }
 
 .task-counter-btn{
-  height:34px;
-  min-width:34px;
+  height:36px;
+  min-width:36px;
   padding:0 6px;
-  border-radius:8px;
   border:1px solid rgba(47,143,255,.35);
   background:rgba(8,18,36,.8);
   color:var(--dim);
@@ -737,6 +778,7 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   display:inline-flex;
   align-items:center;
   justify-content:center;
+  clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
 }
 .task-counter-btn:active{
   background:rgba(30,60,120,.6);
@@ -748,19 +790,19 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .task-counter-inc:hover{ border-color:var(--cyan); background:rgba(20,50,100,.5); color:#fff; }
 
 .task-counter-input{
-  width:60px !important;
-  height:34px;
+  width:64px !important;
+  height:36px;
   padding:4px 6px !important;
   font-family:'Share Tech Mono',monospace;
   font-size:15px !important;
   text-align:center;
   background:rgba(8,18,36,.8);
   border:1px solid rgba(47,143,255,.35);
-  border-radius:8px;
   color:#fff;
   box-sizing:border-box;
   -webkit-appearance:none;
   appearance:none;
+  clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
 }
 .task-counter-input:focus{ border-color:var(--cyan); box-shadow:0 0 10px rgba(79,214,255,.25); }
 .task-counter-input::-webkit-inner-spin-button,
@@ -768,7 +810,7 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   -webkit-appearance:none; margin:0;
 }
 .task-time-input{
-  width:82px !important;
+  width:86px !important;
   font-size:13px !important;
 }
 .task-counter-target{
@@ -780,8 +822,8 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 }
 
 .chk.reps{
-  height:34px;
-  min-width:58px;
+  height:36px;
+  min-width:60px;
   padding:0 11px;
   font-family:'Share Tech Mono',monospace;
   font-size:12.5px;
@@ -1796,33 +1838,44 @@ footer{font-size:11px}
   }
 }
 
-/* ---------- mobile task rows: wrap text, shrink controls ---------- */
+/* ---------- mobile task rows: keep tag + name on one row, shrink stats ---------- */
 @media(max-width:620px){
-  .q-line{
+  .q-task{
+    padding:11px 0;
+  }
+  .q-task-head{
+    gap:8px;
+    margin-bottom:9px;
+  }
+  .q-task-tag{
+    font-size:10px;
+    padding:2px 7px;
+    letter-spacing:.12em;
+  }
+  .q-task-name{
+    font-size:13px;
+  }
+  .q-task-stats{
     gap:6px;
   }
-  .q-line .q-text{
-    flex:1 1 100%;
-    margin-top:6px;
-  }
   .chk.reps{
-    min-width:52px;
+    min-width:54px;
     padding:0 9px;
     font-size:11.5px;
-    height:32px;
+    height:33px;
   }
   .task-counter-btn{
-    min-width:32px;
-    height:32px;
+    min-width:33px;
+    height:33px;
     font-size:15px;
   }
   .task-counter-input{
-    width:54px !important;
-    height:32px;
+    width:56px !important;
+    height:33px;
     font-size:14px !important;
   }
   .task-time-input{
-    width:74px !important;
+    width:76px !important;
     font-size:12px !important;
   }
   .task-counter-target{
@@ -3506,53 +3559,47 @@ function renderTaskRow(kind, q, task, value, opts){
   const complete = isTaskComplete(task, value, reps);
   const commonAttrs = `data-kind="${kind}" data-qid="${q.id}"${kind==='step'?` data-sid="${opts.sid}"`:''}`;
   const txt = task.text || opts.emptyText || '';
-  const textHTML = `<div class="q-text ${task.text?'':'empty'}">${esc(txt)} ${opts.suffixHTML || ''}</div>`;
+  const tagLabel = opts.label || (kind === 'ceil' ? 'Ceiling' : kind === 'floor' ? 'Floor' : 'Step');
+  const suffixHTML = opts.suffixHTML || '';
 
-  const repeatBadgeHTML = task.repeatTarget
-    ? `<button class="chk reps ${reps >= task.repeatTarget ? 'on' : ''}" data-act="task-rep" ${commonAttrs} title="Tap to add a rep — tap at target to reset">${reps}/${task.repeatTarget}</button>`
-    : '';
+  let statsHTML = '';
 
   if (task.type === 'check'){
-    const label = opts.label || 'Task';
     if (!task.repeatTarget){
-      return `
-        <div class="q-line ${complete?'on':''}">
-          <button class="chk ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ '+label:label}</button>
-          ${textHTML}
-        </div>`;
-    }
-        const needed = task.repeatTarget;
-    return `
-      <div class="q-line ${complete?'on':''}">
+      statsHTML = `
+        <button class="chk ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ Done':'Mark Done'}</button>
+      `;
+    } else {
+      const needed = task.repeatTarget;
+      statsHTML = `
         <button class="chk reps ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ ':''}${value}/${needed}</button>
         ${value > 0 ? `<button class="chk-mini" data-act="task-dec" ${commonAttrs}>−</button>` : ''}
-        ${textHTML}
-      </div>`;
-  }
-
-  if (task.type === 'count'){
+      `;
+    }
+  } else if (task.type === 'count'){
     const unit = task.unit ? ` ${esc(task.unit)}` : '';
     const targetStr = task.target != null ? `/ ${task.target}${unit}` : '';
-    return `
-      <div class="q-line ${complete?'on':''}">
-        ${repeatBadgeHTML}
-                <div class="task-counter${complete?' done':''}">
-          <button class="task-counter-btn task-counter-dec" data-act="task-dec" ${commonAttrs} title="Tap −1 · hold for more">−</button>
-          <input class="task-counter-input" type="number" inputmode="numeric" min="0"
-                 value="${value}" data-act="task-set" ${commonAttrs}>
-          ${targetStr ? `<span class="task-counter-target">${targetStr}</span>` : ''}
-          <button class="task-counter-btn task-counter-inc" data-act="task-inc" data-delta="1" ${commonAttrs} title="Tap +1 · hold for more">+</button>
-        </div>
-        ${textHTML}
-      </div>`;
-  }
-
-  // time
-  const targetStr = task.target != null ? `/ ${formatMinutes(task.target)}` : '';
-  return `
-    <div class="q-line ${complete?'on':''}">
-      ${repeatBadgeHTML}
-            <div class="task-counter${complete?' done':''}">
+    const repeatBadge = task.repeatTarget
+      ? `<button class="chk reps ${reps >= task.repeatTarget ? 'on' : ''}" data-act="task-rep" ${commonAttrs} title="Tap to add a rep — tap at target to reset">${reps}/${task.repeatTarget}</button>`
+      : '';
+    statsHTML = `
+      ${repeatBadge}
+      <div class="task-counter${complete?' done':''}">
+        <button class="task-counter-btn task-counter-dec" data-act="task-dec" ${commonAttrs} title="Tap −1 · hold for more">−</button>
+        <input class="task-counter-input" type="number" inputmode="numeric" min="0"
+               value="${value}" data-act="task-set" ${commonAttrs}>
+        ${targetStr ? `<span class="task-counter-target">${targetStr}</span>` : ''}
+        <button class="task-counter-btn task-counter-inc" data-act="task-inc" data-delta="1" ${commonAttrs} title="Tap +1 · hold for more">+</button>
+      </div>
+    `;
+  } else {
+    const targetStr = task.target != null ? `/ ${formatMinutes(task.target)}` : '';
+    const repeatBadge = task.repeatTarget
+      ? `<button class="chk reps ${reps >= task.repeatTarget ? 'on' : ''}" data-act="task-rep" ${commonAttrs} title="Tap to add a rep — tap at target to reset">${reps}/${task.repeatTarget}</button>`
+      : '';
+    statsHTML = `
+      ${repeatBadge}
+      <div class="task-counter${complete?' done':''}">
         <button class="task-counter-btn task-counter-dec" data-act="task-dec" ${commonAttrs} title="Tap −1 · hold for more">−</button>
         <input class="task-counter-input task-time-input" type="text" inputmode="text"
                value="${value ? formatMinutes(value) : ''}" placeholder="0m"
@@ -3560,7 +3607,19 @@ function renderTaskRow(kind, q, task, value, opts){
         ${targetStr ? `<span class="task-counter-target">${targetStr}</span>` : ''}
         <button class="task-counter-btn task-counter-inc" data-act="task-inc" data-delta="5" ${commonAttrs} title="Tap +5m · hold for more">+</button>
       </div>
-      ${textHTML}
+    `;
+  }
+
+  return `
+    <div class="q-task ${complete?'done':''}">
+      <div class="q-task-head">
+        <span class="q-task-tag">${tagLabel}</span>
+        <span class="q-task-name">${esc(txt)}</span>
+        ${suffixHTML}
+      </div>
+      <div class="q-task-stats">
+        ${statsHTML}
+      </div>
     </div>`;
 }
   
