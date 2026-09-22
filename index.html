@@ -1765,7 +1765,7 @@ function migrate(raw){
     }
     delete m.encounter;
     delete m.plan;
-        m.encounterPairs.forEach(p => {
+            m.encounterPairs.forEach(p => {
       if (!p.id) p.id = uid();
       if (typeof p.happened !== 'boolean') p.happened = false;
       if (typeof p.outcome === 'undefined') p.outcome = null;
@@ -1776,6 +1776,10 @@ function migrate(raw){
           if (typeof p.fieldNotes[k] !== 'string') p.fieldNotes[k] = '';
         });
       }
+      if (!p.createdAt) p.createdAt = m.startedAt || new Date().toISOString();
+      if (!p.editedAt) p.editedAt = p.createdAt;
+      if (p.happened && !p.happenedAt) p.happenedAt = p.editedAt;
+      if (!p.happened && p.happenedAt) delete p.happenedAt;
     });
     if (!Array.isArray(m.milestones)) m.milestones = [];
     m.milestones.forEach(ms => {
@@ -3474,204 +3478,6 @@ function viewActiveMission(m){
   const daysRemaining = Math.max(0, Math.ceil((end - now) / 86400000));
   const overdue = now > end;
 
-  const criteria = m.criteria.map((c, i) => `
-    <div class="mission-criterion ${c.done ? 'on' : ''}">
-      <button class="crit-chk ${c.done ? 'on' : ''}" data-act="toggle-criterion" data-id="${c.id}">${c.done ? '✓' : (i+1)}</button>
-      <span class="crit-text">${esc(c.text)}</span>
-    </div>`).join('');
-
-      const pairsAll = m.encounterPairs || [];
-  const happenedCount = pairsAll.filter(x => x.happened).length;
-
-  const pairsList = pairsAll.map(p => {
-    const editing = editingEncounters.has(p.id);
-    const happened = !!p.happened;
-    const badge = happened
-      ? '<span class="mission-pair-badge happened">Happened</span>'
-      : '<span class="mission-pair-badge planned">Planned</span>';
-    const notes = p.fieldNotes || {worked:'', failed:'', change:''};
-    const hasNotes = !!(notes.worked || notes.failed || notes.change);
-
-    const encBlock = editing
-      ? `<textarea data-enc-encounter="${p.id}" placeholder="What might happen / what happened...">${esc(p.encounter || '')}</textarea>`
-      : `<div class="mission-pair-text ${p.encounter ? '' : 'empty'}">${esc(p.encounter || 'no description yet')}</div>`;
-
-    const planBlock = editing
-      ? `<textarea data-enc-plan="${p.id}" placeholder="How I'll handle it...">${esc(p.plan || '')}</textarea>`
-      : `<div class="mission-pair-text ${p.plan ? '' : 'empty'}">${esc(p.plan || 'no plan yet')}</div>`;
-
-    const outcomeRow = happened
-      ? `<div class="mission-pair-outcome">
-          <button class="outcome-chip ${p.outcome==='worked'?'on worked':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="worked">Worked</button>
-          <button class="outcome-chip ${p.outcome==='partial'?'on partial':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="partial">Partial</button>
-          <button class="outcome-chip ${p.outcome==='failed'?'on failed':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="failed">Failed</button>
-        </div>`
-      : '';
-
-    let notesBlock = '';
-    if (happened){
-      if (editing){
-        notesBlock = `
-          <div class="mission-pair-notes">
-            <label><span class="note-label">What worked</span>
-              <textarea data-note-pid="${p.id}" data-note-field="worked" placeholder="What went right...">${esc(notes.worked)}</textarea>
-            </label>
-            <label><span class="note-label">What didn't</span>
-              <textarea data-note-pid="${p.id}" data-note-field="failed" placeholder="What went wrong...">${esc(notes.failed)}</textarea>
-            </label>
-            <label><span class="note-label">What needs to change</span>
-              <textarea data-note-pid="${p.id}" data-note-field="change" placeholder="How to adjust the plan...">${esc(notes.change)}</textarea>
-            </label>
-          </div>`;
-      } else if (hasNotes){
-        notesBlock = `
-          <div class="mission-pair-notes">
-            <div class="mission-pair-note-static">
-              <span class="note-label">What worked</span>
-              <div class="note-body ${notes.worked?'':'empty'}">${esc(notes.worked || '—')}</div>
-            </div>
-            <div class="mission-pair-note-static">
-              <span class="note-label">What didn't</span>
-              <div class="note-body ${notes.failed?'':'empty'}">${esc(notes.failed || '—')}</div>
-            </div>
-            <div class="mission-pair-note-static">
-              <span class="note-label">What needs to change</span>
-              <div class="note-body ${notes.change?'':'empty'}">${esc(notes.change || '—')}</div>
-            </div>
-          </div>`;
-      } else {
-        notesBlock = `
-          <div class="mission-pair-notes">
-            <div class="mission-pair-note-static">
-              <div class="note-body empty">No field notes yet. Click Edit to add recon.</div>
-            </div>
-          </div>`;
-      }
-    }
-
-    const actions = editing
-      ? `<div class="mission-pair-actions">
-          <button class="btn small ghost" data-act="cancel-edit-encounter" data-pid="${p.id}">Cancel</button>
-          <button class="btn small" data-act="save-encounter" data-pid="${p.id}">Save</button>
-        </div>`
-      : `<div class="mission-pair-actions">
-          <button class="btn small ghost" data-act="edit-encounter" data-pid="${p.id}">Edit</button>
-          <button class="btn small" data-act="toggle-encounter-happened" data-pid="${p.id}">${happened ? 'Unmark Happened' : 'Encounter Happened'}</button>
-        </div>`;
-
-    return `
-      <div class="mission-pair" data-pid="${p.id}">
-        <div class="mission-pair-enc">
-          <div class="mission-pair-head">
-            <span class="mission-pair-label">Encounter</span>
-            ${badge}
-            <button class="mission-pair-x" data-act="delete-encounter" data-pid="${p.id}" title="Remove">✕</button>
-          </div>
-          ${encBlock}
-        </div>
-        <div class="mission-pair-plan">
-          <div class="mission-pair-label">Plan</div>
-          ${planBlock}
-        </div>
-        ${outcomeRow}
-        ${notesBlock}
-        ${actions}
-      </div>`;
-  }).join('');
-
-  const pairs = pairsAll.length || true
-    ? `
-      <div class="encounters-toggle ${encountersSectionOpen?'open':''}" data-act="toggle-encounters-section">
-        <span class="encounters-toggle-label">Encounters &amp; Recon</span>
-        <span class="encounters-toggle-meta">${pairsAll.length} total · ${happenedCount} happened</span>
-        <span class="encounters-toggle-chevron">▸</span>
-      </div>
-      <div class="encounters-body ${encountersSectionOpen?'open':''}">
-        ${pairsList || '<div class="empty">No encounters logged yet.</div>'}
-        <div class="row" style="gap:8px;margin-top:12px">
-          <button class="btn small ghost" data-act="add-planned-encounter">+ Planned Encounter</button>
-          <button class="btn small gold" data-act="add-unexpected-encounter">+ Log Unexpected Encounter</button>
-        </div>
-      </div>`
-    : '';
-  const mssDone = (m.milestones || []).filter(ms => ms.done).length;
-  const milestones = (m.milestones || []).length
-    ? `
-      <div class="mission-section-label">Milestones — ${mssDone}/${m.milestones.length} done</div>
-      ${m.milestones.map(ms => {
-        const msOpen = expandedMilestones.has(ms.id);
-        const stepDone = (ms.steps || []).filter(s => s.done).length;
-        const stepTotal = (ms.steps || []).length;
-        const progress = stepTotal > 0 ? `<span class="mission-milestone-progress">${stepDone}/${stepTotal}</span>` : '';
-        const stepsHTML = stepTotal > 0
-          ? ms.steps.map(s => `
-              <div class="mission-milestone-step ${s.done ? 'on' : ''}">
-                <button class="step-chk ${s.done ? 'on' : ''}" data-act="toggle-milestone-step" data-msid="${ms.id}" data-sid="${s.id}">${s.done ? '✓' : '○'}</button>
-                <span class="step-text">${esc(s.text)}</span>
-              </div>`).join('')
-          : `<div class="meta" style="color:var(--dim);font-style:italic;padding:4px 0">No steps defined.</div>`;
-        return `
-          <div class="mission-milestone ${ms.done ? 'done' : ''} ${msOpen ? 'open' : ''}" data-msid="${ms.id}">
-            <div class="mission-milestone-head" data-act="toggle-milestone-collapse" data-id="${ms.id}">
-              <button class="mission-milestone-chk ${ms.done ? 'on' : ''}" data-act="toggle-milestone" data-id="${ms.id}">${ms.done ? '✓' : ''}</button>
-              <span class="mission-milestone-title">${esc(ms.title)}</span>
-              ${progress}
-              <span class="mission-milestone-chevron">▸</span>
-            </div>
-            <div class="mission-milestone-body">${stepsHTML}</div>
-          </div>`;
-      }).join('')}`
-    : '';
-
-  return `
-    <div class="panel mission-panel">
-      <div class="panel-title">Active Mission</div>
-
-      <div class="mission-name">${esc(m.name)}</div>
-            <div class="mission-meta">
-        <span class="tag rank-${m.rank}">${m.rank}</span>
-        <span class="mission-bounty">◆ BOUNTY +${Math.round(m.bounty * getDomainMultiplier(m.domain))} PTS</span>
-        ${domainBadgeHTML(m.domain, getDomainMultiplier(m.domain))}
-      </div>
-
-      <div class="mission-dates">
-        Started ${fmtShort(m.startedAt)} · Deadline ${fmtShort(m.deadline)}
-      </div>
-      <div class="mission-timeline">
-        Day <b>${daysElapsed + 1}</b> of ${totalDays} · <b>${daysRemaining}</b> day${daysRemaining === 1 ? '' : 's'} remaining${overdue ? ' · EXPIRED' : ''}
-      </div>
-
-      <div class="mission-section-label">Success Criteria — all three required</div>
-      ${criteria}
-      <div class="mission-progress">PROGRESS: <b>${done}</b> / ${total}${allDone ? ' — ALL CRITERIA MET' : ''}</div>
-
-      ${pairs}
-      ${milestones}
-
-      ${allDone ? `<div class="mission-ready">◆ All criteria met — ready to close</div>` : ''}
-
-            <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px">
-        ${state.devMode ? `<button class="btn small gold" data-act="edit-mission">Edit Mission (DEV)</button>` : ''}
-        <button class="btn small ghost" data-act="hold-mission">Return to Backlog</button>
-        <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
-        ${allDone ? `<button class="btn gold" data-act="finish-mission">Finish Mission · +${m.bounty} pts</button>` : ''}
-      </div>
-    </div>`;
-}
-
-function viewActiveMission(m){
-  const done = m.criteria.filter(c => c.done).length;
-  const total = m.criteria.length;
-  const allDone = done === total;
-
-  const now = Date.now();
-  const start = new Date(m.startedAt).getTime();
-  const end = new Date(m.deadline).getTime();
-  const daysElapsed = Math.floor((now - start) / 86400000);
-  const totalDays = Math.max(1, Math.ceil((end - start) / 86400000));
-  const daysRemaining = Math.max(0, Math.ceil((end - now) / 86400000));
-  const overdue = now > end;
-
   // ---- criteria section (collapsible) ----
   const criteriaHTML = m.criteria.map((c, i) => `
     <div class="mission-criterion ${c.done ? 'on' : ''}">
@@ -3692,11 +3498,68 @@ function viewActiveMission(m){
       </div>
     </div>`;
 
+  // ---- milestones section (collapsible) ----
+  const mssDone = (m.milestones || []).filter(ms => ms.done).length;
+  const mssTotal = (m.milestones || []).length;
+  const milestonesBody = mssTotal > 0
+    ? m.milestones.map(ms => {
+        const msOpen = expandedMilestones.has(ms.id);
+        const stepDone = (ms.steps || []).filter(s => s.done).length;
+        const stepTotal = (ms.steps || []).length;
+        const hasSteps = stepTotal > 0;
+        const progress = hasSteps ? `<span class="mission-milestone-progress">${stepDone}/${stepTotal}</span>` : '';
+        const stepsHTML = hasSteps
+          ? ms.steps.map(s => `
+              <div class="mission-milestone-step ${s.done ? 'on' : ''}">
+                <button class="step-chk ${s.done ? 'on' : ''}" data-act="toggle-milestone-step" data-msid="${ms.id}" data-sid="${s.id}">${s.done ? '✓' : '○'}</button>
+                <span class="step-text">${esc(s.text)}</span>
+              </div>`).join('')
+          : '';
+        const chevron = hasSteps ? `<span class="mission-milestone-chevron">▸</span>` : '';
+        const headAct = hasSteps ? `data-act="toggle-milestone-collapse" data-id="${ms.id}"` : '';
+        const body = hasSteps ? `<div class="mission-milestone-body">${stepsHTML}</div>` : '';
+        return `
+          <div class="mission-milestone ${ms.done ? 'done' : ''} ${msOpen ? 'open' : ''}" data-msid="${ms.id}">
+            <div class="mission-milestone-head" ${headAct}>
+              <button class="mission-milestone-chk ${ms.done ? 'on' : ''}" data-act="toggle-milestone" data-id="${ms.id}">${ms.done ? '✓' : ''}</button>
+              <span class="mission-milestone-title">${esc(ms.title)}</span>
+              ${progress}
+              ${chevron}
+            </div>
+            ${body}
+          </div>`;
+      }).join('')
+    : '<div class="empty">No milestones defined.</div>';
+
+  const milestonesSection = `
+    <div class="mission-collapsible-section ${milestonesSectionOpen?'open':''}">
+      <div class="mission-section-toggle" data-act="toggle-milestones-section">
+        <span class="mission-section-toggle-label">Milestones</span>
+        <span class="mission-section-toggle-meta">${mssDone}/${mssTotal} done</span>
+        <span class="mission-section-toggle-chevron">▸</span>
+      </div>
+      <div class="mission-section-body">
+        ${milestonesBody}
+      </div>
+    </div>`;
+
   // ---- encounter pairs ----
   const pairsAll = m.encounterPairs || [];
   const happenedCount = pairsAll.filter(x => x.happened).length;
 
-  const pairsList = pairsAll.map(p => {
+  // Sort: happened first (by happenedAt), then not happened (by editedAt, then createdAt)
+  const sortedPairs = [...pairsAll].sort((a, b) => {
+    if (a.happened && !b.happened) return -1;
+    if (!a.happened && b.happened) return 1;
+    if (a.happened && b.happened) {
+      return new Date(a.happenedAt || 0) - new Date(b.happenedAt || 0);
+    }
+    const aTime = new Date(a.editedAt || a.createdAt || 0).getTime();
+    const bTime = new Date(b.editedAt || b.createdAt || 0).getTime();
+    return aTime - bTime;
+  });
+
+  const pairsList = sortedPairs.map(p => {
     const editing = editingEncounters.has(p.id);
     const collapsed = collapsedEncounters.has(p.id);
     const happened = !!p.happened;
@@ -3704,15 +3567,21 @@ function viewActiveMission(m){
       ? '<span class="mission-pair-badge happened">Happened</span>'
       : '<span class="mission-pair-badge planned">Planned</span>';
     const notes = p.fieldNotes || {worked:'', failed:'', change:''};
-    const hasNotes = !!(notes.worked || notes.failed || notes.change);
 
-    const encBlock = editing
-      ? `<textarea data-enc-encounter="${p.id}" placeholder="What might happen / what happened...">${esc(p.encounter || '')}</textarea>`
-      : `<div class="mission-pair-text ${p.encounter ? '' : 'empty'}">${esc(p.encounter || 'no description yet')}</div>`;
+    // Build encounter and plan blocks, skipping empty ones when not editing
+    let encBlock = '';
+    if (editing) {
+      encBlock = `<textarea data-enc-encounter="${p.id}" placeholder="What might happen / what happened...">${esc(p.encounter || '')}</textarea>`;
+    } else if (p.encounter && p.encounter.trim()) {
+      encBlock = `<div class="mission-pair-text">${esc(p.encounter)}</div>`;
+    }
 
-    const planBlock = editing
-      ? `<textarea data-enc-plan="${p.id}" placeholder="How I'll handle it...">${esc(p.plan || '')}</textarea>`
-      : `<div class="mission-pair-text ${p.plan ? '' : 'empty'}">${esc(p.plan || 'no plan yet')}</div>`;
+    let planBlock = '';
+    if (editing) {
+      planBlock = `<textarea data-enc-plan="${p.id}" placeholder="How I'll handle it...">${esc(p.plan || '')}</textarea>`;
+    } else if (p.plan && p.plan.trim()) {
+      planBlock = `<div class="mission-pair-text">${esc(p.plan)}</div>`;
+    }
 
     const outcomeRow = happened
       ? `<div class="mission-pair-outcome">
@@ -3723,8 +3592,8 @@ function viewActiveMission(m){
       : '';
 
     let notesBlock = '';
-    if (happened){
-      if (editing){
+    if (happened) {
+      if (editing) {
         notesBlock = `
           <div class="mission-pair-notes">
             <label><span class="note-label">What worked</span>
@@ -3737,29 +3606,18 @@ function viewActiveMission(m){
               <textarea data-note-pid="${p.id}" data-note-field="change" placeholder="How to adjust the plan...">${esc(notes.change)}</textarea>
             </label>
           </div>`;
-      } else if (hasNotes){
-        notesBlock = `
-          <div class="mission-pair-notes">
-            <div class="mission-pair-note-static">
-              <span class="note-label">What worked</span>
-              <div class="note-body ${notes.worked?'':'empty'}">${esc(notes.worked || '—')}</div>
-            </div>
-            <div class="mission-pair-note-static">
-              <span class="note-label">What didn't</span>
-              <div class="note-body ${notes.failed?'':'empty'}">${esc(notes.failed || '—')}</div>
-            </div>
-            <div class="mission-pair-note-static">
-              <span class="note-label">What needs to change</span>
-              <div class="note-body ${notes.change?'':'empty'}">${esc(notes.change || '—')}</div>
-            </div>
-          </div>`;
       } else {
-        notesBlock = `
-          <div class="mission-pair-notes">
+        const noteItems = [];
+        if (notes.worked && notes.worked.trim()) noteItems.push({label:'What worked', body: notes.worked});
+        if (notes.failed && notes.failed.trim()) noteItems.push({label:"What didn't", body: notes.failed});
+        if (notes.change && notes.change.trim()) noteItems.push({label:'What needs to change', body: notes.change});
+        if (noteItems.length > 0) {
+          notesBlock = `<div class="mission-pair-notes">${noteItems.map(n => `
             <div class="mission-pair-note-static">
-              <div class="note-body empty">No field notes yet. Click Edit to add recon.</div>
-            </div>
-          </div>`;
+              <span class="note-label">${n.label}</span>
+              <div class="note-body">${esc(n.body)}</div>
+            </div>`).join('')}</div>`;
+        }
       }
     }
 
@@ -3773,6 +3631,12 @@ function viewActiveMission(m){
           <button class="btn small" data-act="toggle-encounter-happened" data-pid="${p.id}">${happened ? 'Unmark Happened' : 'Encounter Happened'}</button>
         </div>`;
 
+        const encSection  = encBlock  ? `<div class="mission-pair-enc">${encBlock}</div>` : '';
+    const planSection = planBlock ? `<div class="mission-pair-plan">
+            <div class="mission-pair-label">Plan</div>
+            ${planBlock}
+          </div>` : '';
+
     return `
       <div class="mission-pair ${collapsed?'collapsed':''}" data-pid="${p.id}">
         <div class="mission-pair-head" data-act="toggle-encounter-collapse" data-pid="${p.id}">
@@ -3782,11 +3646,8 @@ function viewActiveMission(m){
           <button class="mission-pair-x" data-act="delete-encounter" data-pid="${p.id}" title="Remove">✕</button>
         </div>
         <div class="mission-pair-body">
-          <div class="mission-pair-enc">${encBlock}</div>
-          <div class="mission-pair-plan">
-            <div class="mission-pair-label">Plan</div>
-            ${planBlock}
-          </div>
+          ${encSection}
+          ${planSection}
           ${outcomeRow}
           ${notesBlock}
           ${actions}
@@ -3805,47 +3666,6 @@ function viewActiveMission(m){
       <div class="row" style="gap:8px;margin-top:12px">
         <button class="btn small ghost" data-act="add-planned-encounter">+ Planned Encounter</button>
         <button class="btn small gold" data-act="add-unexpected-encounter">+ Log Unexpected Encounter</button>
-      </div>
-    </div>`;
-
-  // ---- milestones section (collapsible) ----
-  const mssDone = (m.milestones || []).filter(ms => ms.done).length;
-  const mssTotal = (m.milestones || []).length;
-  const milestonesBody = mssTotal > 0
-    ? m.milestones.map(ms => {
-        const msOpen = expandedMilestones.has(ms.id);
-        const stepDone = (ms.steps || []).filter(s => s.done).length;
-        const stepTotal = (ms.steps || []).length;
-        const progress = stepTotal > 0 ? `<span class="mission-milestone-progress">${stepDone}/${stepTotal}</span>` : '';
-        const stepsHTML = stepTotal > 0
-          ? ms.steps.map(s => `
-              <div class="mission-milestone-step ${s.done ? 'on' : ''}">
-                <button class="step-chk ${s.done ? 'on' : ''}" data-act="toggle-milestone-step" data-msid="${ms.id}" data-sid="${s.id}">${s.done ? '✓' : '○'}</button>
-                <span class="step-text">${esc(s.text)}</span>
-              </div>`).join('')
-          : `<div class="meta" style="color:var(--dim);font-style:italic;padding:4px 0">No steps defined.</div>`;
-        return `
-          <div class="mission-milestone ${ms.done ? 'done' : ''} ${msOpen ? 'open' : ''}" data-msid="${ms.id}">
-            <div class="mission-milestone-head" data-act="toggle-milestone-collapse" data-id="${ms.id}">
-              <button class="mission-milestone-chk ${ms.done ? 'on' : ''}" data-act="toggle-milestone" data-id="${ms.id}">${ms.done ? '✓' : ''}</button>
-              <span class="mission-milestone-title">${esc(ms.title)}</span>
-              ${progress}
-              <span class="mission-milestone-chevron">▸</span>
-            </div>
-            <div class="mission-milestone-body">${stepsHTML}</div>
-          </div>`;
-      }).join('')
-    : '<div class="empty">No milestones defined.</div>';
-
-  const milestonesSection = `
-    <div class="mission-collapsible-section ${milestonesSectionOpen?'open':''}">
-      <div class="mission-section-toggle" data-act="toggle-milestones-section">
-        <span class="mission-section-toggle-label">Milestones</span>
-        <span class="mission-section-toggle-meta">${mssDone}/${mssTotal} done</span>
-        <span class="mission-section-toggle-chevron">▸</span>
-      </div>
-      <div class="mission-section-body">
-        ${milestonesBody}
       </div>
     </div>`;
 
@@ -3870,8 +3690,8 @@ function viewActiveMission(m){
         </div>
 
         ${criteriaSection}
-        ${pairs}
         ${milestonesSection}
+        ${pairs}
 
         ${allDone ? `<div class="mission-ready">◆ All criteria met — ready to close</div>` : ''}
 
@@ -3986,10 +3806,10 @@ function missionPairFormHTML(pair){
     <div class="mission-pair-form" data-pair-id="${pair.id}">
       <button class="btn small danger pair-x" data-act="remove-mission-pair" data-id="${pair.id}" title="Remove">✕</button>
       <label class="fld"><span>Likely to Encounter</span>
-        <input data-pair-encounter placeholder="e.g. I get distracted by my phone">
+        <input data-pair-encounter value="${esc(pair.encounter || '')}" placeholder="e.g. I get distracted by my phone">
       </label>
       <label class="fld" style="margin-bottom:0"><span>Plan to Deal With It</span>
-        <input data-pair-plan placeholder="e.g. Phone stays in another room during focus blocks">
+        <input data-pair-plan value="${esc(pair.plan || '')}" placeholder="e.g. Phone stays in another room during focus blocks">
       </label>
     </div>`;
 }
@@ -3999,10 +3819,10 @@ function missionMilestoneFormHTML(ms){
     <div class="mission-milestone-form" data-ms-id="${ms.id}">
       <button class="btn small danger ms-x" data-act="remove-mission-milestone" data-id="${ms.id}" title="Remove">✕</button>
       <label class="fld"><span>Milestone Title</span>
-        <input data-ms-title placeholder="e.g. First draft complete">
+        <input data-ms-title value="${esc(ms.title || '')}" placeholder="e.g. First draft complete">
       </label>
       <label class="fld" style="margin-bottom:0"><span>Steps (one per line — optional)</span>
-        <textarea data-ms-steps placeholder="Outline chapters&#10;Write 1000 words/day&#10;Self-edit pass"></textarea>
+        <textarea data-ms-steps placeholder="Outline chapters&#10;Write 1000 words/day&#10;Self-edit pass">${esc(ms.steps || '')}</textarea>
       </label>
     </div>`;
 }
@@ -4018,6 +3838,72 @@ function renderMissionFormBuilders(){
   }
 }
 
+function openEditMissionModal(m){
+  const deadlineStr = localDateStr(new Date(m.deadline));
+
+  const rankOptions = ['E','D','C','B','A','S'].map(r =>
+    `<option value="${r}" ${m.rank===r?'selected':''}>${r} — ${MISSION_BOUNTY[r]} pts</option>`
+  ).join('');
+
+  const domainOptions = DOMAIN_KEYS.map(k =>
+    `<option value="${k}" ${m.domain===k?'selected':''}>${DOMAIN_META[k].icon} ${DOMAIN_META[k].label}</option>`
+  ).join('');
+
+  const pairsHTML = (m.encounterPairs || []).map(p =>
+    missionPairFormHTML({ id: p.id, encounter: p.encounter, plan: p.plan })
+  ).join('');
+
+  const milestonesHTML = (m.milestones || []).map(ms => {
+    const stepsText = (ms.steps || []).map(s => s.text).join('\n');
+    return missionMilestoneFormHTML({ id: ms.id, title: ms.title, steps: stepsText });
+  }).join('');
+
+  openModal(`
+    <h2>Edit Mission (DEV)</h2>
+
+    <label class="fld"><span>Mission Name</span>
+      <input id="emName" value="${esc(m.name)}">
+    </label>
+
+    <div class="grid2">
+      <label class="fld"><span>Rank</span>
+        <select id="emRank">${rankOptions}</select>
+      </label>
+      <label class="fld"><span>Domain</span>
+        <select id="emDomain">${domainOptions}</select>
+      </label>
+    </div>
+
+    <label class="fld"><span>Deadline</span>
+      <input id="emDeadline" type="date" value="${deadlineStr}">
+    </label>
+
+    <div class="mission-section-label">Success Criteria</div>
+    <label class="fld"><span>1</span>
+      <input id="emCrit1" value="${esc(m.criteria[0].text)}">
+    </label>
+    <label class="fld"><span>2</span>
+      <input id="emCrit2" value="${esc(m.criteria[1].text)}">
+    </label>
+    <label class="fld"><span>3</span>
+      <input id="emCrit3" value="${esc(m.criteria[2].text)}">
+    </label>
+
+    <div class="mission-section-label">Encounters / Plans</div>
+    <div id="emPairsContainer">${pairsHTML}</div>
+    <button class="btn small ghost" data-act="add-mission-pair" style="margin-bottom:16px">+ Add Pair</button>
+
+    <div class="mission-section-label">Milestones</div>
+    <div id="emMilestonesContainer">${milestonesHTML}</div>
+    <button class="btn small ghost" data-act="add-mission-milestone" style="margin-bottom:16px">+ Add Milestone</button>
+
+    <div class="row" style="justify-content:flex-end;gap:8px">
+      <button class="btn ghost" data-act="close-modal">Cancel</button>
+      <button class="btn gold" data-act="save-mission-edit">Save</button>
+    </div>
+  `);
+}  
+  
   function viewMissionBacklog(){
   const list = state.missions.backlog || [];
   if (!list.length) return '';
@@ -4779,8 +4665,9 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-        case 'add-mission-pair': {
-      const container = document.getElementById('msPairsContainer') || document.getElementById('emPairsContainer');
+            case 'add-mission-pair': {
+      const inModal = !!el.closest('.modal');
+      const container = document.getElementById(inModal ? 'emPairsContainer' : 'msPairsContainer');
       if (!container) break;
       container.insertAdjacentHTML('beforeend', missionPairFormHTML({ id: uid() }));
       break;
@@ -4793,8 +4680,9 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'add-mission-milestone': {
-      const container = document.getElementById('msMilestonesContainer') || document.getElementById('emMilestonesContainer');
+        case 'add-mission-milestone': {
+      const inModal = !!el.closest('.modal');
+      const container = document.getElementById(inModal ? 'emMilestonesContainer' : 'msMilestonesContainer');
       if (!container) break;
       container.insertAdjacentHTML('beforeend', missionMilestoneFormHTML({ id: uid() }));
       break;
@@ -4843,13 +4731,16 @@ document.addEventListener('click', (e) => {
       if (!m) break;
       m.encounterPairs = m.encounterPairs || [];
       const newId = uid();
-      m.encounterPairs.push({
+            m.encounterPairs.push({
         id: newId,
         encounter: '',
         plan: '',
         happened: false,
         outcome: null,
-        fieldNotes: { worked: '', failed: '', change: '' }
+        fieldNotes: { worked: '', failed: '', change: '' },
+        createdAt: new Date().toISOString(),
+        editedAt: null,
+        happenedAt: null
       });
       editingEncounters.add(newId);
       encountersSectionOpen = true;
@@ -4869,13 +4760,16 @@ document.addEventListener('click', (e) => {
       if (!m) break;
       m.encounterPairs = m.encounterPairs || [];
       const newId = uid();
-      m.encounterPairs.push({
+            m.encounterPairs.push({
         id: newId,
         encounter: '',
         plan: '',
         happened: true,
         outcome: null,
-        fieldNotes: { worked: '', failed: '', change: '' }
+        fieldNotes: { worked: '', failed: '', change: '' },
+        createdAt: new Date().toISOString(),
+        editedAt: null,
+        happenedAt: new Date().toISOString()
       });
       editingEncounters.add(newId);
       encountersSectionOpen = true;
@@ -4895,9 +4789,12 @@ document.addEventListener('click', (e) => {
       if (!m) break;
       const p = (m.encounterPairs || []).find(x => x.id === el.dataset.pid);
       if (!p) break;
-      p.happened = !p.happened;
-      if (!p.happened){
+            p.happened = !p.happened;
+      if (p.happened) {
+        p.happenedAt = new Date().toISOString();
+      } else {
         p.outcome = null;
+        p.happenedAt = null;
       }
       save(); render();
       break;
@@ -4927,11 +4824,12 @@ document.addEventListener('click', (e) => {
       const changeEl = document.querySelector(`[data-note-pid="${pid}"][data-note-field="change"]`);
       p.encounter = encEl ? encEl.value.trim() : '';
       p.plan = planEl ? planEl.value.trim() : '';
-      p.fieldNotes = {
+            p.fieldNotes = {
         worked: workedEl ? workedEl.value.trim() : '',
         failed: failedEl ? failedEl.value.trim() : '',
         change: changeEl ? changeEl.value.trim() : ''
       };
+      p.editedAt = new Date().toISOString();
       editingEncounters.delete(pid);
       save(); render();
       toast('Encounter saved.');
@@ -5037,14 +4935,34 @@ document.addEventListener('click', (e) => {
       const newDeadline = new Date(deadlineStr + 'T23:59:59');
       if (isNaN(newDeadline.getTime())){ toast('Invalid deadline.', 'bad'); break; }
 
-      // Read pairs
+            // Read pairs, preserving happened/outcome/fieldNotes on existing ones
+      const oldPairs = m.encounterPairs || [];
       const encounterPairs = [];
       document.querySelectorAll('#emPairsContainer [data-pair-id]').forEach(pel => {
         const id = pel.dataset.pairId || uid();
         const enc = (pel.querySelector('[data-pair-encounter]') || {}).value || '';
         const plan = (pel.querySelector('[data-pair-plan]') || {}).value || '';
         if (enc.trim() || plan.trim()){
-          encounterPairs.push({ id, encounter: enc.trim(), plan: plan.trim() });
+          const oldPair = oldPairs.find(x => x.id === id);
+          if (oldPair){
+            encounterPairs.push({
+              ...oldPair,
+              encounter: enc.trim(),
+              plan: plan.trim()
+            });
+          } else {
+            encounterPairs.push({
+              id,
+              encounter: enc.trim(),
+              plan: plan.trim(),
+              happened: false,
+              outcome: null,
+              fieldNotes: { worked: '', failed: '', change: '' },
+              createdAt: new Date().toISOString(),
+              editedAt: null,
+              happenedAt: null
+            });
+          }
         }
       });
 
