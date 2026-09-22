@@ -1272,6 +1272,76 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   text-decoration-color:rgba(56,255,176,.4);
 }
 .mission-milestone-step .step-text{flex:1}
+
+/* ---------- mission collapse ---------- */
+.mission-collapse-head{
+  display:flex;align-items:center;gap:10px;
+  cursor:pointer;user-select:none;
+  margin-bottom:14px;
+  transition:.15s;
+}
+.mission-collapse-head:hover .mission-name{color:var(--mission)}
+.mission-collapse-head .mission-name{margin-bottom:0;transition:color .15s}
+.mission-collapse-chevron{
+  color:var(--dim);font-size:14px;
+  transition:transform .15s;flex-shrink:0;
+  display:inline-block;line-height:1;
+}
+.mission-panel:not(.collapsed) .mission-collapse-head .mission-collapse-chevron{
+  transform:rotate(90deg);
+}
+.mission-body{display:block}
+.mission-panel.collapsed .mission-body{display:none}
+.mission-panel.collapsed .mission-collapse-head{margin-bottom:0}
+
+/* ---------- generic collapsible section ---------- */
+.mission-collapsible-section{margin-top:6px}
+.mission-section-toggle{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 0 8px;
+  margin-bottom:8px;
+  border-bottom:1px dashed rgba(255,95,168,.25);
+  cursor:pointer;user-select:none;
+  transition:.15s;
+}
+.mission-section-toggle:hover .mission-section-toggle-label{color:var(--mission)}
+.mission-section-toggle-label{
+  font-size:11px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--dim);flex:1;transition:color .15s;
+}
+.mission-section-toggle-meta{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;color:var(--dim);
+  letter-spacing:.06em;flex-shrink:0;
+}
+.mission-section-toggle-chevron{
+  color:var(--dim);font-size:13px;
+  transition:transform .15s;flex-shrink:0;
+  display:inline-block;line-height:1;
+}
+.mission-collapsible-section.open .mission-section-toggle-chevron{
+  transform:rotate(90deg);
+}
+.mission-section-body{display:none}
+.mission-collapsible-section.open .mission-section-body{display:block}
+
+/* ---------- encounter collapse ---------- */
+.mission-pair-head{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 13px;
+  margin-bottom:0;
+  cursor:pointer;user-select:none;
+  transition:.15s;
+  border-bottom:1px dashed rgba(255,95,168,.2);
+}
+.mission-pair-head:hover{background:rgba(255,95,168,.04)}
+.mission-pair-head .mission-pair-label{margin-bottom:0;flex:1}
+.mission-pair.collapsed .mission-pair-head{border-bottom:none}
+.mission-pair-body{display:block}
+.mission-pair.collapsed .mission-pair-body{display:none}
+.mission-pair:not(.collapsed) .mission-pair-head .mission-collapse-chevron{
+  transform:rotate(90deg);
+}
 .mission-ready{
   padding:12px 14px;margin:18px 0 8px;
   border:1px solid rgba(56,255,176,.5);
@@ -1610,6 +1680,10 @@ const expandedQuests = new Set();  // which quest cards are expanded this sessio
 const expandedMilestones = new Set();  // which mission milestones are expanded this session
 const editingEncounters = new Set();   // which encounter pairs are in edit mode this session
 let encountersSectionOpen = true;      // whether the encounters section is expanded
+let missionCollapsed = false;          // whether the active mission panel is collapsed
+const collapsedEncounters = new Set(); // which encounter pairs are collapsed
+let criteriaSectionOpen = true;        // whether the success criteria section is expanded
+let milestonesSectionOpen = true;      // whether the milestones section is expanded
 let saveTimer = null, saveDirty = false;
 
 function save(){
@@ -3380,8 +3454,9 @@ function viewDungeons(){
    ========================================================= */
 function viewMissions(){
   if (!state.missions) state.missions = {active: null, backlog: [], history: []};
-  if (state.missions.active){
-    return viewActiveMission(state.missions.active) + viewMissionBacklog() + viewMissionHistory();
+  const active = state.missions.active;
+  if (active){
+    return viewActiveMission(active) + viewMissionForm() + viewMissionBacklog() + viewMissionHistory();
   }
   return viewMissionForm() + viewMissionBacklog() + viewMissionHistory();
 }
@@ -3584,78 +3659,230 @@ function viewActiveMission(m){
     </div>`;
 }
 
-function openEditMissionModal(m){
-  const RANK_LABELS = {E:'fairly easy', D:'somewhat easy', C:'medium', B:'slightly harder', A:'hard', S:'almost impossible'};
-  const rankOptions = ['E','D','C','B','A','S'].map(r => {
-    return `<option value="${r}" ${m.rank===r?'selected':''}>${r} — ${RANK_LABELS[r]} (+${MISSION_BOUNTY[r]} pts)</option>`;
+function viewActiveMission(m){
+  const done = m.criteria.filter(c => c.done).length;
+  const total = m.criteria.length;
+  const allDone = done === total;
+
+  const now = Date.now();
+  const start = new Date(m.startedAt).getTime();
+  const end = new Date(m.deadline).getTime();
+  const daysElapsed = Math.floor((now - start) / 86400000);
+  const totalDays = Math.max(1, Math.ceil((end - start) / 86400000));
+  const daysRemaining = Math.max(0, Math.ceil((end - now) / 86400000));
+  const overdue = now > end;
+
+  // ---- criteria section (collapsible) ----
+  const criteriaHTML = m.criteria.map((c, i) => `
+    <div class="mission-criterion ${c.done ? 'on' : ''}">
+      <button class="crit-chk ${c.done ? 'on' : ''}" data-act="toggle-criterion" data-id="${c.id}">${c.done ? '✓' : (i+1)}</button>
+      <span class="crit-text">${esc(c.text)}</span>
+    </div>`).join('');
+
+  const criteriaSection = `
+    <div class="mission-collapsible-section ${criteriaSectionOpen?'open':''}">
+      <div class="mission-section-toggle" data-act="toggle-criteria-section">
+        <span class="mission-section-toggle-label">Success Criteria — all three required</span>
+        <span class="mission-section-toggle-meta">${done}/${total}</span>
+        <span class="mission-section-toggle-chevron">▸</span>
+      </div>
+      <div class="mission-section-body">
+        ${criteriaHTML}
+        <div class="mission-progress">PROGRESS: <b>${done}</b> / ${total}${allDone ? ' — ALL CRITERIA MET' : ''}</div>
+      </div>
+    </div>`;
+
+  // ---- encounter pairs ----
+  const pairsAll = m.encounterPairs || [];
+  const happenedCount = pairsAll.filter(x => x.happened).length;
+
+  const pairsList = pairsAll.map(p => {
+    const editing = editingEncounters.has(p.id);
+    const collapsed = collapsedEncounters.has(p.id);
+    const happened = !!p.happened;
+    const badge = happened
+      ? '<span class="mission-pair-badge happened">Happened</span>'
+      : '<span class="mission-pair-badge planned">Planned</span>';
+    const notes = p.fieldNotes || {worked:'', failed:'', change:''};
+    const hasNotes = !!(notes.worked || notes.failed || notes.change);
+
+    const encBlock = editing
+      ? `<textarea data-enc-encounter="${p.id}" placeholder="What might happen / what happened...">${esc(p.encounter || '')}</textarea>`
+      : `<div class="mission-pair-text ${p.encounter ? '' : 'empty'}">${esc(p.encounter || 'no description yet')}</div>`;
+
+    const planBlock = editing
+      ? `<textarea data-enc-plan="${p.id}" placeholder="How I'll handle it...">${esc(p.plan || '')}</textarea>`
+      : `<div class="mission-pair-text ${p.plan ? '' : 'empty'}">${esc(p.plan || 'no plan yet')}</div>`;
+
+    const outcomeRow = happened
+      ? `<div class="mission-pair-outcome">
+          <button class="outcome-chip ${p.outcome==='worked'?'on worked':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="worked">Worked</button>
+          <button class="outcome-chip ${p.outcome==='partial'?'on partial':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="partial">Partial</button>
+          <button class="outcome-chip ${p.outcome==='failed'?'on failed':''}" data-act="set-encounter-outcome" data-pid="${p.id}" data-outcome="failed">Failed</button>
+        </div>`
+      : '';
+
+    let notesBlock = '';
+    if (happened){
+      if (editing){
+        notesBlock = `
+          <div class="mission-pair-notes">
+            <label><span class="note-label">What worked</span>
+              <textarea data-note-pid="${p.id}" data-note-field="worked" placeholder="What went right...">${esc(notes.worked)}</textarea>
+            </label>
+            <label><span class="note-label">What didn't</span>
+              <textarea data-note-pid="${p.id}" data-note-field="failed" placeholder="What went wrong...">${esc(notes.failed)}</textarea>
+            </label>
+            <label><span class="note-label">What needs to change</span>
+              <textarea data-note-pid="${p.id}" data-note-field="change" placeholder="How to adjust the plan...">${esc(notes.change)}</textarea>
+            </label>
+          </div>`;
+      } else if (hasNotes){
+        notesBlock = `
+          <div class="mission-pair-notes">
+            <div class="mission-pair-note-static">
+              <span class="note-label">What worked</span>
+              <div class="note-body ${notes.worked?'':'empty'}">${esc(notes.worked || '—')}</div>
+            </div>
+            <div class="mission-pair-note-static">
+              <span class="note-label">What didn't</span>
+              <div class="note-body ${notes.failed?'':'empty'}">${esc(notes.failed || '—')}</div>
+            </div>
+            <div class="mission-pair-note-static">
+              <span class="note-label">What needs to change</span>
+              <div class="note-body ${notes.change?'':'empty'}">${esc(notes.change || '—')}</div>
+            </div>
+          </div>`;
+      } else {
+        notesBlock = `
+          <div class="mission-pair-notes">
+            <div class="mission-pair-note-static">
+              <div class="note-body empty">No field notes yet. Click Edit to add recon.</div>
+            </div>
+          </div>`;
+      }
+    }
+
+    const actions = editing
+      ? `<div class="mission-pair-actions">
+          <button class="btn small ghost" data-act="cancel-edit-encounter" data-pid="${p.id}">Cancel</button>
+          <button class="btn small" data-act="save-encounter" data-pid="${p.id}">Save</button>
+        </div>`
+      : `<div class="mission-pair-actions">
+          <button class="btn small ghost" data-act="edit-encounter" data-pid="${p.id}">Edit</button>
+          <button class="btn small" data-act="toggle-encounter-happened" data-pid="${p.id}">${happened ? 'Unmark Happened' : 'Encounter Happened'}</button>
+        </div>`;
+
+    return `
+      <div class="mission-pair ${collapsed?'collapsed':''}" data-pid="${p.id}">
+        <div class="mission-pair-head" data-act="toggle-encounter-collapse" data-pid="${p.id}">
+          <span class="mission-collapse-chevron">▸</span>
+          <span class="mission-pair-label">Encounter</span>
+          ${badge}
+          <button class="mission-pair-x" data-act="delete-encounter" data-pid="${p.id}" title="Remove">✕</button>
+        </div>
+        <div class="mission-pair-body">
+          <div class="mission-pair-enc">${encBlock}</div>
+          <div class="mission-pair-plan">
+            <div class="mission-pair-label">Plan</div>
+            ${planBlock}
+          </div>
+          ${outcomeRow}
+          ${notesBlock}
+          ${actions}
+        </div>
+      </div>`;
   }).join('');
 
-  const deadlineStr = new Date(m.deadline).toISOString().slice(0,10);
-
-  const pairRows = (m.encounterPairs || []).map(p => `
-    <div class="mission-pair-form" data-pair-id="${p.id}">
-      <button class="btn small danger pair-x" data-act="remove-mission-pair" data-id="${p.id}" title="Remove">✕</button>
-      <label class="fld"><span>Likely to Encounter</span>
-        <input data-pair-encounter value="${esc(p.encounter || '')}">
-      </label>
-      <label class="fld" style="margin-bottom:0"><span>Plan to Deal With It</span>
-        <input data-pair-plan value="${esc(p.plan || '')}">
-      </label>
-    </div>`).join('');
-
-  const msRows = (m.milestones || []).map(ms => `
-    <div class="mission-milestone-form" data-ms-id="${ms.id}">
-      <button class="btn small danger ms-x" data-act="remove-mission-milestone" data-id="${ms.id}" title="Remove">✕</button>
-      <label class="fld"><span>Milestone Title</span>
-        <input data-ms-title value="${esc(ms.title)}">
-      </label>
-      <label class="fld" style="margin-bottom:0"><span>Steps (one per line — optional)</span>
-        <textarea data-ms-steps>${(ms.steps || []).map(s => esc(s.text)).join('\n')}</textarea>
-      </label>
-    </div>`).join('');
-
-  openModal(`
-    <h2>Edit Mission</h2>
-    <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:14px">
-      Dev mode override. Milestone and step completion is preserved where the title/step text is unchanged.
-    </p>
-
-    <label class="fld"><span>Mission Name</span>
-      <input id="emName" value="${esc(m.name)}">
-    </label>
-
-    <label class="fld"><span>Rank</span>
-      <select id="emRank">${rankOptions}</select>
-    </label>
-
-    <label class="fld"><span>Deadline</span>
-      <input id="emDeadline" type="date" value="${deadlineStr}">
-    </label>
-
-    <div class="mission-section-label">Success Criteria</div>
-    <label class="fld"><span>1</span>
-      <input id="emCrit1" value="${esc(m.criteria[0].text)}">
-    </label>
-    <label class="fld"><span>2</span>
-      <input id="emCrit2" value="${esc(m.criteria[1].text)}">
-    </label>
-    <label class="fld"><span>3</span>
-      <input id="emCrit3" value="${esc(m.criteria[2].text)}">
-    </label>
-
-    <div class="mission-section-label">Likely to Encounter / Plan</div>
-    <div id="emPairsContainer">${pairRows}</div>
-    <button class="btn small ghost" data-act="add-mission-pair" style="margin-bottom:16px">+ Add Pair</button>
-
-    <div class="mission-section-label">Milestones</div>
-    <div id="emMilestonesContainer">${msRows}</div>
-    <button class="btn small ghost" data-act="add-mission-milestone" style="margin-bottom:16px">+ Add Milestone</button>
-
-    <div class="row" style="justify-content:flex-end;gap:8px">
-      <button class="btn ghost" data-act="close-modal">Cancel</button>
-      <button class="btn gold" data-act="save-mission-edit">Save Changes</button>
+  const pairs = `
+    <div class="encounters-toggle ${encountersSectionOpen?'open':''}" data-act="toggle-encounters-section">
+      <span class="encounters-toggle-label">Encounters &amp; Recon</span>
+      <span class="encounters-toggle-meta">${pairsAll.length} total · ${happenedCount} happened</span>
+      <span class="encounters-toggle-chevron">▸</span>
     </div>
-  `);
+    <div class="encounters-body ${encountersSectionOpen?'open':''}">
+      ${pairsList || '<div class="empty">No encounters logged yet.</div>'}
+      <div class="row" style="gap:8px;margin-top:12px">
+        <button class="btn small ghost" data-act="add-planned-encounter">+ Planned Encounter</button>
+        <button class="btn small gold" data-act="add-unexpected-encounter">+ Log Unexpected Encounter</button>
+      </div>
+    </div>`;
+
+  // ---- milestones section (collapsible) ----
+  const mssDone = (m.milestones || []).filter(ms => ms.done).length;
+  const mssTotal = (m.milestones || []).length;
+  const milestonesBody = mssTotal > 0
+    ? m.milestones.map(ms => {
+        const msOpen = expandedMilestones.has(ms.id);
+        const stepDone = (ms.steps || []).filter(s => s.done).length;
+        const stepTotal = (ms.steps || []).length;
+        const progress = stepTotal > 0 ? `<span class="mission-milestone-progress">${stepDone}/${stepTotal}</span>` : '';
+        const stepsHTML = stepTotal > 0
+          ? ms.steps.map(s => `
+              <div class="mission-milestone-step ${s.done ? 'on' : ''}">
+                <button class="step-chk ${s.done ? 'on' : ''}" data-act="toggle-milestone-step" data-msid="${ms.id}" data-sid="${s.id}">${s.done ? '✓' : '○'}</button>
+                <span class="step-text">${esc(s.text)}</span>
+              </div>`).join('')
+          : `<div class="meta" style="color:var(--dim);font-style:italic;padding:4px 0">No steps defined.</div>`;
+        return `
+          <div class="mission-milestone ${ms.done ? 'done' : ''} ${msOpen ? 'open' : ''}" data-msid="${ms.id}">
+            <div class="mission-milestone-head" data-act="toggle-milestone-collapse" data-id="${ms.id}">
+              <button class="mission-milestone-chk ${ms.done ? 'on' : ''}" data-act="toggle-milestone" data-id="${ms.id}">${ms.done ? '✓' : ''}</button>
+              <span class="mission-milestone-title">${esc(ms.title)}</span>
+              ${progress}
+              <span class="mission-milestone-chevron">▸</span>
+            </div>
+            <div class="mission-milestone-body">${stepsHTML}</div>
+          </div>`;
+      }).join('')
+    : '<div class="empty">No milestones defined.</div>';
+
+  const milestonesSection = `
+    <div class="mission-collapsible-section ${milestonesSectionOpen?'open':''}">
+      <div class="mission-section-toggle" data-act="toggle-milestones-section">
+        <span class="mission-section-toggle-label">Milestones</span>
+        <span class="mission-section-toggle-meta">${mssDone}/${mssTotal} done</span>
+        <span class="mission-section-toggle-chevron">▸</span>
+      </div>
+      <div class="mission-section-body">
+        ${milestonesBody}
+      </div>
+    </div>`;
+
+  return `
+    <div class="panel mission-panel ${missionCollapsed?'collapsed':''}">
+      <div class="mission-collapse-head" data-act="toggle-mission-collapse">
+        <span class="mission-collapse-chevron">▸</span>
+        <div class="mission-name">${esc(m.name)}</div>
+      </div>
+      <div class="mission-body">
+        <div class="mission-meta">
+          <span class="tag rank-${m.rank}">${m.rank}</span>
+          <span class="mission-bounty">◆ BOUNTY +${Math.round(m.bounty * getDomainMultiplier(m.domain))} PTS</span>
+          ${domainBadgeHTML(m.domain, getDomainMultiplier(m.domain))}
+        </div>
+
+        <div class="mission-dates">
+          Started ${fmtShort(m.startedAt)} · Deadline ${fmtShort(m.deadline)}
+        </div>
+        <div class="mission-timeline">
+          Day <b>${daysElapsed + 1}</b> of ${totalDays} · <b>${daysRemaining}</b> day${daysRemaining === 1 ? '' : 's'} remaining${overdue ? ' · EXPIRED' : ''}
+        </div>
+
+        ${criteriaSection}
+        ${pairs}
+        ${milestonesSection}
+
+        ${allDone ? `<div class="mission-ready">◆ All criteria met — ready to close</div>` : ''}
+
+        <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px">
+          ${state.devMode ? `<button class="btn small gold" data-act="edit-mission">Edit Mission (DEV)</button>` : ''}
+          <button class="btn small ghost" data-act="hold-mission">Return to Backlog</button>
+          <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
+          ${allDone ? `<button class="btn gold" data-act="finish-mission">Finish Mission · +${m.bounty} pts</button>` : ''}
+        </div>
+      </div>
+    </div>`;
 }
   
 function viewMissionForm(){
@@ -3694,14 +3921,19 @@ function viewMissionForm(){
         </select>
       </label>
 
-            <div class="mission-section-label">Timing</div>
+                  <div class="mission-section-label">Timing</div>
+      ${state.missions.active ? `
+        <div class="meta" style="color:var(--gold);font-size:11.5px;line-height:1.6;margin-bottom:10px;padding:8px 11px;border:1px dashed rgba(255,207,92,.4);background:rgba(255,207,92,.05)">
+          A mission is already active. New briefings are stored in the backlog and can be launched later.
+        </div>
+      ` : ''}
       <div class="row" style="gap:16px;margin-bottom:14px">
         <label class="row" style="gap:8px;font-size:13px;cursor:pointer">
-          <input type="radio" name="msMode" value="now" checked data-act="mission-mode" style="width:auto">
+          <input type="radio" name="msMode" value="now" ${state.missions.active ? 'disabled' : 'checked'} data-act="mission-mode" style="width:auto">
           <span>Start now — set a deadline</span>
         </label>
         <label class="row" style="gap:8px;font-size:13px;cursor:pointer">
-          <input type="radio" name="msMode" value="later" data-act="mission-mode" style="width:auto">
+          <input type="radio" name="msMode" value="later" ${state.missions.active ? 'checked' : ''} data-act="mission-mode" style="width:auto">
           <span>Store in backlog — just estimate duration</span>
         </label>
       </div>
@@ -4718,7 +4950,7 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'toggle-encounters-section': {
+        case 'toggle-encounters-section': {
       encountersSectionOpen = !encountersSectionOpen;
       const node = document.querySelector('.encounters-toggle');
       const body = document.querySelector('.encounters-body');
@@ -4727,6 +4959,36 @@ document.addEventListener('click', (e) => {
       break;
     }
 
+    case 'toggle-mission-collapse': {
+      missionCollapsed = !missionCollapsed;
+      const node = document.querySelector('.mission-panel');
+      if (node) node.classList.toggle('collapsed', missionCollapsed);
+      break;
+    }
+
+    case 'toggle-criteria-section': {
+      criteriaSectionOpen = !criteriaSectionOpen;
+      const node = el.closest('.mission-collapsible-section');
+      if (node) node.classList.toggle('open', criteriaSectionOpen);
+      break;
+    }
+
+    case 'toggle-milestones-section': {
+      milestonesSectionOpen = !milestonesSectionOpen;
+      const node = el.closest('.mission-collapsible-section');
+      if (node) node.classList.toggle('open', milestonesSectionOpen);
+      break;
+    }
+
+    case 'toggle-encounter-collapse': {
+      const pid = el.dataset.pid;
+      if (!pid) break;
+      if (collapsedEncounters.has(pid)) collapsedEncounters.delete(pid);
+      else collapsedEncounters.add(pid);
+      const node = document.querySelector(`.mission-pair[data-pid="${pid}"]`);
+      if (node) node.classList.toggle('collapsed', collapsedEncounters.has(pid));
+      break;
+    }
     case 'delete-encounter': {
       const m = state.missions.active;
       if (!m) break;
