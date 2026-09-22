@@ -877,14 +877,19 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   display:flex;
   flex-wrap:wrap;
   align-items:center;
-  gap:4px 8px;
-  font-size:12px;
+  gap:4px 6px;
+  font-size:11.5px;
   color:var(--dim);
   letter-spacing:.04em;
   line-height:1.55;
 }
 .dungeon-meta-line > span{
   white-space:nowrap;
+}
+.dungeon-meta-line .domain-badge,
+.dungeon-meta-line .domain-badge-mult{
+  font-size:10.5px;
+  padding:1px 6px;
 }
   
 /* dungeon inbox / cleared entries get extra breathing room */
@@ -3566,7 +3571,7 @@ function viewDungeons(){
                   ${x.real ? `<div class="dungeon-real">${esc(x.real)}</div>` : ''}
                   <div class="dungeon-meta-line">
                     ${domainBadgeHTML(x.domain, getDomainMultiplier(x.domain))}
-                    <span>${x.tasks.length} objective${x.tasks.length===1?'':'s'} · ${DUNGEON_DAYS[x.rank]} day limit</span>
+                    <span>${x.tasks.length} obj · ${DUNGEON_DAYS[x.rank]}d</span>
                     ${locked ? `<span style="color:var(--danger)">SEALED until ${fmtDate(lock.until)}</span>` : ''}
                   </div>
                 </div>
