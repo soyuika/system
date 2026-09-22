@@ -3936,7 +3936,7 @@ function viewActiveMission(m){
 
                 <div class="mission-bottom-actions">
           ${state.devMode ? `<button class="btn small gold" data-act="edit-mission">Edit Mission (DEV)</button>` : ''}
-          <button class="btn small ghost" data-act="hold-mission">Return to Backlog</button>
+          <button class="btn small ghost" data-act="hold-mission" title="Penalty: all stats drop to your current rank barrier">Return to Backlog</button>
           <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
           ${allDone ? `<button class="btn gold" data-act="finish-mission">Finish Mission · +${m.bounty} pts</button>` : ''}
         </div>
@@ -5341,10 +5341,21 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'hold-mission': {
+        case 'hold-mission': {
       const m = state.missions.active;
       if (!m) break;
-      if (!confirm('Return this mission to the backlog? The deadline resets from a fresh start when you re-launch it.')) break;
+      const rk = rankForLevel(getLevel());
+      const barrier = rk.min * POINTS_PER_LEVEL;
+      if (!state.devMode){
+        const ok = confirm(
+          'Return this mission to the backlog?\n\n' +
+          'PENALTY: all stats will be annulled to the ' + rk.name + '-RANK barrier (' +
+          barrier + ' in every stat). You will drop to level ' + rk.min + '.\n\n' +
+          'The mission will still be recoverable from the backlog.\n\n' +
+          'Proceed?'
+        );
+        if (!ok) break;
+      }
       const durDefault = m.presumedDuration || Math.max(MISSION_MIN_DAYS, Math.ceil((new Date(m.deadline) - new Date(m.startedAt)) / 86400000));
             state.missions.backlog.push({
         id: m.id,
@@ -5362,8 +5373,14 @@ document.addEventListener('click', (e) => {
         storedAt: new Date().toISOString()
       });
       state.missions.active = null;
+      if (state.devMode){
+        toast('DEV MODE — mission returned, no penalty applied.');
+      } else {
+        STAT_KEYS.forEach(k => { state.stats[k] = barrier; });
+        state.unassigned = 0;
+        toast('MISSION RETURNED — stats annulled to ' + rk.name + '-RANK barrier (' + barrier + ')', 'bad');
+      }
       save(); render();
-      toast('Mission returned to backlog.');
       break;
     }
 
