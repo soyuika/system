@@ -1971,12 +1971,12 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .hexstrip{display:flex;gap:3px;flex-wrap:wrap;margin-top:8px}
 .hex{width:15px;height:15px;background:rgba(20,40,70,.8);border:1px solid rgba(47,143,255,.2)}
 .hex.p{
-  background:linear-gradient(180deg,#ffe580,#ffb347);
-  border-color:#ffe580;
+  background:linear-gradient(180deg,#c9a3ff,#7a3fd6);
+  border-color:#c9a3ff;
   box-shadow:
-    0 0 10px rgba(255,214,92,.9),
-    0 0 18px rgba(255,180,71,.5),
-    inset 0 0 4px rgba(255,255,255,.45);
+    0 0 10px rgba(200,140,255,.85),
+    0 0 18px rgba(140,80,220,.5),
+    inset 0 0 4px rgba(255,255,255,.35);
 }
 .hex.g{background:linear-gradient(180deg,#38ffb0,#12a878);border-color:#38ffb0;box-shadow:0 0 8px rgba(56,255,176,.6)}
 .hex.y{background:linear-gradient(180deg,#ffcf5c,#b8860b);border-color:#ffcf5c}
@@ -3921,7 +3921,7 @@ function viewStatus(){
       <div class="panel-title">Last 30 Days</div>
       <div class="hexstrip">${days.join('')}</div>
             <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:9px">
-        <span style="color:#ffe580">■</span> perfect &nbsp;
+                <span style="color:#c9a3ff">■</span> perfect &nbsp;
         <span style="color:var(--green)">■</span> all floors &nbsp;
         <span style="color:var(--gold)">■</span> partial &nbsp;
         <span style="color:var(--danger)">■</span> heavy failure &nbsp;
