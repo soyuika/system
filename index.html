@@ -1782,6 +1782,75 @@ footer{position:relative;z-index:2;text-align:center;font-size:10px;letter-spaci
 ::-webkit-scrollbar-thumb{background:rgba(47,143,255,.35)}
 ::-webkit-scrollbar-thumb:hover{background:rgba(79,214,255,.6)}
 
+/* ---------- Ceiling steps read as subtasks ---------- */
+/* Dimmer, smaller, indented, and visually quieter than the floor/ceiling rows. */
+.ceil-steps .q-task{
+  opacity:.68;
+  margin-left:6px;
+  padding:9px 0 9px 14px;
+  border-top:1px solid rgba(47,143,255,.08);
+  border-left:2px solid rgba(47,143,255,.18);
+  transition:opacity .15s;
+}
+.ceil-steps .q-task:hover{
+  opacity:1;
+}
+
+/* Mute the "STEP" tag and the task name */
+.ceil-steps .q-task .q-task-tag{
+  font-size:9.5px;
+  padding:2px 7px;
+  letter-spacing:.14em;
+  color:rgba(111,140,181,.85);
+  border-color:rgba(47,143,255,.22);
+}
+.ceil-steps .q-task .q-task-name{
+  font-size:13.5px;
+  font-weight:400;
+  color:var(--dim);
+  text-shadow:none;
+}
+
+/* Shrink and mute the controls so they don't compete with main tasks */
+.ceil-steps .q-task .chk{
+  font-size:10.5px;
+  padding:5px 10px;
+  min-width:82px;
+  color:var(--dim);
+  border-color:rgba(47,143,255,.22);
+}
+.ceil-steps .q-task .task-counter-input{
+  height:32px;
+  font-size:13.5px !important;
+  color:var(--dim);
+  border-color:rgba(47,143,255,.22);
+}
+.ceil-steps .q-task .task-counter-btn{
+  height:32px;
+  min-width:32px;
+  font-size:16px;
+  border-color:rgba(47,143,255,.22);
+}
+.ceil-steps .q-task .task-counter-target{
+  font-size:11px;
+  color:rgba(111,140,181,.7);
+}
+
+/* Completed steps keep the green cue but stay in their lane */
+.ceil-steps .q-task.done{
+  opacity:.85;
+}
+.ceil-steps .q-task.done .q-task-name{
+  color:var(--green);
+  text-decoration:line-through;
+  text-decoration-color:rgba(56,255,176,.4);
+}
+.ceil-steps .q-task.done .q-task-tag{
+  color:var(--green);
+  border-color:var(--green);
+  background:rgba(56,255,176,.1);
+}
+  
 /* ================= READABILITY SCALE ================= */
 body{font-size:16px}
 .panel-title{font-size:12.5px;letter-spacing:.24em}
