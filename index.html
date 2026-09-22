@@ -881,6 +881,53 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .step-builder.type-check .step-builder-extra{ display:none; }
 .step-builder.type-time input[data-step-unit]{ display:none; }
 
+/* ---------- quest header: stat column with phase + options beneath ---------- */
+.q-summary-left{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:4px;
+  min-width:100px;
+  flex-shrink:0;
+}
+.q-summary-left .q-stat{ min-width:0; }
+.q-summary-meta{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.q-menu-btn{
+  font-family:'Share Tech Mono',monospace;
+  font-size:15px;
+  line-height:1;
+  color:var(--dim);
+  padding:1px 7px;
+  cursor:pointer;
+  background:transparent;
+  border:1px solid rgba(47,143,255,.22);
+  transition:.15s;
+  user-select:none;
+  clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);
+}
+.q-menu-btn:hover{ color:var(--cyan); border-color:rgba(79,214,255,.5); }
+.quest.menu-open .q-menu-btn{ color:var(--cyan); border-color:rgba(79,214,255,.5); }
+.quest.menu-open .q-actions{ display:flex; }
+
+/* suspended badge stacked under the ceiling tag instead of inline with the name */
+.q-task-tag-stack{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:3px;
+  flex-shrink:0;
+}
+.q-task-tag-stack .ceil-suspended{
+  margin-left:0;
+  font-size:9px;
+  padding:1px 5px;
+  letter-spacing:.1em;
+}
+  
 /* ---------- ceiling sub-steps (rendered as a climb: floor → steps → ceiling) ---------- */
 .ceil-suspended{
   display:inline-block;margin-left:8px;
@@ -1005,36 +1052,6 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   transition:transform .15s;
 }
 .q-steps-chevron.collapsed{ transform:rotate(-90deg); }
-
-/* Quest options menu — hidden checkbox reveals the action row */
-.q-menu-checkbox{ display:none; }
-.q-head-row{
-  display:flex;
-  justify-content:flex-end;
-  align-items:center;
-  gap:8px;
-  margin-bottom:6px;
-}
-.q-menu-btn{
-  font-family:'Share Tech Mono',monospace;
-  font-size:16px;
-  line-height:1;
-  color:var(--dim);
-  padding:2px 8px;
-  cursor:pointer;
-  border:1px solid rgba(47,143,255,.22);
-  transition:.15s;
-  user-select:none;
-  clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
-}
-.q-menu-btn:hover{ color:var(--cyan); border-color:rgba(79,214,255,.5); }
-.q-actions{
-  display:none;
-  justify-content:flex-end;
-  gap:6px;
-  margin-bottom:10px;
-}
-.q-menu-checkbox:checked ~ .q-actions{ display:flex; }
   
 /* ---------- quest tree / graduation ---------- */
 .qtree{
@@ -3743,7 +3760,8 @@ function renderTaskRow(kind, q, task, value, opts){
   const txt = task.text || opts.emptyText || '';
   const tagLabel = opts.label || (kind === 'ceil' ? 'Ceiling' : kind === 'floor' ? 'Floor' : 'Step');
   const suffixHTML = opts.suffixHTML || '';
-  const variant = opts.variant || '';
+const tagSuffixHTML = opts.tagSuffixHTML || '';
+const variant = opts.variant || '';
   
   let statsHTML = '';
 
@@ -3795,8 +3813,10 @@ function renderTaskRow(kind, q, task, value, opts){
 
   return `
     <div class="q-task ${complete?'done':''}${variant ? ' ' + variant : ''}">
-      <div class="q-task-head">
-        <span class="q-task-tag">${tagLabel}</span>
+            <div class="q-task-head">
+        ${tagSuffixHTML
+          ? `<div class="q-task-tag-stack"><span class="q-task-tag">${tagLabel}</span>${tagSuffixHTML}</div>`
+          : `<span class="q-task-tag">${tagLabel}</span>`}
         <span class="q-task-name">${esc(txt)}</span>
         ${suffixHTML}
       </div>
@@ -3832,12 +3852,17 @@ function questCardHTML(q){
   const suspended = ceilDone && !allFloorsNow;
   const suspendedBadge = suspended ? '<span class="ceil-suspended">suspended</span>' : '';
   const stepsToggle = renderStepsToggle(q);
-  const ceilSuffix = suspendedBadge + stepsToggle;
 
   return `
     <div class="quest panel ${done ? 'done' : ''} ${isOpen ? 'open' : ''}" data-qid="${q.id}">
       <div class="q-summary" data-act="toggle-quest" data-id="${q.id}">
-        <span class="q-stat">${STAT_META[q.stat].label}</span>
+        <div class="q-summary-left">
+          <span class="q-stat">${STAT_META[q.stat].label}</span>
+          <div class="q-summary-meta">
+            <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
+            <button class="q-menu-btn" data-act="toggle-quest-menu" title="Quest options">⋯</button>
+          </div>
+        </div>
         <span class="q-name">${esc(q.name || '— unnamed quest —')}</span>
         <span class="q-summary-status">
           <span class="q-dot ${floorDone?'on':''}" title="Floor ${floorDone?'done':'pending'}"></span>
@@ -3846,11 +3871,6 @@ function questCardHTML(q){
         <span class="q-toggle">▸</span>
       </div>
       <div class="q-detail">
-        <input type="checkbox" id="qm-${q.id}" class="q-menu-checkbox" hidden>
-        <div class="q-head-row">
-          <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
-          <label for="qm-${q.id}" class="q-menu-btn" title="Quest options">⋯</label>
-        </div>
         <div class="q-actions">
           <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
           <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}" ${canEdit ? '' : 'disabled'} title="${editTitle}">Edit</button>
@@ -3866,7 +3886,12 @@ function questCardHTML(q){
           <div class="q-climb-row q-climb-ceil">
             <div class="q-climb-rail"><span class="q-climb-dot q-climb-diamond"></span></div>
             <div class="q-climb-body">
-              ${renderTaskRow('ceil', q, q.ceiling, ceilValue, { label:'Ceiling', emptyText:'set an ideal outcome to strive for', suffixHTML: ceilSuffix })}
+              ${renderTaskRow('ceil', q, q.ceiling, ceilValue, {
+                label: 'Ceiling',
+                emptyText: 'set an ideal outcome to strive for',
+                tagSuffixHTML: suspendedBadge,
+                suffixHTML: stepsToggle
+              })}
             </div>
           </div>
         </div>
@@ -5323,13 +5348,22 @@ document.addEventListener('click', (e) => {
       syncUI();
       break;
     }
-        case 'toggle-quest': {
+            case 'toggle-quest': {
       const id = el.dataset.id;
       if (expandedQuests.has(id)) expandedQuests.delete(id);
       else expandedQuests.add(id);
-            const card = el.closest('.quest');
-      if (card) card.classList.toggle('open');
+      const card = el.closest('.quest');
+      if (card) {
+        card.classList.toggle('open');
+        card.classList.remove('menu-open');
+      }
       syncUI();
+      break;
+    }
+
+    case 'toggle-quest-menu': {
+      const card = el.closest('.quest');
+      if (card) card.classList.toggle('menu-open');
       break;
     }
 
