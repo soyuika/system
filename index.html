@@ -389,18 +389,31 @@ body::after{
 }
 
 @media(max-width:620px){
-  .tabs{flex-wrap:nowrap;gap:5px;overflow:hidden}
-  .tab{flex:1 1 auto;min-width:0;text-align:center;font-size:11px !important;padding:9px 6px !important;letter-spacing:.12em !important}
+    .tabs{flex-wrap:nowrap;gap:4px;overflow:visible}
+  .tab{
+    flex:1 1 0;
+    min-width:0;
+    text-align:center;
+    font-size:10.5px !important;
+    padding:9px 4px !important;
+    letter-spacing:.06em !important;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
   .tab-full{display:none}
-      .tab-icon{
+  .tab-icon{
     display:flex;align-items:center;justify-content:center;
-    flex:0 0 42px;
+    flex:0 0 38px;
     padding:9px 0 !important;
     font-size:18px !important;
     letter-spacing:0 !important;
     font-family:'Share Tech Mono',monospace !important;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
   }
-
   /* unassigned points: stack the number above a 2-column grid of buttons */
   .unassigned-row{
     flex-direction:column !important;
