@@ -357,6 +357,37 @@ body::after{
 .tab .badge{display:inline-block;margin-left:6px;background:var(--danger);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px}
 .tab-icon{display:none}
 
+/* Alert state: dark red when idle, brighter red when active. */
+.tab.tab-alert{
+  --tab-accent:     #ff3d6e;
+  --tab-accent-dim: #8a1230;
+  --tab-accent-soft:rgba(255,61,110,.55);
+  --tab-accent-bg:  rgba(42,8,20,.75);
+  --tab-accent-bg-hover: rgba(64,10,30,.9);
+  color:var(--tab-accent);
+  border-color:var(--tab-accent-soft);
+  background:var(--tab-accent-bg);
+}
+.tab[data-tab="missions"].tab-alert{
+  --tab-accent:     #ff5fa8;
+  --tab-accent-dim: #8a1250;
+  --tab-accent-soft:rgba(255,95,168,.55);
+  --tab-accent-bg:  rgba(42,8,22,.75);
+  --tab-accent-bg-hover: rgba(64,10,34,.9);
+}
+.tab.tab-alert:hover{
+  color:#fff;
+  border-color:var(--tab-accent);
+  background:var(--tab-accent-bg-hover);
+}
+.tab.tab-alert.active{
+  color:#1a0010;
+  background:linear-gradient(180deg, var(--tab-accent), var(--tab-accent-dim));
+  border-color:var(--tab-accent);
+  font-weight:600;
+  box-shadow:0 0 22px var(--tab-accent-soft);
+}
+
 @media(max-width:620px){
   .tabs{flex-wrap:nowrap;gap:5px;overflow:hidden}
   .tab{flex:1 1 auto;min-width:0;text-align:center;font-size:11px !important;padding:9px 6px !important;letter-spacing:.12em !important}
@@ -2708,11 +2739,11 @@ function renderTabs(){
     if (t.dataset.tab === 'quests' && state.pendingPenalty && !state.pendingPenalty.done){
       const b = document.createElement('span'); b.className='badge'; b.textContent='!'; t.appendChild(b);
     }
-        if (t.dataset.tab === 'dungeons' && state.dungeons.active){
-      const b = document.createElement('span'); b.className='badge'; b.textContent='1'; t.appendChild(b);
+    if (t.dataset.tab === 'dungeons'){
+      t.classList.toggle('tab-alert', !!state.dungeons.active);
     }
-    if (t.dataset.tab === 'missions' && state.missions && state.missions.active){
-      const b = document.createElement('span'); b.className='badge'; b.textContent='◆'; t.appendChild(b);
+    if (t.dataset.tab === 'missions'){
+      t.classList.toggle('tab-alert', !!(state.missions && state.missions.active));
     }
   });
 }
