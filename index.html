@@ -610,6 +610,88 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 }
 .lag-warn b{color:var(--gold)}
 
+/* ---------- next steps panel ---------- */
+.ns-list{display:flex;flex-direction:column;gap:2px}
+.ns-step{
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+  padding:9px 0;
+  border-top:1px dashed rgba(47,143,255,.12);
+}
+.ns-step:first-child{border-top:none;padding-top:2px}
+.ns-mark{
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px;
+  width:20px;
+  height:20px;
+  min-width:20px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(47,143,255,.35);
+  color:var(--dim);
+  background:rgba(8,18,36,.6);
+  flex-shrink:0;
+  margin-top:1px;
+  transition:.2s;
+}
+.ns-step.done .ns-mark{
+  background:linear-gradient(180deg,rgba(56,255,176,.35),rgba(10,80,55,.35));
+  border-color:var(--green);
+  color:#c9fff0;
+  box-shadow:0 0 10px rgba(56,255,176,.35);
+}
+.ns-body{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.ns-label{
+  font-size:14px;
+  color:#eaf6ff;
+  font-weight:500;
+  letter-spacing:.02em;
+  line-height:1.4;
+  transition:color .15s;
+}
+.ns-step.done .ns-label{
+  color:var(--green);
+  text-decoration:line-through;
+  text-decoration-color:rgba(56,255,176,.35);
+}
+.ns-detail{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11.5px;
+  color:var(--dim);
+  letter-spacing:.04em;
+  line-height:1.5;
+}
+.ns-step.done .ns-detail{color:rgba(56,255,176,.55)}
+.ns-complete{
+  padding:11px 13px;
+  margin-bottom:12px;
+  border:1px solid rgba(56,255,176,.45);
+  background:linear-gradient(90deg, rgba(56,255,176,.09), rgba(56,255,176,.01) 80%);
+  color:var(--green);
+  font-family:'Share Tech Mono',monospace;
+  font-size:12.5px;
+  letter-spacing:.14em;
+  text-align:center;
+  text-transform:uppercase;
+  box-shadow:0 0 18px rgba(56,255,176,.12);
+}
+.ns-count{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11.5px;
+  color:var(--dim);
+  letter-spacing:.06em;
+  flex-shrink:0;
+}
+.ns-count b{color:#fff;font-weight:600}
+
 /* ---------- rank progress info button ---------- */
 .rank-info-btn{
   margin-left:auto;
@@ -3917,6 +3999,8 @@ function viewStatus(){
         </div>` : ''}
     </div>
 
+    ${nextStepsHTML()}
+    
     <div class="panel">
       <div class="panel-title">Last 30 Days</div>
       <div class="hexstrip">${days.join('')}</div>
@@ -4176,6 +4260,154 @@ function renderStepsToggle(q){
   </button>`;
 }
 
+function nextStepsHTML(){
+  const t = state.today;
+  const total = state.quests.length;
+
+  const floorDone = state.quests.filter(q =>
+    isTaskComplete(q.floor, getTaskValue('floor', q.id), getTaskReps('floor', q.id))
+  ).length;
+  const ceilDone = state.quests.filter(q =>
+    isTaskComplete(q.ceiling, getTaskValue('ceil', q.id), getTaskReps('ceil', q.id))
+  ).length;
+  const allFloors = floorDone === total;
+  const allCeils  = ceilDone === total;
+
+  const steps = [];
+
+  /* 1. Penalty (only when one is pending) */
+  if (state.pendingPenalty && !state.pendingPenalty.done){
+    steps.push({
+      done: false,
+      label: 'Complete your penalty',
+      detail: `Tier ${state.pendingPenalty.tier} · ${state.pendingPenalty.text}`
+    });
+  }
+
+  /* 2. Floors */
+  steps.push({
+    done: allFloors,
+    label: 'Clear all floors',
+    detail: `${floorDone} / ${total}`
+  });
+
+  /* 3. Ceilings */
+  steps.push({
+    done: allCeils,
+    label: 'Clear all ceilings',
+    detail: `${ceilDone} / ${total}`
+  });
+
+  /* 4. Reward (visible once ceilings are done, or as record once claimed) */
+  if (allCeils && !t.rewardGiven){
+    steps.push({
+      done: false,
+      label: 'Claim today\'s reward',
+      detail: 'All ceilings cleared — reward available'
+    });
+  } else if (t.rewardGiven){
+    steps.push({
+      done: true,
+      label: 'Daily reward claimed',
+      detail: t.rewardText || ''
+    });
+  }
+
+  /* 5. Dungeon */
+  if (state.dungeons && state.dungeons.active){
+    const a = state.dungeons.active;
+    const doneObj = a.tasks.filter(x => x.done).length;
+    const totalObj = a.tasks.length;
+    steps.push({
+      done: false,
+      label: `Clear dungeon: ${a.name}`,
+      detail: `${doneObj} / ${totalObj} objectives · ${a.rank}-RANK`
+    });
+  } else if (state.dungeons && state.dungeons.inbox && state.dungeons.inbox.length){
+    // Is there an inbox dungeon we could open right now?
+    const usable = state.dungeons.inbox.find(d => {
+      const lock = state.dungeons.locked[d.id];
+      if (lock && Date.now() < new Date(lock.until).getTime()) return false;
+      const need = RANK_VAL[d.rank];
+      return state.keys.some(k => RANK_VAL[k.rank] >= need);
+    });
+    if (usable){
+      steps.push({
+        done: false,
+        label: `Open a dungeon: ${usable.name}`,
+        detail: `You have a suitable key · ${usable.rank}-RANK`
+      });
+    }
+  }
+
+  /* 6. Mission */
+  if (state.missions && state.missions.active){
+    const m = state.missions.active;
+    const ms = m.milestones || [];
+    if (ms.length){
+      const doneMs = ms.filter(x => x.done).length;
+      const nextMs = ms.find(x => !x.done);
+      if (nextMs){
+        const stepTotal = (nextMs.steps || []).length;
+        const stepDone  = (nextMs.steps || []).filter(s => s.done).length;
+        const stepDetail = stepTotal > 0 ? ` · ${stepDone}/${stepTotal} steps` : '';
+        steps.push({
+          done: false,
+          label: `Next checkpoint: ${nextMs.title}`,
+          detail: `${doneMs} / ${ms.length} checkpoints done${stepDetail}`
+        });
+      } else {
+        steps.push({
+          done: true,
+          label: 'All checkpoints complete',
+          detail: `${doneMs} / ${ms.length} · ${m.name}`
+        });
+      }
+    } else {
+      const doneC = m.criteria.filter(c => c.done).length;
+      steps.push({
+        done: doneC === m.criteria.length,
+        label: `Mission: ${m.name}`,
+        detail: `${doneC} / ${m.criteria.length} criteria`
+      });
+    }
+  } else if (state.missions && state.missions.backlog && state.missions.backlog.length){
+    steps.push({
+      done: false,
+      label: 'Launch a mission from the backlog',
+      detail: `${state.missions.backlog.length} stored · choose your direction`
+    });
+  } else {
+    steps.push({
+      done: false,
+      label: 'Set an active mission',
+      detail: 'Give your progress a long-term direction'
+    });
+  }
+
+  const doneCount = steps.filter(s => s.done).length;
+  const allDone   = doneCount === steps.length;
+
+  const rows = steps.map(s => `
+    <div class="ns-step ${s.done ? 'done' : ''}">
+      <span class="ns-mark">${s.done ? '✓' : '○'}</span>
+      <span class="ns-body">
+        <span class="ns-label">${esc(s.label)}</span>
+        ${s.detail ? `<span class="ns-detail">${esc(s.detail)}</span>` : ''}
+      </span>
+    </div>`).join('');
+
+  return `
+    <div class="panel" id="nextStepsPanel">
+      <div class="panel-title">
+        Next Steps
+        <span class="ns-count" style="margin-left:auto"><b>${doneCount}</b> / ${steps.length}</span>
+      </div>
+      ${allDone ? `<div class="ns-complete">◆ All clear — the System acknowledges your work today.</div>` : ''}
+      <div class="ns-list">${rows}</div>
+    </div>`;
+}
+  
   function openRankProgressModal(){
   const currentLevel = getLevel();
 
