@@ -2133,15 +2133,20 @@ const STAT_META = {
 };
 
 const RANKS = [
-  {name:'E', min:0,    max:10,       color:'#8fa6c4'},
-  {name:'D', min:11,   max:50,       color:'#5fd0ff'},
-  {name:'C', min:51,   max:200,      color:'#4f8dff'},
-  {name:'B', min:201,  max:500,      color:'#a06bff'},
-  {name:'A', min:501,  max:1000,     color:'#ffb347'},
-  {name:'S', min:1001, max:Infinity, color:'#ff4d6d'}
+  {name:'E', min:0,    max:13,       color:'#8fa6c4'},
+  {name:'D', min:14,   max:30,       color:'#5fd0ff'},
+  {name:'C', min:31,   max:61,       color:'#4f8dff'},
+  {name:'B', min:62,   max:98,       color:'#a06bff'},
+  {name:'A', min:99,   max:139,      color:'#ffb347'},
+  {name:'S', min:140,  max:Infinity, color:'#ff4d6d'}
 ];
-const POINTS_PER_LEVEL = 10;
-
+/* Progressive leveling — level N costs N points to enter.
+   To reach level N you need the triangular number N(N+1)/2. */
+function pointsForLevel(level){ return level * (level + 1) / 2; }
+function levelFromPoints(points){
+  if (points < 0) points = 0;
+  return Math.floor((Math.sqrt(8 * points + 1) - 1) / 2);
+}
 const RANK_VAL = {E:1,D:2,C:3,B:4,A:5,S:6};
 const DUNGEON_DAYS = {E:2,D:2,C:3,B:4,A:4,S:5};
 const DUNGEON_OBJECTIVE_POINTS = 20;
@@ -2680,7 +2685,8 @@ function load(){
    DERIVED VALUES
    ========================================================= */
 function getLevel(){
-  return Math.floor(Math.min(...STAT_KEYS.map(k => state.stats[k])) / POINTS_PER_LEVEL);
+  const minStat = Math.min(...STAT_KEYS.map(k => state.stats[k]));
+  return levelFromPoints(minStat);
 }
 function rankForLevel(lv){
   return RANKS.find(r => lv >= r.min && lv <= r.max) || RANKS[RANKS.length-1];
@@ -2690,7 +2696,7 @@ function nextRankOf(lv){
   return idx >= 0 && idx < RANKS.length-1 ? RANKS[idx+1] : null;
 }
 function nextLevelBarrier(){
-  return (getLevel() + 1) * POINTS_PER_LEVEL;
+  return pointsForLevel(getLevel() + 1);
 }
 function getSystemLevel(){
   return 1 + state.systemTokens;
@@ -3043,7 +3049,7 @@ function issuePenalty(failedCount, forDate, lifestyleDone = 0, lifestyleTotal = 
 
 function applyFraud(){
   const lv = getLevel();
-  const barrier = lv * POINTS_PER_LEVEL;
+    const barrier = pointsForLevel(lv);
   STAT_KEYS.forEach(k => { state.stats[k] = barrier; });
   state.unassigned = 0;
   addTitle('Fraud', 'You did not complete your penalty in time.', 24);
@@ -3151,7 +3157,7 @@ function resolveMissionDeadline(){
  function applyMissionReturnPenalty(){
   if (state.devMode) return null;
   const rk = rankForLevel(getLevel());
-  const barrier = rk.min * POINTS_PER_LEVEL;
+    const barrier = pointsForLevel(rk.min);
   STAT_KEYS.forEach(k => { state.stats[k] = barrier; });
   state.unassigned = 0;
   return { rankName: rk.name, barrier };
@@ -3693,9 +3699,9 @@ function viewStatus(){
     ? `<div style="font-size:12.5px;line-height:1.9">
          <div>NEXT RANK: <b style="color:${nr.color}">${nr.name}-RANK</b> at <b>Level ${nr.min}</b></div>
          <div class="meta" style="color:var(--dim);font-size:11px">
-           Requires <b style="color:#fff">${nr.min * POINTS_PER_LEVEL} points</b> in <u>every</u> stat.
-           Lagging stat: <b style="color:var(--cyan)">${STAT_META[low].label}</b> —
-           <b style="color:#fff">${Math.max(0, nr.min*POINTS_PER_LEVEL - state.stats[low])}</b> to go.
+                    Requires <b style="color:#fff">${pointsForLevel(nr.min)} points</b> in <u>every</u> stat.
+         Lagging stat: <b style="color:var(--cyan)">${STAT_META[low].label}</b> —
+         <b style="color:#fff">${Math.max(0, pointsForLevel(nr.min) - state.stats[low])}</b> to go.
          </div>
        </div>`
     : `<div style="font-size:12.5px">MAXIMUM RANK REACHED. <span style="color:var(--danger)">S-RANK.</span> The System has nothing left to offer you.</div>`;
@@ -6295,8 +6301,8 @@ document.addEventListener('click', (e) => {
             case 'hold-mission': {
       const m = state.missions.active;
       if (!m) break;
-      const rk = rankForLevel(getLevel());
-      const barrier = rk.min * POINTS_PER_LEVEL;
+            const rk = rankForLevel(getLevel());
+      const barrier = pointsForLevel(rk.min);
       if (!state.devMode){
         const ok = confirm(
           'Return this mission to the backlog?\n\n' +
@@ -6344,8 +6350,8 @@ document.addEventListener('click', (e) => {
         case 'abandon-mission': {
       const m = state.missions.active;
       if (!m) break;
-      const rk = rankForLevel(getLevel());
-      const barrier = rk.min * POINTS_PER_LEVEL;
+            const rk = rankForLevel(getLevel());
+      const barrier = pointsForLevel(rk.min);
       if (!state.devMode){
         const ok = confirm(
           'Abandon this mission?\n\n' +
