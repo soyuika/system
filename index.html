@@ -4291,14 +4291,28 @@ function nextStepsHTML(){
     detail: `${floorDone} / ${total}`
   });
 
-  /* 3. Ceilings */
+    /* 3. Ceilings */
   steps.push({
     done: allCeils,
     label: 'Clear all ceilings',
     detail: `${ceilDone} / ${total}`
   });
 
-  /* 4. Reward (visible once ceilings are done, or as record once claimed) */
+  /* 4. Lifestyle upgrades (only shown if any are defined) */
+  if (state.lifestyle && state.lifestyle.length){
+    const tl = t.lifestyle || {};
+    const lifeDone  = state.lifestyle.filter(l => tl[l.id]).length;
+    const lifeTotal = state.lifestyle.length;
+    const allLife   = lifeDone === lifeTotal;
+    const boostPct  = Math.round((lifeDone / lifeTotal) * 100);
+    steps.push({
+      done: allLife,
+      label: 'Complete lifestyle upgrades',
+      detail: `${lifeDone} / ${lifeTotal} · BOOST ${boostPct}%${allLife ? ' · full benefit' : ''}`
+    });
+  }
+
+  /* 5. Reward (visible once ceilings are done, or as record once claimed) */
   if (allCeils && !t.rewardGiven){
     steps.push({
       done: false,
@@ -4313,7 +4327,7 @@ function nextStepsHTML(){
     });
   }
 
-  /* 5. Dungeon */
+    /* 6. Dungeon */
   if (state.dungeons && state.dungeons.active){
     const a = state.dungeons.active;
     const doneObj = a.tasks.filter(x => x.done).length;
@@ -4340,7 +4354,7 @@ function nextStepsHTML(){
     }
   }
 
-  /* 6. Mission */
+  /* 7. Mission */
   if (state.missions && state.missions.active){
     const m = state.missions.active;
     const ms = m.milestones || [];
