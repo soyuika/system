@@ -390,7 +390,7 @@ body::after{
 
 @media(max-width:620px){
     .tabs{flex-wrap:nowrap;gap:4px;overflow:visible}
-  .tab{
+    .tab{
     flex:1 1 0;
     min-width:0;
     text-align:center;
@@ -402,6 +402,8 @@ body::after{
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
+    clip-path:none !important;
+    -webkit-clip-path:none !important;
   }
   .tab-full{display:none}
   .tab-icon{
@@ -4421,6 +4423,27 @@ function updateTimers(){
 }
 setInterval(updateTimers, 1000);
 setInterval(tick, 20000);
+/* Mobile-safe tab switching: fire on pointerdown, then swallow the follow-up click. */
+let tabPointerHandledAt = 0;
+document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('.tab[data-act="tab"]');
+  if (!el) return;
+  tabPointerHandledAt = Date.now();
+  const next = el.dataset.tab;
+  if (activeTab === next) return;
+  activeTab = next;
+  render();
+}, { passive: true });
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('.tab[data-act="tab"]');
+  if (!el) return;
+  // If pointerdown already handled this tap within the last 500ms, ignore the click.
+  if (Date.now() - tabPointerHandledAt < 500) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}, true);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden){ tick(); updateTimers(); }
 });
