@@ -2250,6 +2250,7 @@ let activeTab = 'status';
 const expandedStats = new Set();  // which stat descriptions are expanded this session
 const expandedQuests = new Set();  // which quest cards are expanded this session
 const expandedMilestones = new Set();  // which mission milestones are expanded this session
+const collapsedEncounters = new Set(); // which encounter pairs are collapsed this session
 const editingEncounters = new Set();   // which encounter pairs are in edit mode this session
 let encountersSectionOpen = true;      // whether the encounters section is expanded
 let missionCollapsed = false;          // whether the active mission panel is collapsed
@@ -2300,9 +2301,11 @@ function hydrateUI(){
   arr(ui.expandedStats).forEach(x => expandedStats.add(x));
   expandedQuests.clear();
   arr(ui.expandedQuests).forEach(x => expandedQuests.add(x));
-  expandedMilestones.clear();
+    expandedMilestones.clear();
   arr(ui.expandedMilestones).forEach(x => expandedMilestones.add(x));
-    collapsedSteps.clear();
+  collapsedEncounters.clear();
+  arr(ui.collapsedEncounters).forEach(x => collapsedEncounters.add(x));
+  collapsedSteps.clear();
   arr(ui.collapsedSteps).forEach(x => collapsedSteps.add(x));
   encountersSectionOpen = ui.encountersSectionOpen !== false;
   missionCollapsed      = !!ui.missionCollapsed;
