@@ -215,32 +215,58 @@ body::after{
   background:linear-gradient(90deg, rgba(255,207,92,.06), rgba(255,207,92,.01) 70%);
 }
 
-/* Titles: stack vertically on mobile so text and buttons each get full width */
+/* ---------- title items: collapsible action menu ---------- */
+.item.title-item{
+  flex-direction:column;
+  align-items:stretch;
+  gap:0;
+  padding:11px 13px;
+}
+.title-item .title-head{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  width:100%;
+}
+.title-item .title-head-main{
+  flex:1;
+  min-width:0;
+}
+.title-item .title-menu-btn{
+  font-family:'Share Tech Mono',monospace;
+  font-size:15px;
+  line-height:1;
+  color:var(--dim);
+  padding:1px 7px;
+  cursor:pointer;
+  background:transparent;
+  border:1px solid rgba(47,143,255,.22);
+  transition:.15s;
+  user-select:none;
+  flex-shrink:0;
+  clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);
+}
+.title-item .title-menu-btn:hover{ color:var(--cyan); border-color:rgba(79,214,255,.5); }
+.title-item.menu-open .title-menu-btn{ color:var(--cyan); border-color:rgba(79,214,255,.5); }
+.title-item .title-actions{
+  display:none;
+  width:100%;
+  padding-top:12px;
+  margin-top:12px;
+  border-top:1px dashed rgba(47,143,255,.18);
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.title-item.menu-open .title-actions{ display:flex; }
+
 @media(max-width:620px){
-  .item.title-item{
-    flex-direction:column;
-    align-items:stretch;
-    gap:0;
-    padding:12px 13px;
-  }
-  .item.title-item > div:first-child{
-    width:100%;
-  }
-  .item.title-item .title-awarded-date{
+  .title-item .title-awarded-date{
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
   }
-  .item.title-item .title-actions{
-    width:100%;
-    padding-top:12px;
-    margin-top:12px;
-    border-top:1px dashed rgba(47,143,255,.18);
-    justify-content:flex-start;
-    flex-wrap:wrap;
-    gap:6px;
-  }
-  .item.title-item .title-actions .btn{
+  .title-item .title-actions .btn{
     flex:1 1 calc(50% - 3px);
     min-width:0;
     text-align:center;
@@ -3808,25 +3834,6 @@ function viewStatus(){
     `<button class="btn small" data-act="assign" data-stat="${k}" ${state.unassigned<=0?'disabled':''}>+ ${STAT_META[k].label}</button>`
   ).join('');
 
-      const awardedTitles = state.titles.filter(t => t.awardedAt);
-  const titles = awardedTitles.length
-    ? awardedTitles.map(t => {
-        const isEquipped = state.equippedTitle === t.id;
-        return `
-                        <div class="item title-item ${isEquipped ? 'title-equipped' : ''}">
-          <div style="flex:1;min-width:0;width:100%">
-            <div class="title-row">
-              <div class="title-name-line" style="color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'};letter-spacing:.1em">
-                ${esc(t.name)}${isEquipped ? '<span class="title-equipped-badge">EQUIPPED</span>' : ''}
-              </div>
-              <div class="meta title-awarded-date">Awarded ${fmtShort(t.awardedAt)}${t.expiresAt ? ' · expires ' + fmtDate(t.expiresAt) : ''}</div>
-            </div>
-            <div class="meta">${esc(t.desc||'')}</div>
-          </div>
-        </div>`;
-      }).join('')
-    : `<div class="empty">No titles yet.</div>`;
-
   // 30-day activity strip
   const days = [];
   for (let i = 29; i >= 0; i--){
@@ -3869,11 +3876,6 @@ function viewStatus(){
           <b>▼ ${STAT_META[low].label} is lagging</b> — your level is gated by your lowest stat.
           It needs <b>${barrier - state.stats[low]}</b> more point${barrier - state.stats[low] === 1 ? '' : 's'} to reach the next barrier.
         </div>` : ''}
-    </div>
-
-    <div class="panel">
-      <div class="panel-title">Titles</div>
-      ${titles}
     </div>
 
     <div class="panel">
@@ -5261,18 +5263,21 @@ function viewSystem(){
       : `<div class="meta" style="color:var(--dim);font-style:italic">Not yet awarded — sitting in storage</div>`;
         const canManage = state.devMode;
     const manageTip = canManage ? '' : 'Developer mode only';
-    return `
-    <div class="item title-item ${isEquipped ? 'title-equipped' : ''}">
-      <div style="flex:1;min-width:0;width:100%">
-        <div class="title-row">
-          <div class="title-name-line" style="color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'}">
-            ${esc(t.name)}${stateBadge}
+        return `
+    <div class="item title-item ${isEquipped ? 'title-equipped' : ''}" data-tid="${t.id}">
+      <div class="title-head">
+        <div class="title-head-main">
+          <div class="title-row">
+            <div class="title-name-line" style="color:${t.name==='Fraud'?'var(--danger)':'var(--gold)'}">
+              ${esc(t.name)}${stateBadge}
+            </div>
+            ${dateLine}
           </div>
-          ${dateLine}
+          <div class="meta">${esc(t.desc||'')}</div>
         </div>
-        <div class="meta">${esc(t.desc||'')}</div>
+        <button class="title-menu-btn" data-act="toggle-title-menu" data-tid="${t.id}" title="Title options">⋯</button>
       </div>
-      <div class="row title-actions" style="gap:6px;flex-shrink:0">
+      <div class="title-actions">
         ${awarded
           ? (isEquipped
               ? `<button class="btn small ghost" data-act="unequip-title">Unequip</button>`
@@ -5597,7 +5602,14 @@ document.addEventListener('click', (e) => {
       if (card) card.classList.toggle('menu-open');
       break;
     }
-
+      
+    case 'toggle-title-menu': {
+      const tid = el.dataset.tid;
+      const item = document.querySelector(`.title-item[data-tid="${tid}"]`);
+      if (item) item.classList.toggle('menu-open');
+      break;
+    }
+      
         case 'add-step-builder': {
       const c = document.getElementById('eqStepsBuilder');
       if (!c) break;
