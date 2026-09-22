@@ -2059,7 +2059,7 @@ function getArcInfo(){
   else if (daysElapsed < 28){ phase = 'ANALYSIS'; daysRemaining = 28 - daysElapsed; }
   else { phase = 'EXPIRED'; daysRemaining = 0; }
 
-  return {
+    return {
     active: phase !== 'EXPIRED',
     expired: phase === 'EXPIRED',
     domain: state.arc.domain,
@@ -2067,6 +2067,11 @@ function getArcInfo(){
     daysElapsed: Math.max(0, daysElapsed),
     daysRemaining
   };
+}
+
+function getDomainMultiplier(itemDomain){
+  if (!state.arc || !state.arc.domain || !itemDomain) return 1;
+  return itemDomain === state.arc.domain ? 1.10 : 0.90;
 }
 
 function isArcDomainBlocked(domain){
