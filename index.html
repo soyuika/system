@@ -1742,7 +1742,9 @@ function defaultState(){
     weekStart: weekStartStr(),
     lastWeeklyPrompt: null,
         weeklyApplied: null,
-    arc: null,
+        arc: null,
+    arcHistory: [],
+    arcExpiryNotified: false,
     pendingPenalty: null,
     penalties: [
       {id:uid(), tier:1, text:'No screens for the first 60 minutes after waking.'},
@@ -1938,9 +1940,16 @@ function migrate(raw){
   s.log = (raw && raw.log) || {};
     s.weekFails = (raw && raw.weekFails) || {};
     if (typeof s.weeklyApplied !== 'string') s.weeklyApplied = null;
-  if (!s.arc || typeof s.arc !== 'object') s.arc = null;
+    if (!s.arc || typeof s.arc !== 'object') s.arc = null;
   if (s.arc && (!s.arc.domain || !DOMAIN_META[s.arc.domain])) s.arc = null;
   if (s.arc && typeof s.arc.startedAt !== 'string') s.arc = null;
+  if (!Array.isArray(s.arcHistory)) s.arcHistory = [];
+  s.arcHistory = s.arcHistory.map(a => {
+    if (typeof a === 'string') return { domain: a, startedAt: null, endedAt: null };
+    if (!a || !DOMAIN_META[a.domain]) return null;
+    return { domain: a.domain, startedAt: a.startedAt || null, endedAt: a.endedAt || null };
+  }).filter(Boolean);
+  if (typeof s.arcExpiryNotified !== 'boolean') s.arcExpiryNotified = false;
   s.penalties = (raw && raw.penalties) || d.penalties;
   s.rewards = (raw && raw.rewards) || d.rewards;
   if (!Array.isArray(s.quests) || s.quests.length !== 5){
@@ -2061,9 +2070,19 @@ function getArcInfo(){
   };
 }
 
-function getDomainMultiplier(itemDomain){
-  if (!state.arc || !state.arc.domain || !itemDomain) return 1;
-  return itemDomain === state.arc.domain ? 1.10 : 0.90;
+function isArcDomainBlocked(domain){
+  if (state.devMode) return false;
+  const sequence = [
+    ...(state.arcHistory || []).map(a => a.domain),
+    state.arc && state.arc.domain
+  ].filter(Boolean);
+  if (sequence.length < 3) return false;
+  const last3 = sequence.slice(-3);
+  return last3.every(d => d === domain);
+}
+
+function getBlockedArcDomain(){
+  return DOMAIN_KEYS.find(k => isArcDomainBlocked(k)) || null;
 }
 
 function domainBadgeHTML(domain, multiplier){
@@ -2479,8 +2498,16 @@ function tick(){
     // 3. dungeon timeout
   if (checkDungeonTimeout()) dirty = true;
 
-  // 3b. mission deadline
+    // 3b. mission deadline
   if (checkMissionDeadline()) dirty = true;
+
+  // 3c. arc expiry notification
+  const arcInfo = getArcInfo();
+  if (arcInfo.expired && !state.arcExpiryNotified){
+    state.arcExpiryNotified = true;
+    toast('ARC COMPLETE — set your next focus.', 'gold');
+    dirty = true;
+  }
 
   // 4. day rollover
   if (state.today.date !== localDateStr()){
@@ -2722,10 +2749,12 @@ function renderArcBanner(){
         <span class="arc-banner-label">ARC</span>
         <span class="arc-banner-domain">${dm.icon} ${dm.label}</span>
       </div>
-      <div class="arc-banner-right">
+            <div class="arc-banner-right">
         <span class="arc-banner-phase">${phaseLabel}</span>
         <span class="arc-banner-days">${daysLabel}</span>
-        <button class="arc-banner-btn" data-act="open-arc-modal">${info.expired ? 'New Arc' : 'Change'}</button>
+        ${(info.expired || state.devMode)
+          ? `<button class="arc-banner-btn" data-act="open-arc-modal">${info.expired ? 'New Arc' : 'Change (DEV)'}</button>`
+          : `<span class="arc-banner-btn" style="opacity:.45;cursor:default;pointer-events:none">Locked</span>`}
       </div>
     </div>`;
 }
@@ -3680,12 +3709,12 @@ function viewActiveMission(m){
             ${body}
           </div>`;
       }).join('')
-    : '<div class="empty">No milestones defined.</div>';
+        : '<div class="empty">No checkpoints defined.</div>';
 
   const milestonesSection = `
     <div class="mission-collapsible-section ${milestonesSectionOpen?'open':''}">
-      <div class="mission-section-toggle" data-act="toggle-milestones-section">
-        <span class="mission-section-toggle-label">Milestones</span>
+            <div class="mission-section-toggle" data-act="toggle-milestones-section">
+        <span class="mission-section-toggle-label">Checkpoints</span>
         <span class="mission-section-toggle-meta">${mssDone}/${mssTotal} done</span>
         <span class="mission-section-toggle-chevron">▸</span>
       </div>
@@ -3947,12 +3976,12 @@ function viewMissionForm(){
       <div id="msPairsContainer"></div>
       <button class="btn small ghost" data-act="add-mission-pair" style="margin-bottom:16px">+ Add Pair</button>
 
-      <div class="mission-section-label">Milestones (optional)</div>
+            <div class="mission-section-label">Checkpoints (optional)</div>
       <p style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px">
         Break the mission into checkpoints. Each can have steps if you want granular tracking.
       </p>
       <div id="msMilestonesContainer"></div>
-      <button class="btn small ghost" data-act="add-mission-milestone" style="margin-bottom:16px">+ Add Milestone</button>
+      <button class="btn small ghost" data-act="add-mission-milestone" style="margin-bottom:16px">+ Add Checkpoint</button>
 
             <div class="row" style="justify-content:flex-end;margin-top:12px">
         <button class="btn gold" data-act="start-mission">Accept Mission</button>
@@ -3979,7 +4008,7 @@ function missionMilestoneFormHTML(ms){
   return `
     <div class="mission-milestone-form" data-ms-id="${ms.id}">
       <button class="btn small danger ms-x" data-act="remove-mission-milestone" data-id="${ms.id}" title="Remove">✕</button>
-      <label class="fld"><span>Milestone Title</span>
+            <label class="fld"><span>Checkpoint Title</span>
         <input data-ms-title value="${esc(ms.title || '')}" placeholder="e.g. First draft complete">
       </label>
       <label class="fld" style="margin-bottom:0"><span>Steps (one per line — optional)</span>
@@ -4054,9 +4083,9 @@ function openEditMissionModal(m){
     <div id="emPairsContainer">${pairsHTML}</div>
     <button class="btn small ghost" data-act="add-mission-pair" style="margin-bottom:16px">+ Add Pair</button>
 
-    <div class="mission-section-label">Milestones</div>
+        <div class="mission-section-label">Checkpoints</div>
     <div id="emMilestonesContainer">${milestonesHTML}</div>
-    <button class="btn small ghost" data-act="add-mission-milestone" style="margin-bottom:16px">+ Add Milestone</button>
+    <button class="btn small ghost" data-act="add-mission-milestone" style="margin-bottom:16px">+ Add Checkpoint</button>
 
     <div class="row" style="justify-content:flex-end;gap:8px">
       <button class="btn ghost" data-act="close-modal">Cancel</button>
@@ -4436,33 +4465,45 @@ document.addEventListener('click', (e) => {
       closeModal();
       break;
 
-    case 'open-arc-modal': {
+        case 'open-arc-modal': {
       const info = getArcInfo();
+      if (state.arc && !info.expired && !state.devMode){
+        toast('Focus is locked until the current arc ends.', 'bad');
+        break;
+      }
       const today = new Date().toISOString().slice(0,10);
-      const startVal = state.arc ? new Date(state.arc.startedAt).toISOString().slice(0,10) : today;
+      const isNewArc = !state.arc || info.expired;
+      const startVal = isNewArc ? today : new Date(state.arc.startedAt).toISOString().slice(0,10);
       const currentDomain = info.domain || '';
+      const blockedDomain = getBlockedArcDomain();
       const domainChoices = DOMAIN_KEYS.map(k => {
         const dm = DOMAIN_META[k];
+        const blocked = k === blockedDomain;
+        const selected = !blocked && currentDomain === k;
         return `
-          <label class="arc-domain-choice ${currentDomain===k?'selected':''}">
-            <input type="radio" name="arcDomain" value="${k}" ${currentDomain===k?'checked':''} style="width:auto">
+          <label class="arc-domain-choice ${selected?'selected':''}" ${blocked?'style="opacity:.4;cursor:not-allowed"':''}>
+            <input type="radio" name="arcDomain" value="${k}" ${selected?'checked':''} ${blocked?'disabled':''} style="width:auto">
             <div>
               <div class="arc-domain-name" style="color:${dm.color}">${dm.icon} ${dm.label}</div>
-              <div class="arc-domain-desc">${dm.desc}</div>
+              <div class="arc-domain-desc">${dm.desc}${blocked ? ' — <span style="color:var(--danger)">on cooldown (3× in a row)</span>' : ''}</div>
             </div>
           </label>`;
       }).join('');
       openModal(`
-        <h2>Set Arc Focus</h2>
+        <h2>${isNewArc ? 'Choose Next Focus' : 'Set Arc Focus'}</h2>
         <p style="font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:14px">
           Pick the domain you'll prioritize for the next 28 days. Dungeons and missions aligned with it earn <b style="color:var(--green)">+10%</b>; others earn <b style="color:var(--danger)">−10%</b>.
         </p>
+        ${blockedDomain ? `
+          <div class="meta" style="color:var(--danger);font-size:11.5px;line-height:1.6;margin-bottom:12px;padding:8px 11px;border:1px dashed rgba(255,61,110,.4);background:rgba(255,61,110,.05)">
+            <b>${DOMAIN_META[blockedDomain].label}</b> is on cooldown — you've picked it 3 times in a row. Choose a different focus.
+          </div>` : ''}
         <div class="arc-domain-grid">${domainChoices}</div>
         <label class="fld" style="margin-top:14px"><span>Start date</span>
           <input id="arcStart" type="date" value="${startVal}" max="${today}">
         </label>
         <div class="row" style="justify-content:space-between;margin-top:16px;gap:8px">
-          ${state.arc ? `<button class="btn small danger" data-act="clear-arc">Clear Focus</button>` : '<span></span>'}
+          ${state.arc && state.devMode ? `<button class="btn small danger" data-act="clear-arc">Clear Focus</button>` : '<span></span>'}
           <div class="row" style="gap:8px">
             <button class="btn ghost" data-act="close-modal">Cancel</button>
             <button class="btn gold" data-act="set-arc">Confirm</button>
@@ -4472,24 +4513,53 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'set-arc': {
+        case 'set-arc': {
+      const info = getArcInfo();
+      if (state.arc && !info.expired && !state.devMode){
+        toast('Focus is locked until the current arc ends.', 'bad');
+        break;
+      }
       const selected = (document.querySelector('input[name="arcDomain"]:checked') || {}).value;
       if (!selected || !DOMAIN_META[selected]){
         toast('Pick a domain first.', 'bad');
         break;
       }
+      if (isArcDomainBlocked(selected)){
+        toast(`${DOMAIN_META[selected].label} is on cooldown — 3 in a row is the limit.`, 'bad');
+        break;
+      }
       const startStr = $('#arcStart').value;
       const startDate = startStr ? new Date(startStr + 'T00:00:00') : new Date();
       if (isNaN(startDate.getTime())){ toast('Invalid start date.', 'bad'); break; }
+      if (state.arc){
+        state.arcHistory.push({
+          domain: state.arc.domain,
+          startedAt: state.arc.startedAt,
+          endedAt: new Date().toISOString()
+        });
+      }
       state.arc = { domain: selected, startedAt: startDate.toISOString() };
+      state.arcExpiryNotified = false;
       save(); closeModal(); render();
       toast(`ARC SET — ${DOMAIN_META[selected].label}`, 'gold');
       break;
     }
 
-    case 'clear-arc': {
+        case 'clear-arc': {
+      if (!state.devMode){
+        toast('Clearing focus requires developer mode.', 'bad');
+        break;
+      }
       if (!confirm('Clear the current arc? Domain bonuses will stop until you start a new one.')) break;
+      if (state.arc){
+        state.arcHistory.push({
+          domain: state.arc.domain,
+          startedAt: state.arc.startedAt,
+          endedAt: new Date().toISOString()
+        });
+      }
       state.arc = null;
+      state.arcExpiryNotified = false;
       save(); closeModal(); render();
       toast('Arc cleared.');
       break;
