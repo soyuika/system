@@ -3701,15 +3701,18 @@ function renderHUD(){
            stroke="${nr.color}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.8"/>`
       : '';
 
-  // Caption line
+    // Caption line
   let captionLine;
   if (nr){
+    const levelTag = `<span style="color:var(--dim)">(Lv ${nr.min})</span>`;
     if (maxStat >= target){
       const relation = maxStat === target ? 'meets' : 'exceeds';
       captionLine = `Highest stat <b style="color:var(--cyan)">${maxStat}</b> ${relation} the `
-                  + `<b style="color:${nr.color}">${targetLabel}</b> barrier (<b>${target}</b>) · dashed ring marks the barrier`;
+                  + `<b style="color:${nr.color}">${targetLabel}</b> barrier `
+                  + `<b style="color:var(--cyan)">${target}</b> ${levelTag} · dashed ring marks the barrier`;
     } else {
-      captionLine = `Target for <b style="color:${nr.color}">${targetLabel}</b>: <b style="color:var(--cyan)">${target}</b>`;
+      captionLine = `Target for <b style="color:${nr.color}">${targetLabel}</b>: `
+                  + `<b style="color:var(--cyan)">${target}</b> ${levelTag}`;
     }
   } else {
     captionLine = `Endgame — scale relative to your highest stat (<b style="color:var(--cyan)">${maxStat}</b>)`;
@@ -3777,7 +3780,6 @@ function renderHUD(){
 function viewStatus(){
   const lv = getLevel();
   const rk = rankForLevel(lv);
-  const nr = nextRankOf(lv);
   const barrier = nextLevelBarrier();
   const low = lowestStat();
 
@@ -3841,20 +3843,9 @@ function viewStatus(){
     days.push(`<div class="hex ${cls}" title="${key}${rec?` — ${rec.done}/${state.quests.length} floors`:''}"></div>`);
   }
 
-  const nextRankLine = nr
-    ? `<div style="font-size:12.5px;line-height:1.9">
-         <div>NEXT RANK: <b style="color:${nr.color}">${nr.name}-RANK</b> at <b>Level ${nr.min}</b></div>
-         <div class="meta" style="color:var(--dim);font-size:11px">
-                    Requires <b style="color:#fff">${pointsForLevel(nr.min)} points</b> in <u>every</u> stat.
-         Lagging stat: <b style="color:var(--cyan)">${STAT_META[low].label}</b> —
-         <b style="color:#fff">${Math.max(0, pointsForLevel(nr.min) - state.stats[low])}</b> to go.
-         </div>
-       </div>`
-    : `<div style="font-size:12.5px">MAXIMUM RANK REACHED. <span style="color:var(--danger)">S-RANK.</span> The System has nothing left to offer you.</div>`;
-
-        return `
+            return `
     <div class="panel">
-      <div class="panel-title">Attributes</div>
+      <div class="panel-title">Attributes<button class="rank-info-btn" data-act="open-rank-progress" title="Rank progression details" aria-label="Show rank progression table">?</button></div>
       ${statRows}
       ${statPentagonHTML()}
     </div>
@@ -3878,11 +3869,6 @@ function viewStatus(){
           <b>▼ ${STAT_META[low].label} is lagging</b> — your level is gated by your lowest stat.
           It needs <b>${barrier - state.stats[low]}</b> more point${barrier - state.stats[low] === 1 ? '' : 's'} to reach the next barrier.
         </div>` : ''}
-    </div>
-
-    <div class="panel">
-      <div class="panel-title">Rank Progress<button class="rank-info-btn" data-act="open-rank-progress" title="Rank progression details" aria-label="Show rank progression table">?</button></div>
-      ${nextRankLine}
     </div>
 
     <div class="panel">
