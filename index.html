@@ -888,11 +888,34 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 }
 .ceil-steps-head{
   font-family:'Share Tech Mono',monospace;
-  font-size:11px;letter-spacing:.16em;
-  color:var(--dim);text-transform:uppercase;
+  font-size:11px;
+  letter-spacing:.16em;
+  color:var(--dim);
+  text-transform:uppercase;
   margin-bottom:6px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+  user-select:none;
+  transition:color .15s;
+  flex-wrap:nowrap;
 }
-.ceil-steps-head b{color:var(--cyan);font-weight:500}
+.ceil-steps-head:hover{ color:var(--cyan); }
+.ceil-steps-chevron{
+  display:inline-block;
+  font-size:11px;
+  transition:transform .15s;
+  flex-shrink:0;
+  line-height:1;
+}
+.ceil-steps:not(.collapsed) .ceil-steps-chevron{ transform:rotate(90deg); }
+.ceil-steps-count{ color:var(--cyan); white-space:nowrap; }
+.ceil-steps-count b{ color:var(--cyan); font-weight:500; }
+.ceil-steps-note{ color:var(--dim); white-space:nowrap; }
+.ceil-steps-body{ display:block; }
+.ceil-steps.collapsed .ceil-steps-body{ display:none; }
+.ceil-steps.collapsed{ padding-bottom:6px; }
 .ceil-step{
   display:flex;align-items:flex-start;gap:11px;
   padding:4px 0;
@@ -2207,11 +2230,12 @@ function defaultState(){
     editTokens: 0,
                 dungeons: {inbox:[], active:null, locked:{}, cleared:[]},
         missions: {active:null, backlog:[], history:[]},
-        ui: {
+                ui: {
       expandedStats: [],
       expandedQuests: [],
       expandedMilestones: [],
       collapsedEncounters: [],
+      collapsedSteps: [],
       encountersSectionOpen: true,
       missionCollapsed: false,
       criteriaSectionOpen: true,
@@ -2229,7 +2253,7 @@ const expandedMilestones = new Set();  // which mission milestones are expanded 
 const editingEncounters = new Set();   // which encounter pairs are in edit mode this session
 let encountersSectionOpen = true;      // whether the encounters section is expanded
 let missionCollapsed = false;          // whether the active mission panel is collapsed
-const collapsedEncounters = new Set(); // which encounter pairs are collapsed
+const collapsedSteps = new Set();      // which ceiling-steps sections are collapsed
 let criteriaSectionOpen = true;        // whether the success criteria section is expanded
 let milestonesSectionOpen = true;      // whether the milestones section is expanded
 let missionFormCollapsed = false;      // whether the New Mission Briefing panel is collapsed
@@ -2258,7 +2282,8 @@ function syncUI(){
     expandedStats: [...expandedStats],
     expandedQuests: [...expandedQuests],
     expandedMilestones: [...expandedMilestones],
-    collapsedEncounters: [...collapsedEncounters],
+        collapsedEncounters: [...collapsedEncounters],
+    collapsedSteps: [...collapsedSteps],
     encountersSectionOpen,
     missionCollapsed,
     criteriaSectionOpen,
@@ -2277,8 +2302,8 @@ function hydrateUI(){
   arr(ui.expandedQuests).forEach(x => expandedQuests.add(x));
   expandedMilestones.clear();
   arr(ui.expandedMilestones).forEach(x => expandedMilestones.add(x));
-  collapsedEncounters.clear();
-  arr(ui.collapsedEncounters).forEach(x => collapsedEncounters.add(x));
+    collapsedSteps.clear();
+  arr(ui.collapsedSteps).forEach(x => collapsedSteps.add(x));
   encountersSectionOpen = ui.encountersSectionOpen !== false;
   missionCollapsed      = !!ui.missionCollapsed;
   criteriaSectionOpen   = ui.criteriaSectionOpen !== false;
@@ -2463,7 +2488,8 @@ function migrate(raw){
     expandedStats: [],
     expandedQuests: [],
     expandedMilestones: [],
-    collapsedEncounters: [],
+        collapsedEncounters: [],
+    collapsedSteps: [],
     encountersSectionOpen: true,
     missionCollapsed: false,
     criteriaSectionOpen: true,
@@ -3739,14 +3765,21 @@ function rewardPanelHTML(){
 function renderCeilingSteps(q, t){
   const steps = q.ceilingSteps || [];
   if (!steps.length) return '';
-    const doneCount = steps.filter(s => isTaskComplete(s, getTaskValue('step', q.id, s.id), getTaskReps('step', q.id, s.id))).length;
+  const doneCount = steps.filter(s => isTaskComplete(s, getTaskValue('step', q.id, s.id), getTaskReps('step', q.id, s.id))).length;
+  const collapsed = collapsedSteps.has(q.id);
   const rows = steps.map(s =>
     renderTaskRow('step', q, s, getTaskValue('step', q.id, s.id), { sid: s.id })
   ).join('');
   return `
-    <div class="ceil-steps">
-      <div class="ceil-steps-head">Steps &nbsp;<b>${doneCount}</b>/${steps.length} &nbsp;·&nbsp; for clarity only, no points</div>
-      ${rows}
+    <div class="ceil-steps ${collapsed?'collapsed':''}">
+      <div class="ceil-steps-head" data-act="toggle-steps-collapse" data-qid="${q.id}">
+        <span class="ceil-steps-chevron">▸</span>
+        <span class="ceil-steps-count"><b>${doneCount}</b>/${steps.length}</span>
+        <span class="ceil-steps-note">no points</span>
+      </div>
+      <div class="ceil-steps-body">
+        ${rows}
+      </div>
     </div>`;
 }
   
@@ -5866,6 +5899,16 @@ document.addEventListener('click', (e) => {
       break;
     }
 
+        case 'toggle-steps-collapse': {
+      const qid = el.dataset.qid;
+      if (collapsedSteps.has(qid)) collapsedSteps.delete(qid);
+      else collapsedSteps.add(qid);
+      const node = el.closest('.ceil-steps');
+      if (node) node.classList.toggle('collapsed', collapsedSteps.has(qid));
+      syncUI();
+      break;
+    }
+      
     case 'toggle-encounter-collapse': {
       const pid = el.dataset.pid;
       if (!pid) break;
