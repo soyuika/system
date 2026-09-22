@@ -1044,6 +1044,18 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   color:var(--dim);text-transform:uppercase;
   margin-bottom:5px;
 }
+.mission-pair-preview{
+  flex:1;
+  min-width:0;
+  font-size:13.5px;
+  color:#eaf6ff;
+  font-weight:500;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  letter-spacing:.02em;
+  margin-bottom:0;
+}
 .mission-pair-enc .mission-pair-label{color:var(--mission)}
 .mission-pair-plan .mission-pair-label{color:var(--cyan)}
 .mission-pair-text{
@@ -1059,8 +1071,8 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 /* collapsible section header */
 .encounters-toggle{
   display:flex;align-items:center;gap:10px;
-  padding:8px 0 8px 0;
-  margin:18px 0 8px;
+  padding:10px 0 8px;
+  margin:6px 0 8px;
   border-bottom:1px dashed rgba(255,95,168,.25);
   cursor:pointer;user-select:none;
   transition:.15s;
@@ -1294,6 +1306,11 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .mission-panel.collapsed .mission-body{display:none}
 .mission-panel.collapsed .mission-collapse-head{margin-bottom:0}
 
+.mission-form-collapse-head{cursor:pointer;user-select:none}
+.mission-panel.collapsed .mission-form-collapse-head{margin-bottom:0}
+.mission-panel.collapsed .mission-form-collapse-head .mission-collapse-chevron{transform:rotate(0deg)}
+.mission-panel:not(.collapsed) .mission-form-collapse-head .mission-collapse-chevron{transform:rotate(90deg)}
+
 /* ---------- generic collapsible section ---------- */
 .mission-collapsible-section{margin-top:6px}
 .mission-section-toggle{
@@ -1378,6 +1395,51 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .mission-log-delta.plus{color:var(--green)}
 .mission-log-delta.minus{color:var(--danger)}
 .mission-log-delta.zero{color:var(--dim)}
+
+/* action rows */
+.encounters-footer{
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+}
+.mission-bottom-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:16px;
+}
+@media(max-width:620px){
+  .encounters-footer{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:6px;
+    margin-top:12px;
+  }
+  .encounters-footer .btn{
+    width:100%;
+    justify-content:center;
+    padding:10px 8px;
+    font-size:10.5px;
+    letter-spacing:.1em;
+  }
+  .mission-bottom-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+    margin-top:14px;
+  }
+  .mission-bottom-actions .btn{
+    width:100%;
+    justify-content:center;
+    padding:10px 6px;
+    font-size:11px;
+    letter-spacing:.08em;
+  }
+  /* when there are 3 (or 5) buttons, the last spans full width */
+  .mission-bottom-actions .btn:last-child:nth-child(odd){
+    grid-column:1 / -1;
+  }
+}
 .big-timer{font-family:'Share Tech Mono',monospace;font-size:30px;color:var(--danger);text-shadow:0 0 22px rgba(255,61,110,.7);letter-spacing:.06em}
 .big-timer.ok{color:var(--cyan);text-shadow:0 0 22px rgba(79,214,255,.7)}
 
@@ -1684,6 +1746,7 @@ let missionCollapsed = false;          // whether the active mission panel is co
 const collapsedEncounters = new Set(); // which encounter pairs are collapsed
 let criteriaSectionOpen = true;        // whether the success criteria section is expanded
 let milestonesSectionOpen = true;      // whether the milestones section is expanded
+let missionFormCollapsed = false;      // whether the New Mission Briefing panel is collapsed
 let saveTimer = null, saveDirty = false;
 
 function save(){
@@ -3566,6 +3629,10 @@ function viewActiveMission(m){
     const badge = happened
       ? '<span class="mission-pair-badge happened">Happened</span>'
       : '<span class="mission-pair-badge planned">Planned</span>';
+        const preview = (p.encounter || '').split('\n')[0].trim();
+    const headerLabelHTML = preview
+      ? `<span class="mission-pair-preview" title="${esc(p.encounter)}">${esc(preview)}</span>`
+      : `<span class="mission-pair-label">Encounter</span>`;
     const notes = p.fieldNotes || {worked:'', failed:'', change:''};
 
     // Build encounter and plan blocks, skipping empty ones when not editing
@@ -3639,9 +3706,9 @@ function viewActiveMission(m){
 
     return `
       <div class="mission-pair ${collapsed?'collapsed':''}" data-pid="${p.id}">
-        <div class="mission-pair-head" data-act="toggle-encounter-collapse" data-pid="${p.id}">
+                <div class="mission-pair-head" data-act="toggle-encounter-collapse" data-pid="${p.id}">
           <span class="mission-collapse-chevron">▸</span>
-          <span class="mission-pair-label">Encounter</span>
+          ${headerLabelHTML}
           ${badge}
           <button class="mission-pair-x" data-act="delete-encounter" data-pid="${p.id}" title="Remove">✕</button>
         </div>
@@ -3663,7 +3730,7 @@ function viewActiveMission(m){
     </div>
     <div class="encounters-body ${encountersSectionOpen?'open':''}">
       ${pairsList || '<div class="empty">No encounters logged yet.</div>'}
-      <div class="row" style="gap:8px;margin-top:12px">
+            <div class="encounters-footer">
         <button class="btn small ghost" data-act="add-planned-encounter">+ Planned Encounter</button>
         <button class="btn small gold" data-act="add-unexpected-encounter">+ Log Unexpected Encounter</button>
       </div>
@@ -3695,7 +3762,7 @@ function viewActiveMission(m){
 
         ${allDone ? `<div class="mission-ready">◆ All criteria met — ready to close</div>` : ''}
 
-        <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px">
+                <div class="mission-bottom-actions">
           ${state.devMode ? `<button class="btn small gold" data-act="edit-mission">Edit Mission (DEV)</button>` : ''}
           <button class="btn small ghost" data-act="hold-mission">Return to Backlog</button>
           <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
@@ -3711,9 +3778,13 @@ function viewMissionForm(){
   const minDateStr = minDate.toISOString().slice(0,10);
   const defaultDateStr = defaultDate.toISOString().slice(0,10);
 
-  return `
-    <div class="panel mission-panel">
-      <div class="panel-title">New Mission Briefing</div>
+    return `
+    <div class="panel mission-panel ${missionFormCollapsed?'collapsed':''}">
+      <div class="panel-title mission-form-collapse-head" data-act="toggle-mission-form-collapse">
+        New Mission Briefing
+        <span class="mission-collapse-chevron" style="margin-left:auto">▸</span>
+      </div>
+      <div class="mission-body">
 
       <p style="font-size:12.5px;color:var(--dim);line-height:1.75;margin-bottom:16px">
         One mission at a time. Be specific — vague missions are missions you fail.
@@ -3795,8 +3866,10 @@ function viewMissionForm(){
       <div id="msMilestonesContainer"></div>
       <button class="btn small ghost" data-act="add-mission-milestone" style="margin-bottom:16px">+ Add Milestone</button>
 
-      <div class="row" style="justify-content:flex-end;margin-top:12px">
+            <div class="row" style="justify-content:flex-end;margin-top:12px">
         <button class="btn gold" data-act="start-mission">Accept Mission</button>
+      </div>
+
       </div>
     </div>`;
 }
@@ -4857,10 +4930,17 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'toggle-mission-collapse': {
+        case 'toggle-mission-collapse': {
       missionCollapsed = !missionCollapsed;
-      const node = document.querySelector('.mission-panel');
+      const node = el.closest('.mission-panel');
       if (node) node.classList.toggle('collapsed', missionCollapsed);
+      break;
+    }
+
+    case 'toggle-mission-form-collapse': {
+      missionFormCollapsed = !missionFormCollapsed;
+      const node = el.closest('.mission-panel');
+      if (node) node.classList.toggle('collapsed', missionFormCollapsed);
       break;
     }
 
