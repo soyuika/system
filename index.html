@@ -3631,9 +3631,16 @@ function renderHUD(){
   const labelR  = R + 44;
   const angleFor = (i) => -Math.PI/2 + i * (2*Math.PI/5);
 
-  const barrier = nextLevelBarrier();
+  // Target: next rank's entry threshold. At S-rank there's no next rank,
+  // so fall back to the next-level barrier.
+  const lv = getLevel();
+  const nr = nextRankOf(lv);
+  const target      = nr ? pointsForLevel(nr.min) : nextLevelBarrier();
+  const targetLabel = nr ? `${nr.name}-RANK` : 'NEXT LEVEL';
+  const targetColor = nr ? nr.color : 'var(--cyan)';
+
   const values = STAT_KEYS.map(k => state.stats[k]);
-  const maxVal = Math.max(barrier, ...values);
+  const maxVal = Math.max(target, ...values);
   const totalVal = values.reduce((a,b) => a+b, 0);
 
   const axes = STAT_KEYS.map((k, i) => {
@@ -3695,7 +3702,7 @@ function renderHUD(){
         <!-- filled polygon for current values -->
         <polygon points="${dataPoly}" fill="url(#pentagonFill)" stroke="#4fd6ff" stroke-width="2" stroke-linejoin="round"/>
 
-        <!-- grade letters, positioned between the polygon and the stat name -->
+        <!-- grade letters -->
         ${axes.map(p => {
           const g = gradeFor(p.ratio);
           const s = g === 'S';
@@ -3706,7 +3713,7 @@ function renderHUD(){
                         style="filter:drop-shadow(0 0 5px ${s ? 'rgba(255,207,92,.75)' : 'rgba(79,214,255,.55)'})">${g}</text>`;
         }).join('')}
 
-        <!-- stat name labels, positioned further out -->
+        <!-- stat name labels -->
         ${axes.map(p => {
           const anchor = Math.abs(p.labelPos.x - cx) < 5 ? 'middle' : (p.labelPos.x > cx ? 'start' : 'end');
           return `<text x="${p.labelPos.x.toFixed(1)}" y="${p.labelPos.y.toFixed(1)}"
@@ -3723,9 +3730,9 @@ function renderHUD(){
         </div>
         <div class="meta">
           Graded against <b style="color:var(--cyan)">${maxVal}</b>
-          ${maxVal > barrier
-            ? ' — highest stat is now the target'
-            : ` · next barrier ${barrier}`}
+          ${maxVal > target
+            ? ` — highest stat already exceeds the ${targetLabel} target`
+            : ` · target for <b style="color:${targetColor}">${targetLabel}</b>: ${target}`}
         </div>
       </div>
     </div>`;
