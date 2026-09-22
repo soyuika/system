@@ -725,10 +725,13 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .q-task-name{
   flex:1;
   min-width:0;
-  font-size:13.5px;
-  color:var(--text);
+  font-size:15.5px;
+  font-weight:600;
+  color:#eaf6ff;
+  letter-spacing:.02em;
   line-height:1.4;
   word-break:break-word;
+  text-shadow:0 0 12px rgba(79,214,255,.15);
 }
 .q-task.done .q-task-name{
   color:var(--green);
@@ -879,8 +882,8 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .step-builder.type-time input[data-step-unit]{ display:none; }
 /* ---------- ceiling sub-steps ---------- */
 .ceil-steps{
-  margin:0 0 0 0;
-  padding:6px 0 4px 22px;
+  margin:0;
+  padding:6px 0 4px 0;
   border-top:1px dashed rgba(47,143,255,.14);
 }
 .ceil-steps-head{
@@ -1852,8 +1855,8 @@ footer{font-size:11px}
     padding:2px 7px;
     letter-spacing:.12em;
   }
-  .q-task-name{
-    font-size:13px;
+    .q-task-name{
+    font-size:14.5px;
   }
   .q-task-stats{
     gap:6px;
