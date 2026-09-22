@@ -718,6 +718,11 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   font-size:14px;
   flex-shrink:0;
 }
+.task-time-input{
+  width:96px !important;
+  font-family:'Share Tech Mono',monospace;
+}
+.task-time-input::placeholder{ color:var(--dim); }
 .chk.reps{
   min-width:64px;
   font-family:'Share Tech Mono',monospace;
@@ -1789,27 +1794,70 @@ const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(3
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 /* ---------- task type helpers ---------- */
-const TASK_TYPES = ['binary','counter','reps'];
+const TASK_TYPES = ['check','count','time'];
+
+function formatMinutes(mins){
+  mins = Math.max(0, Math.round(Number(mins) || 0));
+  if (!mins) return '0m';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  if (!h) return m + 'm';
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function parseDuration(input){
+  const s = String(input).trim().toLowerCase().replace(/\s+/g, '');
+  if (!s) return null;
+  if (/^\d+(\.\d+)?$/.test(s)) return Math.round(parseFloat(s));
+  let total = 0, matched = false;
+  const re = /(\d+(?:\.\d+)?)(h|hr|hrs|hour|hours|m|min|mins|minute|minutes)/g;
+  let m;
+  while ((m = re.exec(s)) !== null){
+    matched = true;
+    const n = parseFloat(m[1]);
+    total += m[2][0] === 'h' ? n * 60 : n;
+  }
+  return matched ? Math.round(total) : null;
+}
 
 function defaultTask(text){
-  return { type:'binary', text: text || '', target:1, unit:'' };
+  return { type:'check', text: text || '', target:null, unit:null, step:1, repeatTarget:null };
 }
 
 function normalizeTask(t){
   if (typeof t === 'string') return defaultTask(t);
   if (!t || typeof t !== 'object') return defaultTask('');
-  const type = TASK_TYPES.includes(t.type) ? t.type : 'binary';
+
+  let type = t.type;
+  if (type === 'binary')  type = 'check';
+  if (type === 'counter') type = 'count';
+  if (type === 'reps')    type = 'check';
+  if (!TASK_TYPES.includes(type)) type = 'check';
+
   const out = {
     type,
     text: typeof t.text === 'string' ? t.text : '',
-    target: 1,
-    unit: typeof t.unit === 'string' ? t.unit : ''
+    target: null,
+    unit: null,
+    step: type === 'time' ? 5 : 1,
+    repeatTarget: null
   };
-    if (type === 'binary'){ out.target = 1; out.unit = ''; }
-  else {
+
+  if (type === 'count' || type === 'time'){
     const n = Number(t.target);
-    out.target = Number.isFinite(n) && n > 0 ? Math.max(1, Math.floor(n)) : 1;
+    out.target = Number.isFinite(n) && n > 0 ? Math.max(1, Math.floor(n)) : null;
+    const st = Number(t.step);
+    out.step = Number.isFinite(st) && st > 0 ? Math.max(1, Math.floor(st)) : (type === 'time' ? 5 : 1);
   }
+  if (type === 'count' && typeof t.unit === 'string' && t.unit.trim()){
+    out.unit = t.unit.trim();
+  }
+
+  // Repeat target: legacy `reps` carried its count in `target`.
+  let rt = null;
+  if (t.type === 'reps') rt = Number(t.target);
+  else                   rt = Number(t.repeatTarget);
+  if (Number.isFinite(rt) && rt > 1) out.repeatTarget = Math.floor(rt);
+
   return out;
 }
 
@@ -1822,6 +1870,7 @@ function getTaskDef(qid, kind, sid){
   return null;
 }
 
+/* Main value --------------------------------------------------------- */
 function getTaskValue(kind, qid, sid){
   const t = state.today;
   if (kind === 'floor') return Number(t.floor[qid]) || 0;
@@ -1829,7 +1878,6 @@ function getTaskValue(kind, qid, sid){
   if (kind === 'step')  return Number(((t.ceilSteps || {})[qid] || {})[sid]) || 0;
   return 0;
 }
-
 function setTaskValue(kind, qid, sid, v){
   const t = state.today;
   v = Math.max(0, Math.floor(Number(v) || 0));
@@ -1842,27 +1890,60 @@ function setTaskValue(kind, qid, sid, v){
   }
 }
 
-function isTaskComplete(task, value){
-  if (!task) return false;
-  const target = task.type === 'binary' ? 1 : (task.target || 1);
-  return value >= target;
+/* Rep value ---------------------------------------------------------- */
+function getTaskReps(kind, qid, sid){
+  const r = state.today.reps;
+  if (!r) return 0;
+  if (kind === 'floor') return Number((r.floor || {})[qid]) || 0;
+  if (kind === 'ceil')  return Number((r.ceil  || {})[qid]) || 0;
+  if (kind === 'step')  return Number((((r.step || {})[qid]) || {})[sid]) || 0;
+  return 0;
+}
+function setTaskReps(kind, qid, sid, v){
+  const t = state.today;
+  if (!t.reps) t.reps = { floor:{}, ceil:{}, step:{} };
+  v = Math.max(0, Math.floor(Number(v) || 0));
+  if (kind === 'floor'){ t.reps.floor[qid] = v; return; }
+  if (kind === 'ceil'){ t.reps.ceil[qid] = v; return; }
+  if (kind === 'step'){
+    if (!t.reps.step[qid]) t.reps.step[qid] = {};
+    t.reps.step[qid][sid] = v;
+  }
 }
 
+function isTaskComplete(task, value, reps){
+  if (!task) return false;
+  value = Number(value) || 0;
+  reps  = Number(reps)  || 0;
+
+  if (task.type === 'check'){
+    const needed = task.repeatTarget || 1;
+    return value >= needed;
+  }
+  // count / time
+  const target = task.target || 0;
+  const mainOk = target > 0 ? value >= target : value > 0;
+  const repsOk = task.repeatTarget ? reps >= task.repeatTarget : true;
+  return mainOk && repsOk;
+}
+
+/* Step syntax -------------------------------------------------------- */
 function parseStepLine(line){
   const s = line.trim();
   let m;
   m = s.match(/^\[c:(\d+)(?:\|([^\]]+))?\]\s*(.+)$/i);
-  if (m) return { type:'counter', target: parseInt(m[1],10), unit: (m[2]||'').trim(), text: m[3].trim() };
-  m = s.match(/^\[r:(\d+)(?:\|([^\]]+))?\]\s*(.+)$/i);
-  if (m) return { type:'reps', target: parseInt(m[1],10), unit: (m[2]||'').trim(), text: m[3].trim() };
-  m = s.match(/^\[b\]\s*(.+)$/i);
-  if (m) return { type:'binary', target:1, unit:'', text: m[1].trim() };
-  return { type:'binary', target:1, unit:'', text: s };
+  if (m) return { type:'count', target: parseInt(m[1],10), unit: (m[2]||'').trim()||null, step:1, repeatTarget:null, text: m[3].trim() };
+  m = s.match(/^\[t:(\d+)\]\s*(.+)$/i);
+  if (m) return { type:'time', target: parseInt(m[1],10), unit:null, step:5, repeatTarget:null, text: m[2].trim() };
+  m = s.match(/^\[r:(\d+)\]\s*(.+)$/i);
+  if (m) return { type:'check', target:null, unit:null, step:1, repeatTarget: Math.max(2, parseInt(m[1],10)), text: m[2].trim() };
+  return { type:'check', target:null, unit:null, step:1, repeatTarget:null, text: s };
 }
 
 function stepToLine(st){
-  if (st.type === 'counter') return `[c:${st.target}${st.unit?`|${st.unit}`:''}] ${st.text}`;
-  if (st.type === 'reps')    return `[r:${st.target}${st.unit?`|${st.unit}`:''}] ${st.text}`;
+  if (st.type === 'count') return `[c:${st.target}${st.unit?`|${st.unit}`:''}] ${st.text}`;
+  if (st.type === 'time')  return `[t:${st.target}] ${st.text}`;
+  if (st.repeatTarget)     return `[r:${st.repeatTarget}] ${st.text}`;
   return st.text;
 }
 
@@ -1911,7 +1992,9 @@ function defaultState(){
   history: []
 })),
         lifestyle: [],
-            today: {date: localDateStr(), floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, ceilSteps:{}, floorPointGiven:false, rewardGiven:false, rewardText:null},
+            today: {date: localDateStr(), floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, ceilSteps:{},
+        reps:{floor:{}, ceil:{}, step:{}},
+        floorPointGiven:false, rewardGiven:false, rewardText:null},
     log: {},
         weekFails: {},
     weekStart: weekStartStr(),
@@ -2037,7 +2120,7 @@ function migrate(raw){
     });
   }
   s.today.ceilSteps = (raw && raw.today && raw.today.ceilSteps) || {};
-    // Convert today's tick maps (bool | number) to numeric progress.
+      // Convert today's tick maps (bool | number) to numeric progress.
   const __toNum = (v) => {
     if (typeof v === 'boolean') return v ? 1 : 0;
     if (typeof v === 'number' && Number.isFinite(v)) return Math.max(0, Math.floor(v));
@@ -2060,6 +2143,11 @@ function migrate(raw){
     });
     s.today.ceilSteps = outS;
   }
+  // Ensure the new reps structure exists.
+  if (!s.today.reps || typeof s.today.reps !== 'object') s.today.reps = {};
+  s.today.reps.floor = s.today.reps.floor || {};
+  s.today.reps.ceil  = s.today.reps.ceil  || {};
+  s.today.reps.step  = s.today.reps.step  || {};
   s.lifestyle = (raw && raw.lifestyle) || [];
     s.dungeons = Object.assign({}, d.dungeons, (raw && raw.dungeons) || {});
   s.dungeons.locked = (raw && raw.dungeons && raw.dungeons.locked) || {};
@@ -2157,7 +2245,7 @@ function migrate(raw){
   if (raw && Array.isArray(raw.quests)){
     raw.quests.forEach(rq => { if (rq && rq.id) __rawQuestById[rq.id] = rq; });
   }
-  s.quests.forEach(q => {
+    s.quests.forEach(q => {
     if (typeof q.phase !== 'number') q.phase = 1;
     if (!Array.isArray(q.history)) q.history = [];
     if (!q.origin) q.origin = s.createdAt || new Date().toISOString();
@@ -2168,18 +2256,18 @@ function migrate(raw){
 
     q.floor   = normalizeTask(q.floor);
     q.ceiling = normalizeTask(q.ceiling);
-    if (oldCeilRepeatable && q.ceiling.type === 'binary'){
-      q.ceiling.type = 'reps';
-      q.ceiling.target = 2;
+    // Preserve the old "repeatable ceiling" flag as a check-with-repeat.
+    if (oldCeilRepeatable && q.ceiling.type === 'check' && !q.ceiling.repeatTarget){
+      q.ceiling.repeatTarget = 2;
     }
 
     if (!Array.isArray(q.ceilingSteps)) q.ceilingSteps = [];
     q.ceilingSteps = q.ceilingSteps.map(st => {
       const id = st.id || uid();
       const norm = normalizeTask(st);
-      if (st.repeatable && norm.type === 'binary'){
-        norm.type = 'reps';
-        norm.target = 2;
+      // Preserve the old "repeatable step" flag too.
+      if (st.repeatable && norm.type === 'check' && !norm.repeatTarget){
+        norm.repeatTarget = 2;
       }
       return { id, ...norm };
     });
@@ -2361,7 +2449,8 @@ function checkDailyAwards(){
   if (!t.ceilPaid) t.ceilPaid = {};
 
   const total = state.quests.length;
-    const allFloor = state.quests.every(q => isTaskComplete(q.floor, Number(t.floor[q.id]) || 0));
+        const allFloor = state.quests.every(q =>
+      isTaskComplete(q.floor, Number(t.floor[q.id]) || 0, getTaskReps('floor', q.id)));
 
   // Floors: +1 to every stat when all five are done. Reversible.
   if (allFloor && !t.floorPointGiven){
@@ -2380,7 +2469,7 @@ function checkDailyAwards(){
   const revoked = [];
 
   state.quests.forEach(q => {
-        const ceilOn = isTaskComplete(q.ceiling, Number(t.ceil[q.id]) || 0);
+            const ceilOn = isTaskComplete(q.ceiling, Number(t.ceil[q.id]) || 0, getTaskReps('ceil', q.id));
     const wasPaid = !!t.ceilPaid[q.id];
     const shouldPay = ceilOn && allFloor;
 
@@ -2475,7 +2564,8 @@ function makeKey(tier){
 function claimReward(){
   const t = state.today;
   if (t.rewardGiven) return;
-    if (!state.quests.every(q => isTaskComplete(q.ceiling, Number(t.ceil[q.id]) || 0))) return;
+    if (!state.quests.every(q =>
+  isTaskComplete(q.ceiling, Number(t.ceil[q.id]) || 0, getTaskReps('ceil', q.id)))) return;
   if (state.devMode){
     t.rewardGiven = true;
     t.rewardText = 'DEV MODE — reward not applied.';
@@ -2587,8 +2677,15 @@ function rollover(){
   const prev = state.today;
   const total = state.quests.length;
 
+    const __prevReps = prev.reps || {};
+  const __floorReps = __prevReps.floor || {};
+  const __done = (q) => isTaskComplete(
+    q.floor,
+    Number(prev.floor[q.id]) || 0,
+    Number(__floorReps[q.id]) || 0
+  );
   let done = 0;
-  state.quests.forEach(q => { if (prev.floor[q.id]) done++; });
+  state.quests.forEach(q => { if (__done(q)) done++; });
   const failed = total - done;
 
   const prevLife = prev.lifestyle || {};
@@ -2599,17 +2696,18 @@ function rollover(){
     state.log[prev.date] = {done, failed};
     const keys = Object.keys(state.log).sort();
     while (keys.length > 400) delete state.log[keys.shift()];
-        if (!state.devMode){
+            if (!state.devMode){
       state.quests.forEach(q => {
-        if (!prev.floor[q.id]) state.weekFails[q.id] = (state.weekFails[q.id] || 0) + 1;
+        if (!__done(q)) state.weekFails[q.id] = (state.weekFails[q.id] || 0) + 1;
       });
     }
   }
 
   if (prev.date && failed > 0) issuePenalty(failed, prev.date, lifeDone, lifeTotal);
 
-      state.today = {
+            state.today = {
     date: nowStr, floor:{}, ceil:{}, lifestyle:{}, ceilPaid:{}, ceilSteps:{},
+    reps:{floor:{}, ceil:{}, step:{}},
     floorPointGiven:false, rewardGiven:false, rewardText:null
   };
 }
@@ -3276,48 +3374,73 @@ function viewStatus(){
 function renderTaskRow(kind, q, task, value, opts){
   opts = opts || {};
   task = task || defaultTask('');
-  const target = task.type === 'binary' ? 1 : (task.target || 1);
-  const complete = value >= target;
+  const reps = getTaskReps(kind, q.id, opts.sid);
+  const complete = isTaskComplete(task, value, reps);
   const commonAttrs = `data-kind="${kind}" data-qid="${q.id}"${kind==='step'?` data-sid="${opts.sid}"`:''}`;
   const txt = task.text || opts.emptyText || '';
   const textHTML = `<div class="q-text ${task.text?'':'empty'}">${esc(txt)} ${opts.suffixHTML || ''}</div>`;
 
-  if (task.type === 'binary'){
+  const repeatBadgeHTML = task.repeatTarget
+    ? `<button class="chk reps ${reps >= task.repeatTarget ? 'on' : ''}" data-act="task-rep" ${commonAttrs}>${reps}/${task.repeatTarget}</button>`
+    : '';
+
+  if (task.type === 'check'){
     const label = opts.label || 'Task';
+    if (!task.repeatTarget){
+      return `
+        <div class="q-line ${complete?'on':''}">
+          <button class="chk ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ '+label:label}</button>
+          ${textHTML}
+        </div>`;
+    }
+    // check + repeat: single tap counter, one slot per tap
+    const needed = task.repeatTarget;
     return `
       <div class="q-line ${complete?'on':''}">
-        <button class="chk ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ '+label:label}</button>
+        <button class="chk reps ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ ':''}${value}/${needed}</button>
+        ${value > 0 ? `<button class="chk-mini" data-act="task-dec" ${commonAttrs}>−</button>` : ''}
         ${textHTML}
       </div>`;
   }
-  if (task.type === 'counter'){
-    const targetLabel = task.unit ? `${target} ${esc(task.unit)}` : `${target}`;
+
+  if (task.type === 'count'){
+    const unit = task.unit ? ` ${esc(task.unit)}` : '';
+    const targetStr = task.target != null ? `/ ${task.target}${unit}` : '';
     return `
       <div class="q-line ${complete?'on':''}">
         <div class="task-counter">
-          <input class="task-counter-input" type="number" inputmode="numeric" min="0" value="${value}" data-act="task-set" ${commonAttrs}>
-          <span class="task-counter-target">/ ${targetLabel}</span>
+          <input class="task-counter-input" type="number" inputmode="numeric" min="0"
+                 value="${value}" data-act="task-set" ${commonAttrs}>
+          ${targetStr ? `<span class="task-counter-target">${targetStr}</span>` : ''}
           ${complete ? '<span class="task-counter-done">✓</span>' : ''}
         </div>
+        ${repeatBadgeHTML}
         ${textHTML}
       </div>`;
   }
-    // reps
-  const unitSuffix = task.unit ? ` ${esc(task.unit)}` : '';
+
+  // time
+  const targetStr = task.target != null ? `/ ${formatMinutes(task.target)}` : '';
   return `
     <div class="q-line ${complete?'on':''}">
-      <button class="chk reps ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ ':''}${value}/${target}${unitSuffix}</button>
-      ${value > 0 ? `<button class="chk-mini" data-act="task-dec" ${commonAttrs}>−</button>` : ''}
+      <div class="task-counter">
+        <input class="task-counter-input task-time-input" type="text" inputmode="text"
+               value="${value ? formatMinutes(value) : ''}" placeholder="0m"
+               data-act="task-set-time" ${commonAttrs}>
+        ${targetStr ? `<span class="task-counter-target">${targetStr}</span>` : ''}
+        ${complete ? '<span class="task-counter-done">✓</span>' : ''}
+      </div>
+      ${repeatBadgeHTML}
       ${textHTML}
     </div>`;
-}  
+}
   
 function questCardHTML(q){
   const t = state.today;
   const floorValue = getTaskValue('floor', q.id);
   const ceilValue  = getTaskValue('ceil', q.id);
-  const floorDone  = isTaskComplete(q.floor, floorValue);
-  const ceilDone   = isTaskComplete(q.ceiling, ceilValue);
+    const floorDone  = isTaskComplete(q.floor, floorValue, getTaskReps('floor', q.id));
+  const ceilDone   = isTaskComplete(q.ceiling, ceilValue, getTaskReps('ceil', q.id));
   const done = floorDone && ceilDone;
   const isOpen = expandedQuests.has(q.id);
   const hasHistory = q.history.length > 0;
@@ -3328,7 +3451,8 @@ function questCardHTML(q){
     ? 'Graduation unlocks Sunday 19:00–24:00'
     : (hasHistory ? 'View quest tree' : 'Graduate this quest');
 
-  const allFloorsNow = state.quests.every(qq => isTaskComplete(qq.floor, getTaskValue('floor', qq.id)));
+    const allFloorsNow = state.quests.every(qq =>
+    isTaskComplete(qq.floor, getTaskValue('floor', qq.id), getTaskReps('floor', qq.id)));
   const suspended = ceilDone && !allFloorsNow;
   const suspendedBadge = suspended ? '<span class="ceil-suspended">suspended</span>' : '';
 
@@ -3359,8 +3483,8 @@ function questCardHTML(q){
   function dailyBarHTML(){
   const t = state.today;
   const total = state.quests.length;
-    const floorDone = state.quests.filter(q => isTaskComplete(q.floor, getTaskValue('floor', q.id))).length;
-  const ceilDone  = state.quests.filter(q => isTaskComplete(q.ceiling, getTaskValue('ceil', q.id))).length;
+      const floorDone = state.quests.filter(q => isTaskComplete(q.floor, getTaskValue('floor', q.id), getTaskReps('floor', q.id))).length;
+  const ceilDone  = state.quests.filter(q => isTaskComplete(q.ceiling, getTaskValue('ceil', q.id), getTaskReps('ceil', q.id))).length;
   return `
     <div class="daily-bar" id="dailyBar">
       <div class="daily-count">
@@ -3407,7 +3531,7 @@ function viewQuests(){
 function rewardPanelHTML(){
   const t = state.today;
   const total = state.quests.length;
-    const ceilDone = state.quests.filter(q => isTaskComplete(q.ceiling, getTaskValue('ceil', q.id))).length;
+      const ceilDone = state.quests.filter(q => isTaskComplete(q.ceiling, getTaskValue('ceil', q.id), getTaskReps('ceil', q.id))).length;
   const allCeil = ceilDone === total;
   return `
     <div class="panel" id="rewardPanel">
@@ -3424,7 +3548,7 @@ function rewardPanelHTML(){
 function renderCeilingSteps(q, t){
   const steps = q.ceilingSteps || [];
   if (!steps.length) return '';
-  const doneCount = steps.filter(s => isTaskComplete(s, getTaskValue('step', q.id, s.id))).length;
+    const doneCount = steps.filter(s => isTaskComplete(s, getTaskValue('step', q.id, s.id), getTaskReps('step', q.id, s.id))).length;
   const rows = steps.map(s =>
     renderTaskRow('step', q, s, getTaskValue('step', q.id, s.id), { sid: s.id })
   ).join('');
@@ -4819,14 +4943,15 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-          case 'task-toggle': {
+              case 'task-toggle': {
       const kind = el.dataset.kind, qid = el.dataset.qid, sid = el.dataset.sid;
       const task = getTaskDef(qid, kind, sid);
       if (!task) break;
       const cur = getTaskValue(kind, qid, sid);
       let next;
-      if (task.type === 'binary'){
-        next = cur >= 1 ? 0 : 1;
+      if (task.type === 'check'){
+        const target = task.repeatTarget || 1;
+        next = cur >= target ? 0 : cur + 1;
       } else {
         const target = task.target || 1;
         next = cur >= target ? 0 : cur + 1;
@@ -4850,6 +4975,19 @@ document.addEventListener('click', (e) => {
       refreshQuest(qid);
       break;
     }
+
+    case 'task-rep': {
+      const kind = el.dataset.kind, qid = el.dataset.qid, sid = el.dataset.sid;
+      const task = getTaskDef(qid, kind, sid);
+      if (!task || !task.repeatTarget) break;
+      const cur = getTaskReps(kind, qid, sid);
+      const next = cur >= task.repeatTarget ? 0 : cur + 1;
+      setTaskReps(kind, qid, sid, next);
+      checkDailyAwards();
+      save();
+      refreshQuest(qid);
+      break;
+    }
       
                 case 'edit-quest': {
       if (!canEditNow()){
@@ -4858,7 +4996,7 @@ document.addEventListener('click', (e) => {
       }
       const q = state.quests.find(x => x.id === el.dataset.id);
       if (!q) break;
-            openModal(`
+                  openModal(`
         <h2>Edit Quest — ${STAT_META[q.stat].label}</h2>
         <label class="fld"><span>Quest name</span><input id="eqName" value="${esc(q.name)}"></label>
 
@@ -4867,13 +5005,16 @@ document.addEventListener('click', (e) => {
           <input id="eqFloorText" placeholder="What counts as done?" value="${esc(q.floor.text)}">
           <div class="grid2" style="margin-top:6px">
             <select id="eqFloorType">
-              <option value="binary"  ${q.floor.type==='binary'?'selected':''}>Done / Not done</option>
-              <option value="counter" ${q.floor.type==='counter'?'selected':''}>Counter — reach a number</option>
-              <option value="reps"    ${q.floor.type==='reps'?'selected':''}>Reps — repeat N times</option>
+              <option value="check" ${q.floor.type==='check'?'selected':''}>Done / Not done</option>
+              <option value="count" ${q.floor.type==='count'?'selected':''}>Counter</option>
+              <option value="time"  ${q.floor.type==='time' ?'selected':''}>Time</option>
             </select>
-            <input id="eqFloorTarget" type="number" min="1" value="${q.floor.type==='binary'?1:(q.floor.target||1)}" placeholder="Target">
+            <input id="eqFloorTarget" type="number" min="1" value="${q.floor.target ?? ''}" placeholder="Target (count / time)">
           </div>
-                    <input id="eqFloorUnit" placeholder="Unit — e.g. words, sets (counter / reps)" value="${esc(q.floor.unit||'')}" style="margin-top:6px">
+          <div class="grid2" style="margin-top:6px">
+            <input id="eqFloorUnit" placeholder="Unit — count only" value="${esc(q.floor.unit||'')}">
+            <input id="eqFloorRepeat" type="number" min="2" value="${q.floor.repeatTarget ?? ''}" placeholder="Repeat ×N (optional)">
+          </div>
         </div>
 
         <div class="task-edit-group">
@@ -4881,20 +5022,23 @@ document.addEventListener('click', (e) => {
           <input id="eqCeilText" placeholder="Ideal outcome?" value="${esc(q.ceiling.text)}">
           <div class="grid2" style="margin-top:6px">
             <select id="eqCeilType">
-              <option value="binary"  ${q.ceiling.type==='binary'?'selected':''}>Done / Not done</option>
-              <option value="counter" ${q.ceiling.type==='counter'?'selected':''}>Counter — reach a number</option>
-              <option value="reps"    ${q.ceiling.type==='reps'?'selected':''}>Reps — repeat N times</option>
+              <option value="check" ${q.ceiling.type==='check'?'selected':''}>Done / Not done</option>
+              <option value="count" ${q.ceiling.type==='count'?'selected':''}>Counter</option>
+              <option value="time"  ${q.ceiling.type==='time' ?'selected':''}>Time</option>
             </select>
-            <input id="eqCeilTarget" type="number" min="1" value="${q.ceiling.type==='binary'?1:(q.ceiling.target||1)}" placeholder="Target">
+            <input id="eqCeilTarget" type="number" min="1" value="${q.ceiling.target ?? ''}" placeholder="Target (count / time)">
           </div>
-                    <input id="eqCeilUnit" placeholder="Unit — e.g. words, sets (counter / reps)" value="${esc(q.ceiling.unit||'')}" style="margin-top:6px">
+          <div class="grid2" style="margin-top:6px">
+            <input id="eqCeilUnit" placeholder="Unit — count only" value="${esc(q.ceiling.unit||'')}">
+            <input id="eqCeilRepeat" type="number" min="2" value="${q.ceiling.repeatTarget ?? ''}" placeholder="Repeat ×N (optional)">
+          </div>
         </div>
 
         <label class="fld"><span>Ceiling Steps — one per line, optional</span>
-                    <textarea id="eqSteps" placeholder="[c:300|words] Write 300 words&#10;[r:3|sets] 3 sets of pushups&#10;Just a plain binary step">${(q.ceilingSteps||[]).map(stepToLine).join('\n')}</textarea>
+          <textarea id="eqSteps" placeholder="[c:300|words] Write 300 words&#10;[t:30] 30 minutes of reading&#10;[r:3] 3× Do a set of pushups&#10;Plain text = a simple check">${(q.ceilingSteps||[]).map(stepToLine).join('\n')}</textarea>
         </label>
         <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:14px;line-height:1.7">
-          Step syntax: <b style="color:var(--cyan)">[c:300|words]</b> counter · <b style="color:var(--cyan)">[r:3|sets]</b> reps (unit optional) · no prefix = binary.
+          Step syntax: <b style="color:var(--cyan)">[c:N|unit]</b> counter · <b style="color:var(--cyan)">[t:N]</b> time (minutes) · <b style="color:var(--cyan)">[r:N]</b> check repeated N times · plain text = simple check.
         </div>
 
         <label class="fld"><span>Quest Phase${state.devMode ? ' — DEV: editable' : ''}</span>
@@ -4904,8 +5048,8 @@ document.addEventListener('click', (e) => {
         </label>
         <div class="meta" style="color:var(--dim);font-size:10.5px;margin-bottom:14px">
           ${state.devMode
-            ? 'Dev mode: you can set the phase directly. In normal mode it is adjusted only by the weekly reset (once per week).'
-            : 'Phase is adjusted by the weekly reset, once per week. Quests must reflect effort you control — never outcomes.'}
+            ? 'Dev mode: you can set the phase directly. In normal mode it is adjusted only by the weekly reset.'
+            : 'Phase is adjusted by the weekly reset, once per week.'}
         </div>
         <div class="row" style="justify-content:flex-end">
           <button class="btn ghost" data-act="close-modal">Cancel</button>
@@ -4915,9 +5059,9 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-                            case 'save-quest': {
+                                case 'save-quest': {
       if (!consumeEditToken()){
-        toast('Quest editing locked — Sunday 19:00–24:00 only. Earn an edit token to bypass.', 'bad');
+        toast('Quest editing locked — Sunday 19:00–24:00 only.', 'bad');
         break;
       }
       const q = state.quests.find(x => x.id === el.dataset.id);
@@ -4925,19 +5069,19 @@ document.addEventListener('click', (e) => {
 
       q.name = $('#eqName').value.trim();
 
-      // Floor
       q.floor = normalizeTask({
-        text:   $('#eqFloorText').value.trim(),
         type:   $('#eqFloorType').value,
+        text:   $('#eqFloorText').value.trim(),
         target: $('#eqFloorTarget').value,
-        unit:   $('#eqFloorUnit').value.trim()
+        unit:   $('#eqFloorUnit').value.trim(),
+        repeatTarget: $('#eqFloorRepeat').value
       });
-      // Ceiling
       q.ceiling = normalizeTask({
-        text:   $('#eqCeilText').value.trim(),
         type:   $('#eqCeilType').value,
+        text:   $('#eqCeilText').value.trim(),
         target: $('#eqCeilTarget').value,
-        unit:   $('#eqCeilUnit').value.trim()
+        unit:   $('#eqCeilUnit').value.trim(),
+        repeatTarget: $('#eqCeilRepeat').value
       });
 
       if (state.devMode){
@@ -4948,45 +5092,54 @@ document.addEventListener('click', (e) => {
         }
       }
 
-      // Steps — parse each line
       const stepLines = $('#eqSteps').value.split('\n').map(s => s.trim()).filter(Boolean);
       const oldSteps = q.ceilingSteps || [];
       q.ceilingSteps = stepLines.map((line, i) => {
         const parsed = parseStepLine(line);
         const old = oldSteps[i];
-        const sameAsOld = old
+        const same = old
           && old.text === parsed.text
           && old.type === parsed.type
           && old.target === parsed.target
-          && (old.unit || '') === parsed.unit;
-        return { id: sameAsOld ? old.id : uid(), ...parsed };
+          && (old.unit || '') === (parsed.unit || '')
+          && (old.repeatTarget || 0) === (parsed.repeatTarget || 0);
+        return { id: same ? old.id : uid(), ...parsed };
       });
 
-      // Clean stale ticks for removed steps
-      if (state.today.ceilSteps && state.today.ceilSteps[q.id]){
+      // Clean stale repeat entries
+      if (state.today.reps && state.today.reps.step && state.today.reps.step[q.id]){
         const liveIds = new Set(q.ceilingSteps.map(s => s.id));
-        const ticks = state.today.ceilSteps[q.id];
+        const ticks = state.today.reps.step[q.id];
         Object.keys(ticks).forEach(sid => { if (!liveIds.has(sid)) delete ticks[sid]; });
       }
 
       // Clamp today's values to the new targets
-      const clampQ = (kind, task) => {
-        const val = getTaskValue(kind, q.id);
-        const tgt = task.type === 'binary' ? 1 : (task.target || 1);
-        if (val > tgt) setTaskValue(kind, q.id, undefined, tgt);
+      const clampMain = (kind, task) => {
+        const v = getTaskValue(kind, q.id);
+        const tgt = task.type === 'check' ? (task.repeatTarget || 1) : (task.target || 0);
+        if (tgt > 0 && v > tgt) setTaskValue(kind, q.id, undefined, tgt);
       };
-      clampQ('floor', q.floor);
-      clampQ('ceil', q.ceiling);
+      clampMain('floor', q.floor);
+      clampMain('ceil',  q.ceiling);
       q.ceilingSteps.forEach(s => {
-        const val = getTaskValue('step', q.id, s.id);
-        const tgt = s.type === 'binary' ? 1 : (s.target || 1);
-        if (val > tgt) setTaskValue('step', q.id, s.id, tgt);
+        const v = getTaskValue('step', q.id, s.id);
+        const tgt = s.type === 'check' ? (s.repeatTarget || 1) : (s.target || 0);
+        if (tgt > 0 && v > tgt) setTaskValue('step', q.id, s.id, tgt);
       });
-
+            // Clamp today's reps values too.
+      const clampReps = (kind, task, sid) => {
+        if (!task.repeatTarget) return;
+        const rv = getTaskReps(kind, q.id, sid);
+        if (rv > task.repeatTarget) setTaskReps(kind, q.id, sid, task.repeatTarget);
+      };
+      clampReps('floor', q.floor);
+      clampReps('ceil',  q.ceiling);
+      q.ceilingSteps.forEach(s => clampReps('step', s, s.id));
+           
       save(); closeModal(); render();
       break;
     }
-
+      
     case 'view-tree': {
       const q = state.quests.find(x => x.id === el.dataset.id);
       if (!q) break;
@@ -6045,14 +6198,21 @@ document.addEventListener('click', (e) => {
 
 /* change events — file import + counter inputs */
 document.addEventListener('change', (e) => {
-  if (e.target.dataset && e.target.dataset.act === 'task-set'){
+  const act = e.target.dataset && e.target.dataset.act;
+  if (act === 'task-set' || act === 'task-set-time'){
     const kind = e.target.dataset.kind;
     const qid  = e.target.dataset.qid;
     const sid  = e.target.dataset.sid;
     const task = getTaskDef(qid, kind, sid);
     if (task){
-      let v = parseInt(e.target.value, 10);
-      if (isNaN(v) || v < 0) v = 0;
+      let v;
+      if (act === 'task-set-time'){
+        const mins = parseDuration(e.target.value);
+        v = Math.max(0, mins || 0);
+      } else {
+        v = parseInt(e.target.value, 10);
+        if (isNaN(v) || v < 0) v = 0;
+      }
       setTaskValue(kind, qid, sid, v);
       if (kind === 'ceil' && v > 0){
         state.today.floor[qid] = Math.max(Number(state.today.floor[qid]) || 0, 1);
