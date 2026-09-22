@@ -742,8 +742,8 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   background:rgba(30,60,120,.6);
   color:#fff;
 }
-.task-counter-reset{ font-size:11px; opacity:.65; }
-.task-counter-reset:hover{ color:var(--danger); border-color:var(--danger); opacity:1; }
+.task-counter-dec{ color:var(--danger); font-size:18px; }
+.task-counter-dec:hover{ border-color:var(--danger); background:rgba(60,10,25,.5); color:#fff; }
 .task-counter-inc{ color:var(--cyan); font-size:18px; }
 .task-counter-inc:hover{ border-color:var(--cyan); background:rgba(20,50,100,.5); color:#fff; }
 
@@ -1796,6 +1796,41 @@ footer{font-size:11px}
   }
 }
 
+/* ---------- mobile task rows: wrap text, shrink controls ---------- */
+@media(max-width:620px){
+  .q-line{
+    gap:6px;
+  }
+  .q-line .q-text{
+    flex:1 1 100%;
+    margin-top:6px;
+  }
+  .chk.reps{
+    min-width:52px;
+    padding:0 9px;
+    font-size:11.5px;
+    height:32px;
+  }
+  .task-counter-btn{
+    min-width:32px;
+    height:32px;
+    font-size:15px;
+  }
+  .task-counter-input{
+    width:54px !important;
+    height:32px;
+    font-size:14px !important;
+  }
+  .task-time-input{
+    width:74px !important;
+    font-size:12px !important;
+  }
+  .task-counter-target{
+    font-size:11px;
+  }
+}
+
+  
 /* ---------- mobile performance diet ---------- */
 @media(max-width:900px){
   /* fixed multi-gradient background repaints during scroll on iOS */
@@ -3486,10 +3521,10 @@ function renderTaskRow(kind, q, task, value, opts){
           ${textHTML}
         </div>`;
     }
-    const needed = task.repeatTarget;
+        const needed = task.repeatTarget;
     return `
       <div class="q-line ${complete?'on':''}">
-        ${repeatBadgeHTML}
+        <button class="chk reps ${complete?'on':''}" data-act="task-toggle" ${commonAttrs}>${complete?'✓ ':''}${value}/${needed}</button>
         ${value > 0 ? `<button class="chk-mini" data-act="task-dec" ${commonAttrs}>−</button>` : ''}
         ${textHTML}
       </div>`;
@@ -3501,8 +3536,8 @@ function renderTaskRow(kind, q, task, value, opts){
     return `
       <div class="q-line ${complete?'on':''}">
         ${repeatBadgeHTML}
-        <div class="task-counter${complete?' done':''}">
-          <button class="task-counter-btn task-counter-reset" data-act="task-reset" ${commonAttrs} title="Reset to 0">0</button>
+                <div class="task-counter${complete?' done':''}">
+          <button class="task-counter-btn task-counter-dec" data-act="task-dec" ${commonAttrs} title="Tap −1 · hold for more">−</button>
           <input class="task-counter-input" type="number" inputmode="numeric" min="0"
                  value="${value}" data-act="task-set" ${commonAttrs}>
           ${targetStr ? `<span class="task-counter-target">${targetStr}</span>` : ''}
@@ -3517,8 +3552,8 @@ function renderTaskRow(kind, q, task, value, opts){
   return `
     <div class="q-line ${complete?'on':''}">
       ${repeatBadgeHTML}
-      <div class="task-counter${complete?' done':''}">
-        <button class="task-counter-btn task-counter-reset" data-act="task-reset" ${commonAttrs} title="Reset to 0">0</button>
+            <div class="task-counter${complete?' done':''}">
+        <button class="task-counter-btn task-counter-dec" data-act="task-dec" ${commonAttrs} title="Tap −1 · hold for more">−</button>
         <input class="task-counter-input task-time-input" type="text" inputmode="text"
                value="${value ? formatMinutes(value) : ''}" placeholder="0m"
                data-act="task-set-time" ${commonAttrs}>
@@ -4899,26 +4934,46 @@ function closeModal(){
   m.innerHTML = '';
 }
 
-/* Tap-and-hold auto-increment for [data-act="task-inc"]. */
+/* Tap-and-hold auto-increment/decrement with live DOM updates. */
 document.addEventListener('pointerdown', (e) => {
-  const el = e.target.closest('[data-act="task-inc"]');
+  const el = e.target.closest('[data-act="task-inc"], [data-act="task-dec"]');
   if (!el || (e.button != null && e.button !== 0)) return;
 
+  const act   = el.dataset.act;
   const kind  = el.dataset.kind, qid = el.dataset.qid, sid = el.dataset.sid;
-  const base  = parseInt(el.dataset.delta, 10) || 1;
+  const isDec = act === 'task-dec';
+  const base  = parseInt(el.dataset.delta, 10) || (isDec ? -1 : 1);
   let fired = 0, interval = null;
+
+  const refreshVisible = (nv) => {
+    const row = el.closest('.task-counter');
+    if (!row) return;
+    const inp = row.querySelector('.task-counter-input');
+    const def = getTaskDef(qid, kind, sid);
+    if (inp && def){
+      if (def.type === 'time') inp.value = formatMinutes(nv);
+      else inp.value = nv;
+    }
+    // live "done" tint
+    if (def){
+      const target = def.type === 'check' ? (def.repeatTarget || 1) : (def.target || 0);
+      if (target > 0) row.classList.toggle('done', nv >= target);
+    }
+  };
 
   const tick = () => {
     fired++;
     // Accelerate on long holds.
     const mult = fired > 40 ? 10 : fired > 15 ? 5 : 1;
     const cur = getTaskValue(kind, qid, sid);
-    setTaskValue(kind, qid, sid, cur + base * mult);
+    const nv = Math.max(0, cur + base * mult);
+    setTaskValue(kind, qid, sid, nv);
+    refreshVisible(nv);
   };
 
   const holdTimer = setTimeout(() => {
     tick();
-    interval = setInterval(tick, 100);
+    interval = setInterval(tick, 90);
   }, 420);
 
   const cleanup = () => {
@@ -5135,7 +5190,8 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'task-dec': {
+        case 'task-dec': {
+      if (el.dataset.suppressClick === '1') break;
       const kind = el.dataset.kind, qid = el.dataset.qid, sid = el.dataset.sid;
       const cur = getTaskValue(kind, qid, sid);
       setTaskValue(kind, qid, sid, Math.max(0, cur - 1));
