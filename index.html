@@ -1970,6 +1970,14 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 
 .hexstrip{display:flex;gap:3px;flex-wrap:wrap;margin-top:8px}
 .hex{width:15px;height:15px;background:rgba(20,40,70,.8);border:1px solid rgba(47,143,255,.2)}
+.hex.p{
+  background:linear-gradient(180deg,#ffe580,#ffb347);
+  border-color:#ffe580;
+  box-shadow:
+    0 0 10px rgba(255,214,92,.9),
+    0 0 18px rgba(255,180,71,.5),
+    inset 0 0 4px rgba(255,255,255,.45);
+}
 .hex.g{background:linear-gradient(180deg,#38ffb0,#12a878);border-color:#38ffb0;box-shadow:0 0 8px rgba(56,255,176,.6)}
 .hex.y{background:linear-gradient(180deg,#ffcf5c,#b8860b);border-color:#ffcf5c}
 .hex.r{background:linear-gradient(180deg,#ff3d6e,#8a1230);border-color:#ff3d6e}
@@ -3191,15 +3199,24 @@ function rollover(){
   const prev = state.today;
   const total = state.quests.length;
 
-    const __prevReps = prev.reps || {};
+      const __prevReps = prev.reps || {};
   const __floorReps = __prevReps.floor || {};
+  const __ceilReps  = __prevReps.ceil  || {};
   const __done = (q) => isTaskComplete(
     q.floor,
     Number(prev.floor[q.id]) || 0,
     Number(__floorReps[q.id]) || 0
   );
-  let done = 0;
-  state.quests.forEach(q => { if (__done(q)) done++; });
+  const __ceilDone = (q) => isTaskComplete(
+    q.ceiling,
+    Number((prev.ceil || {})[q.id]) || 0,
+    Number(__ceilReps[q.id]) || 0
+  );
+  let done = 0, ceilDone = 0;
+  state.quests.forEach(q => {
+    if (__done(q))     done++;
+    if (__ceilDone(q)) ceilDone++;
+  });
   const failed = total - done;
 
   const prevLife = prev.lifestyle || {};
@@ -3207,7 +3224,7 @@ function rollover(){
   const lifeTotal = state.lifestyle.length;
 
   if (prev.date){
-    state.log[prev.date] = {done, failed};
+        state.log[prev.date] = {done, failed, ceilDone, total};
     const keys = Object.keys(state.log).sort();
     while (keys.length > 400) delete state.log[keys.shift()];
             if (!state.devMode){
@@ -3834,20 +3851,42 @@ function viewStatus(){
     `<button class="btn small" data-act="assign" data-stat="${k}" ${state.unassigned<=0?'disabled':''}>+ ${STAT_META[k].label}</button>`
   ).join('');
 
-  // 30-day activity strip
+   // 30-day activity strip
   const days = [];
   for (let i = 29; i >= 0; i--){
     const d = new Date(); d.setDate(d.getDate() - i);
     const key = localDateStr(d);
     const rec = state.log[key];
     let cls = '';
+    let tip = key;
+
     if (rec){
-      if (rec.failed === 0) cls = 'g';
-      else if (rec.failed <= 2) cls = 'y';
-      else cls = 'r';
+      const dayTotal = rec.total || state.quests.length;
+      const perfect = typeof rec.ceilDone === 'number'
+                   && rec.ceilDone === dayTotal
+                   && rec.done === dayTotal;
+
+      if (perfect){
+        cls = 'p';
+        tip += ` — PERFECT · ${rec.done}/${dayTotal} floors · ${rec.ceilDone}/${dayTotal} ceilings`;
+      } else if (rec.failed === 0){
+        cls = 'g';
+        tip += ` — ${rec.done}/${dayTotal} floors`;
+      } else if (rec.failed <= 2){
+        cls = 'y';
+        tip += ` — ${rec.done}/${dayTotal} floors`;
+      } else {
+        cls = 'r';
+        tip += ` — ${rec.done}/${dayTotal} floors`;
+      }
+
+      if (typeof rec.ceilDone === 'number' && !perfect && rec.ceilDone > 0){
+        tip += ` · ${rec.ceilDone}/${dayTotal} ceilings`;
+      }
     }
+
     if (i === 0) cls += ' today';
-    days.push(`<div class="hex ${cls}" title="${key}${rec?` — ${rec.done}/${state.quests.length} floors`:''}"></div>`);
+    days.push(`<div class="hex ${cls}" title="${tip}"></div>`);
   }
 
             return `
@@ -3881,7 +3920,8 @@ function viewStatus(){
     <div class="panel">
       <div class="panel-title">Last 30 Days</div>
       <div class="hexstrip">${days.join('')}</div>
-      <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:9px">
+            <div class="meta" style="color:var(--dim);font-size:10.5px;margin-top:9px">
+        <span style="color:#ffe580">■</span> perfect &nbsp;
         <span style="color:var(--green)">■</span> all floors &nbsp;
         <span style="color:var(--gold)">■</span> partial &nbsp;
         <span style="color:var(--danger)">■</span> heavy failure &nbsp;
