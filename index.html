@@ -844,6 +844,49 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 }
 .item .meta{font-size:10px;color:var(--dim);letter-spacing:.1em}
 
+/* dungeon inbox — rank-aligned name / real / meta layout */
+.dungeon-body{
+  min-width:0;
+  flex:1;
+}
+.dungeon-head{
+  display:flex;
+  gap:11px;
+  align-items:flex-start;
+}
+.dungeon-head > .tag{
+  flex-shrink:0;
+  margin-top:2px;
+}
+.dungeon-info{
+  flex:1;
+  min-width:0;
+}
+.dungeon-name{
+  font-size:14.5px;
+  font-weight:600;
+  line-height:1.35;
+  letter-spacing:.02em;
+  margin-bottom:3px;
+  word-break:break-word;
+}
+.item.dungeon .dungeon-info .dungeon-real{
+  margin:0 0 6px 0;
+}
+.dungeon-meta-line{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:4px 8px;
+  font-size:12px;
+  color:var(--dim);
+  letter-spacing:.04em;
+  line-height:1.55;
+}
+.dungeon-meta-line > span{
+  white-space:nowrap;
+}
+  
 /* dungeon inbox / cleared entries get extra breathing room */
 .item.dungeon{
   padding:13px 15px;
@@ -3509,28 +3552,31 @@ function viewDungeons(){
     ? state.keys.map(k => `<span class="tag rank-${k.rank}" style="font-size:12px;padding:3px 9px">KEY [${k.rank}]</span>`).join(' ')
     : `<span class="empty">No keys. Clear all ceiling quests for a chance at one.</span>`;
 
-  const inbox = d.inbox.length
+    const inbox = d.inbox.length
     ? d.inbox.map(x => {
         const lock = d.locked[x.id];
         const locked = lock && Date.now() < new Date(lock.until).getTime();
         return `
-                    <div class="item dungeon">
-            <div style="min-width:0">
-                                                        <div class="title">
+          <div class="item dungeon">
+            <div class="dungeon-body">
+              <div class="dungeon-head">
                 <span class="tag rank-${x.rank}">${x.rank}</span>
-                ${esc(x.name)}
-              </div>
-              ${x.real ? `<div class="dungeon-real">${esc(x.real)}</div>` : ''}
-                            <div class="meta">${domainBadgeHTML(x.domain, getDomainMultiplier(x.domain))}
-                <span>${x.tasks.length} objective${x.tasks.length===1?'':'s'} · ${DUNGEON_DAYS[x.rank]} day limit</span>
-                ${locked ? `<span style="color:var(--danger)">SEALED until ${fmtDate(lock.until)}</span>` : ''}
+                <div class="dungeon-info">
+                  <div class="dungeon-name">${esc(x.name)}</div>
+                  ${x.real ? `<div class="dungeon-real">${esc(x.real)}</div>` : ''}
+                  <div class="dungeon-meta-line">
+                    ${domainBadgeHTML(x.domain, getDomainMultiplier(x.domain))}
+                    <span>${x.tasks.length} objective${x.tasks.length===1?'':'s'} · ${DUNGEON_DAYS[x.rank]} day limit</span>
+                    ${locked ? `<span style="color:var(--danger)">SEALED until ${fmtDate(lock.until)}</span>` : ''}
+                  </div>
+                </div>
               </div>
             </div>
-                        <div class="row">
+            <div class="row">
               ${state.devMode ? `<button class="btn small ghost" data-act="edit-dungeon" data-id="${x.id}">Edit</button>` : ''}
               <button class="btn small" data-act="open-dungeon" data-id="${x.id}">${locked?'Sealed':'Open'}</button>
               <button class="btn small danger" data-act="del-dungeon" data-id="${x.id}">✕</button>
-                        </div>
+            </div>
           </div>`;
       }).join('')
     : `<div class="empty">Inbox empty. Register a monster to hunt.</div>`;
