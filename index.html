@@ -880,66 +880,8 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 .step-builder-extra input[data-step-repeat]{ flex:0 0 90px; }
 .step-builder.type-check .step-builder-extra{ display:none; }
 .step-builder.type-time input[data-step-unit]{ display:none; }
-/* ---------- ceiling sub-steps ---------- */
-.ceil-steps{
-  margin:0;
-  padding:6px 0 4px 0;
-  border-top:1px dashed rgba(47,143,255,.14);
-}
-.ceil-steps-head{
-  font-family:'Share Tech Mono',monospace;
-  font-size:11px;
-  letter-spacing:.16em;
-  color:var(--dim);
-  text-transform:uppercase;
-  margin-bottom:6px;
-  display:flex;
-  align-items:center;
-  gap:8px;
-  cursor:pointer;
-  user-select:none;
-  transition:color .15s;
-  flex-wrap:nowrap;
-}
-.ceil-steps-head:hover{ color:var(--cyan); }
-.ceil-steps-chevron{
-  display:inline-block;
-  font-size:11px;
-  transition:transform .15s;
-  flex-shrink:0;
-  line-height:1;
-}
-.ceil-steps:not(.collapsed) .ceil-steps-chevron{ transform:rotate(90deg); }
-.ceil-steps-count{ color:var(--cyan); white-space:nowrap; }
-.ceil-steps-count b{ color:var(--cyan); font-weight:500; }
-.ceil-steps-note{ color:var(--dim); white-space:nowrap; }
-.ceil-steps-body{ display:block; }
-.ceil-steps.collapsed .ceil-steps-body{ display:none; }
-.ceil-steps.collapsed{ padding-bottom:6px; }
-.ceil-step{
-  display:flex;align-items:flex-start;gap:11px;
-  padding:4px 0;
-  font-size:13.5px;color:var(--dim);
-  line-height:1.5;
-  transition:color .15s;
-}
-.ceil-step .step-chk{
-  font-family:'Share Tech Mono',monospace;font-size:12px;
-  width:22px;height:22px;min-width:22px;padding:0;
-  background:rgba(8,18,36,.8);
-  border:1px solid rgba(47,143,255,.3);
-  color:var(--dim);cursor:pointer;
-  display:inline-flex;align-items:center;justify-content:center;
-  transition:.15s;flex-shrink:0;
-  margin-top:1px;
-}
-.ceil-step .step-chk:hover{border-color:var(--cyan);color:var(--cyan)}
-.ceil-step .step-chk.on{
-  background:linear-gradient(180deg,rgba(56,255,176,.3),rgba(10,80,55,.3));
-  border-color:var(--green);color:#c9fff0;
-  box-shadow:0 0 12px rgba(56,255,176,.3);
-}
-.ceil-step .step-text{flex:1}
+
+/* ---------- ceiling sub-steps (rendered as a climb: floor → steps → ceiling) ---------- */
 .ceil-suspended{
   display:inline-block;margin-left:8px;
   font-family:'Share Tech Mono',monospace;
@@ -949,12 +891,151 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
   border:1px solid rgba(255,207,92,.5);
   text-transform:uppercase;vertical-align:middle;
 }
-.ceil-step.on .step-text{
+
+/* The climb: rail + content column, floor at top, ceiling at bottom */
+.q-climb{ display:flex; flex-direction:column; }
+.q-climb-row{
+  display:grid;
+  grid-template-columns:24px 1fr;
+  align-items:stretch;
+}
+.q-climb-rail{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.q-climb-rail::before{
+  content:'';
+  position:absolute;
+  left:50%;
+  width:2px;
+  background:rgba(47,143,255,.32);
+  transform:translateX(-50%);
+}
+/* rail segments — floor starts at its marker, ceiling ends at its marker */
+.q-climb-floor .q-climb-rail::before{ top:50%; bottom:0; }
+.q-climb-steps .q-climb-rail::before{ top:0; bottom:0; }
+.q-climb-ceil  .q-climb-rail::before{ top:0; bottom:50%; }
+
+.q-climb-dot{
+  position:relative;
+  z-index:1;
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:var(--cyan);
+  box-shadow:
+    0 0 8px rgba(79,214,255,.7),
+    0 0 0 3px var(--bg);
+}
+.q-climb-diamond{
+  border-radius:0;
+  width:9px;
+  height:9px;
+  transform:rotate(45deg);
+}
+.q-climb-body{ min-width:0; padding:2px 0; }
+
+/* collapsed steps keep a small stub of rail so there's no gap */
+.q-climb-steps.collapsed .q-climb-body{ display:none; }
+.q-climb-steps.collapsed .q-climb-rail{ min-height:12px; }
+
+/* Steps rendered as subtasks */
+.q-task.subtask{
+  padding:7px 0 7px 2px;
+  border-top:1px solid rgba(47,143,255,.08);
+}
+.q-task.subtask:first-child{ border-top:none; }
+.q-task.subtask .q-task-head{ gap:8px; margin-bottom:5px; }
+.q-task.subtask .q-task-tag{
+  font-family:'Share Tech Mono',monospace;
+  font-size:14px;
+  color:rgba(111,140,181,.85);
+  border:none;
+  background:transparent;
+  padding:0;
+  letter-spacing:0;
+  min-width:16px;
+  text-align:center;
+  line-height:1;
+  clip-path:none;
+}
+.q-task.subtask .q-task-name{
+  font-size:13.5px;
+  font-weight:400;
+  color:var(--dim);
+  text-shadow:none;
+}
+.q-task.subtask .q-task-stats{
+  justify-content:flex-start;
+  padding-left:24px;
+}
+.q-task.subtask.done .q-task-name{
   color:var(--green);
   text-decoration:line-through;
   text-decoration-color:rgba(56,255,176,.4);
 }
+.q-task.subtask .chk{ font-size:11px; padding:5px 11px; min-width:0; }
+.q-task.subtask .task-counter-input{ height:32px; font-size:13.5px !important; }
+.q-task.subtask .task-counter-btn{ height:32px; min-width:32px; }
 
+/* Steps toggle chip — lives inside the ceiling row */
+.q-steps-toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+  letter-spacing:.06em;
+  color:var(--dim);
+  background:transparent;
+  border:1px solid rgba(47,143,255,.25);
+  padding:2px 7px;
+  cursor:pointer;
+  flex-shrink:0;
+  transition:.15s;
+  clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+}
+.q-steps-toggle:hover{ color:var(--cyan); border-color:rgba(79,214,255,.5); }
+.q-steps-chevron{
+  display:inline-block;
+  font-size:9px;
+  line-height:1;
+  transition:transform .15s;
+}
+.q-steps-chevron.collapsed{ transform:rotate(-90deg); }
+
+/* Quest options menu — hidden checkbox reveals the action row */
+.q-menu-checkbox{ display:none; }
+.q-head-row{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:8px;
+  margin-bottom:6px;
+}
+.q-menu-btn{
+  font-family:'Share Tech Mono',monospace;
+  font-size:16px;
+  line-height:1;
+  color:var(--dim);
+  padding:2px 8px;
+  cursor:pointer;
+  border:1px solid rgba(47,143,255,.22);
+  transition:.15s;
+  user-select:none;
+  clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+}
+.q-menu-btn:hover{ color:var(--cyan); border-color:rgba(79,214,255,.5); }
+.q-actions{
+  display:none;
+  justify-content:flex-end;
+  gap:6px;
+  margin-bottom:10px;
+}
+.q-menu-checkbox:checked ~ .q-actions{ display:flex; }
+  
 /* ---------- quest tree / graduation ---------- */
 .qtree{
   margin:0 0 16px 0;
@@ -3662,7 +3743,8 @@ function renderTaskRow(kind, q, task, value, opts){
   const txt = task.text || opts.emptyText || '';
   const tagLabel = opts.label || (kind === 'ceil' ? 'Ceiling' : kind === 'floor' ? 'Floor' : 'Step');
   const suffixHTML = opts.suffixHTML || '';
-
+  const variant = opts.variant || '';
+  
   let statsHTML = '';
 
   if (task.type === 'check'){
@@ -3712,7 +3794,7 @@ function renderTaskRow(kind, q, task, value, opts){
   }
 
   return `
-    <div class="q-task ${complete?'done':''}">
+    <div class="q-task ${complete?'done':''}${variant ? ' ' + variant : ''}">
       <div class="q-task-head">
         <span class="q-task-tag">${tagLabel}</span>
         <span class="q-task-name">${esc(txt)}</span>
@@ -3728,7 +3810,7 @@ function questCardHTML(q){
   const t = state.today;
   const floorValue = getTaskValue('floor', q.id);
   const ceilValue  = getTaskValue('ceil', q.id);
-    const floorDone  = isTaskComplete(q.floor, floorValue, getTaskReps('floor', q.id));
+  const floorDone  = isTaskComplete(q.floor, floorValue, getTaskReps('floor', q.id));
   const ceilDone   = isTaskComplete(q.ceiling, ceilValue, getTaskReps('ceil', q.id));
   const done = floorDone && ceilDone;
   const isOpen = expandedQuests.has(q.id);
@@ -3739,11 +3821,18 @@ function questCardHTML(q){
   const gradTitle = gradDisabled
     ? 'Graduation unlocks Sunday 19:00–24:00'
     : (hasHistory ? 'View quest tree' : 'Graduate this quest');
+  const editTitle = isWeeklyWindow()
+    ? 'Edit quest'
+    : (state.editTokens > 0
+        ? 'Edit quest (uses 1 token — ' + state.editTokens + ' left)'
+        : 'Editing unlocks Sunday 19:00–24:00');
 
-    const allFloorsNow = state.quests.every(qq =>
+  const allFloorsNow = state.quests.every(qq =>
     isTaskComplete(qq.floor, getTaskValue('floor', qq.id), getTaskReps('floor', qq.id)));
   const suspended = ceilDone && !allFloorsNow;
   const suspendedBadge = suspended ? '<span class="ceil-suspended">suspended</span>' : '';
+  const stepsToggle = renderStepsToggle(q);
+  const ceilSuffix = suspendedBadge + stepsToggle;
 
   return `
     <div class="quest panel ${done ? 'done' : ''} ${isOpen ? 'open' : ''}" data-qid="${q.id}">
@@ -3757,14 +3846,30 @@ function questCardHTML(q){
         <span class="q-toggle">▸</span>
       </div>
       <div class="q-detail">
-        <div class="row q-actions" style="justify-content:flex-end;gap:6px;margin-bottom:10px">
+        <input type="checkbox" id="qm-${q.id}" class="q-menu-checkbox" hidden>
+        <div class="q-head-row">
           <span class="q-phase ${(q.phase ?? 1) > 1 ? 'hard' : (q.phase ?? 1) < 1 ? 'easy' : ''}">PHASE ${q.phase ?? 1}</span>
-          <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
-          <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}" ${canEdit ? '' : 'disabled'} title="${isWeeklyWindow() ? 'Edit quest' : (state.editTokens > 0 ? 'Edit quest (uses 1 token — ' + state.editTokens + ' left)' : 'Editing unlocks Sunday 19:00–24:00')}">Edit</button>
+          <label for="qm-${q.id}" class="q-menu-btn" title="Quest options">⋯</label>
         </div>
-        ${renderTaskRow('floor', q, q.floor, floorValue, { label:'Floor', emptyText:'set a minimum that counts' })}
-        ${renderTaskRow('ceil',  q, q.ceiling, ceilValue, { label:'Ceiling', emptyText:'set an ideal outcome to strive for', suffixHTML: suspendedBadge })}
-        ${renderCeilingSteps(q, t)}
+        <div class="q-actions">
+          <button class="btn small ghost" data-act="view-tree" data-id="${q.id}" ${gradDisabled ? 'disabled' : ''} title="${gradTitle}">${gradLabel}</button>
+          <button class="btn small ghost" data-act="edit-quest" data-id="${q.id}" ${canEdit ? '' : 'disabled'} title="${editTitle}">Edit</button>
+        </div>
+        <div class="q-climb">
+          <div class="q-climb-row q-climb-floor">
+            <div class="q-climb-rail"><span class="q-climb-dot"></span></div>
+            <div class="q-climb-body">
+              ${renderTaskRow('floor', q, q.floor, floorValue, { label:'Floor', emptyText:'set a minimum that counts' })}
+            </div>
+          </div>
+          ${renderCeilingStepsRow(q)}
+          <div class="q-climb-row q-climb-ceil">
+            <div class="q-climb-rail"><span class="q-climb-dot q-climb-diamond"></span></div>
+            <div class="q-climb-body">
+              ${renderTaskRow('ceil', q, q.ceiling, ceilValue, { label:'Ceiling', emptyText:'set an ideal outcome to strive for', suffixHTML: ceilSuffix })}
+            </div>
+          </div>
+        </div>
       </div>
     </div>`;
 }
@@ -3834,25 +3939,37 @@ function rewardPanelHTML(){
     </div>`;
 }
 
-function renderCeilingSteps(q, t){
+function renderCeilingStepsRow(q){
   const steps = q.ceilingSteps || [];
   if (!steps.length) return '';
-  const doneCount = steps.filter(s => isTaskComplete(s, getTaskValue('step', q.id, s.id), getTaskReps('step', q.id, s.id))).length;
-  const collapsed = collapsedSteps.has(q.id);
+  if (collapsedSteps.has(q.id)) return '';
   const rows = steps.map(s =>
-    renderTaskRow('step', q, s, getTaskValue('step', q.id, s.id), { sid: s.id })
+    renderTaskRow('step', q, s, getTaskValue('step', q.id, s.id), {
+      sid: s.id,
+      label: '↳',
+      variant: 'subtask'
+    })
   ).join('');
   return `
-    <div class="ceil-steps ${collapsed?'collapsed':''}">
-      <div class="ceil-steps-head" data-act="toggle-steps-collapse" data-qid="${q.id}">
-        <span class="ceil-steps-chevron">▸</span>
-        <span class="ceil-steps-count"><b>${doneCount}</b>/${steps.length}</span>
-        <span class="ceil-steps-note">no points</span>
-      </div>
-      <div class="ceil-steps-body">
+    <div class="q-climb-row q-climb-steps">
+      <div class="q-climb-rail"></div>
+      <div class="q-climb-body">
         ${rows}
       </div>
     </div>`;
+}
+
+function renderStepsToggle(q){
+  const steps = q.ceilingSteps || [];
+  if (!steps.length) return '';
+  const collapsed = collapsedSteps.has(q.id);
+  const doneCount = steps.filter(s =>
+    isTaskComplete(s, getTaskValue('step', q.id, s.id), getTaskReps('step', q.id, s.id))
+  ).length;
+  return `<button class="q-steps-toggle" data-act="toggle-steps-collapse" data-qid="${q.id}" title="${collapsed?'Show':'Hide'} steps">
+    <span class="q-steps-chevron ${collapsed?'collapsed':''}">▾</span>
+    <span>${doneCount}/${steps.length}</span>
+  </button>`;
 }
   
   function openDistributeModal(){
@@ -5971,13 +6088,12 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-        case 'toggle-steps-collapse': {
+            case 'toggle-steps-collapse': {
       const qid = el.dataset.qid;
       if (collapsedSteps.has(qid)) collapsedSteps.delete(qid);
       else collapsedSteps.add(qid);
-      const node = el.closest('.ceil-steps');
-      if (node) node.classList.toggle('collapsed', collapsedSteps.has(qid));
       syncUI();
+      refreshQuest(qid);
       break;
     }
       
