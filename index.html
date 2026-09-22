@@ -911,6 +911,12 @@ label.fld span{display:block;font-size:10px;letter-spacing:.2em;text-transform:u
 }
 .q-menu-btn:hover{ color:var(--cyan); border-color:rgba(79,214,255,.5); }
 .quest.menu-open .q-menu-btn{ color:var(--cyan); border-color:rgba(79,214,255,.5); }
+.q-actions{
+  display:none;
+  justify-content:flex-end;
+  gap:6px;
+  margin-bottom:10px;
+}
 .quest.menu-open .q-actions{ display:flex; }
 
 /* suspended badge stacked under the ceiling tag instead of inline with the name */
@@ -2012,19 +2018,12 @@ footer{font-size:11px}
   .lvl-num{font-size:30px}
   .rank-badge{width:56px;height:56px;font-size:24px}
 
-  /* quest action row: phase on the left, buttons on the right */
-    .q-actions{
-    justify-content:flex-start !important;
+    /* quest action row: right-aligned button group */
+  .q-actions{
+    justify-content:flex-end;
     align-items:center;
-    flex-wrap:nowrap;
+    flex-wrap:wrap;
     gap:8px;
-  }
-  .q-actions .q-phase{
-    flex-shrink:0;
-  }
-  /* push the button group to the right edge */
-  .q-actions button:first-of-type{
-    margin-left:auto;
   }
   .q-actions .btn.small{
     flex:0 0 auto;
