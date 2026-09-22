@@ -2498,6 +2498,15 @@ function resolveMissionDeadline(){
   if (state.missions.history.length > 100) state.missions.history.length = 100;
 }
 
+ function applyMissionReturnPenalty(){
+  if (state.devMode) return null;
+  const rk = rankForLevel(getLevel());
+  const barrier = rk.min * POINTS_PER_LEVEL;
+  STAT_KEYS.forEach(k => { state.stats[k] = barrier; });
+  state.unassigned = 0;
+  return { rankName: rk.name, barrier };
+} 
+  
 function applyMissionFine(fine){
   let remaining = fine;
   const fromPool = Math.min(state.unassigned, remaining);
@@ -3937,7 +3946,7 @@ function viewActiveMission(m){
                 <div class="mission-bottom-actions">
           ${state.devMode ? `<button class="btn small gold" data-act="edit-mission">Edit Mission (DEV)</button>` : ''}
           <button class="btn small ghost" data-act="hold-mission" title="Penalty: all stats drop to your current rank barrier">Return to Backlog</button>
-          <button class="btn small danger" data-act="abandon-mission">Abandon Mission</button>
+          <button class="btn small danger" data-act="abandon-mission" title="Penalty: all stats drop to your current rank barrier">Abandon Mission</button>
           ${allDone ? `<button class="btn gold" data-act="finish-mission">Finish Mission · +${m.bounty} pts</button>` : ''}
         </div>
       </div>
@@ -5341,7 +5350,7 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-        case 'hold-mission': {
+            case 'hold-mission': {
       const m = state.missions.active;
       if (!m) break;
       const rk = rankForLevel(getLevel());
@@ -5357,7 +5366,7 @@ document.addEventListener('click', (e) => {
         if (!ok) break;
       }
       const durDefault = m.presumedDuration || Math.max(MISSION_MIN_DAYS, Math.ceil((new Date(m.deadline) - new Date(m.startedAt)) / 86400000));
-            state.missions.backlog.push({
+      state.missions.backlog.push({
         id: m.id,
         name: m.name,
         rank: m.rank,
@@ -5373,13 +5382,9 @@ document.addEventListener('click', (e) => {
         storedAt: new Date().toISOString()
       });
       state.missions.active = null;
-      if (state.devMode){
-        toast('DEV MODE — mission returned, no penalty applied.');
-      } else {
-        STAT_KEYS.forEach(k => { state.stats[k] = barrier; });
-        state.unassigned = 0;
-        toast('MISSION RETURNED — stats annulled to ' + rk.name + '-RANK barrier (' + barrier + ')', 'bad');
-      }
+      const pen = applyMissionReturnPenalty();
+      if (pen) toast('MISSION RETURNED — stats annulled to ' + pen.rankName + '-RANK barrier (' + pen.barrier + ')', 'bad');
+      else     toast('DEV MODE — mission returned, no penalty applied.');
       save(); render();
       break;
     }
@@ -5394,14 +5399,27 @@ document.addEventListener('click', (e) => {
       break;
     }
 
-    case 'abandon-mission': {
+        case 'abandon-mission': {
       const m = state.missions.active;
       if (!m) break;
-      if (!confirm('Abandon this mission? No points lost, no points gained. The slot frees up.')) break;
+      const rk = rankForLevel(getLevel());
+      const barrier = rk.min * POINTS_PER_LEVEL;
+      if (!state.devMode){
+        const ok = confirm(
+          'Abandon this mission?\n\n' +
+          'PENALTY: all stats will be annulled to the ' + rk.name + '-RANK barrier (' +
+          barrier + ' in every stat). You will drop to level ' + rk.min + '.\n\n' +
+          'The mission will be deleted — it will NOT be recoverable.\n\n' +
+          'Proceed?'
+        );
+        if (!ok) break;
+      }
       state.missions.history.unshift({...m, finishedAt: new Date().toISOString(), outcome: 'abandoned', delta: 0});
       state.missions.active = null;
+      const pen = applyMissionReturnPenalty();
+      if (pen) toast('MISSION ABANDONED — stats annulled to ' + pen.rankName + '-RANK barrier (' + pen.barrier + ')', 'bad');
+      else     toast('DEV MODE — mission abandoned, no penalty applied.');
       save(); render();
-      toast('Mission abandoned.');
       break;
     }
 
