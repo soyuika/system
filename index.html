@@ -3631,31 +3631,45 @@ function renderHUD(){
   const labelR  = R + 44;
   const angleFor = (i) => -Math.PI/2 + i * (2*Math.PI/5);
 
-  // Target: next rank's entry threshold. At S-rank there's no next rank,
-  // so fall back to the next-level barrier.
   const lv = getLevel();
   const nr = nextRankOf(lv);
-  const target      = nr ? pointsForLevel(nr.min) : nextLevelBarrier();
-  const targetLabel = nr ? `${nr.name}-RANK` : 'NEXT LEVEL';
-  const targetColor = nr ? nr.color : 'var(--cyan)';
+  const target      = nr ? pointsForLevel(nr.min) : null;
+  const targetLabel = nr ? `${nr.name}-RANK` : null;
 
-  const values = STAT_KEYS.map(k => state.stats[k]);
-  const maxVal = Math.max(target, ...values);
+  const values   = STAT_KEYS.map(k => state.stats[k]);
+  const maxStat  = Math.max(...values, 0);
   const totalVal = values.reduce((a,b) => a+b, 0);
+
+  // Visual reference: the larger of the next-rank target and the highest stat.
+  // At S-rank there's no target, so the highest stat becomes the reference.
+  let maxVal, targetRingRatio;
+  if (nr){
+    maxVal = Math.max(target, maxStat, 1);
+    targetRingRatio = target / maxVal;            // ≤ 1
+  } else {
+    maxVal = Math.max(maxStat, 1);
+    targetRingRatio = null;
+  }
+
+  // Grades: always measured against the next-rank target.
+  // At S-rank (no target), measure against the highest stat so the top stat earns S.
+  const gradeTarget = nr ? target : maxVal;
 
   const axes = STAT_KEYS.map((k, i) => {
     const a = angleFor(i);
     const v = state.stats[k];
-    const ratio = maxVal > 0 ? v/maxVal : 0;
+    const visualRatio = maxVal > 0 ? v / maxVal : 0;
+    const gradeRatio  = gradeTarget > 0 ? v / gradeTarget : 0;
     return {
       key: k,
       angle: a,
       value: v,
-      ratio,
-      outer: { x: cx + Math.cos(a)*R,          y: cy + Math.sin(a)*R },
-      inner: { x: cx + Math.cos(a)*R*ratio,    y: cy + Math.sin(a)*R*ratio },
-      letterPos: { x: cx + Math.cos(a)*letterR, y: cy + Math.sin(a)*letterR },
-      labelPos:  { x: cx + Math.cos(a)*labelR,  y: cy + Math.sin(a)*labelR }
+      visualRatio,
+      gradeRatio,
+      outer:     { x: cx + Math.cos(a)*R,                y: cy + Math.sin(a)*R },
+      inner:     { x: cx + Math.cos(a)*R*visualRatio,    y: cy + Math.sin(a)*R*visualRatio },
+      letterPos: { x: cx + Math.cos(a)*letterR,          y: cy + Math.sin(a)*letterR },
+      labelPos:  { x: cx + Math.cos(a)*labelR,           y: cy + Math.sin(a)*labelR }
     };
   });
 
@@ -3679,6 +3693,28 @@ function renderHUD(){
     return 'G';
   };
 
+  // Dashed target ring — only when a next rank exists AND the ring sits
+  // strictly inside the outer edge (otherwise the outer grid ring already marks it).
+  const targetRingHTML =
+    (targetRingRatio !== null && targetRingRatio > 0.02 && targetRingRatio < 0.995)
+      ? `<polygon points="${gridPoly(targetRingRatio)}" fill="none"
+           stroke="${nr.color}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.8"/>`
+      : '';
+
+  // Caption line
+  let captionLine;
+  if (nr){
+    if (maxStat >= target){
+      const relation = maxStat === target ? 'meets' : 'exceeds';
+      captionLine = `Highest stat <b style="color:var(--cyan)">${maxStat}</b> ${relation} the `
+                  + `<b style="color:${nr.color}">${targetLabel}</b> barrier (<b>${target}</b>) · dashed ring marks the barrier`;
+    } else {
+      captionLine = `Target for <b style="color:${nr.color}">${targetLabel}</b>: <b style="color:var(--cyan)">${target}</b>`;
+    }
+  } else {
+    captionLine = `Endgame — scale relative to your highest stat (<b style="color:var(--cyan)">${maxStat}</b>)`;
+  }
+
   return `
     <div class="stat-pentagon-wrap">
       <svg viewBox="0 0 ${W} ${H}" class="stat-pentagon" preserveAspectRatio="xMidYMid meet">
@@ -3699,12 +3735,15 @@ function renderHUD(){
           `<line x1="${cx}" y1="${cy}" x2="${p.outer.x.toFixed(1)}" y2="${p.outer.y.toFixed(1)}" stroke="rgba(47,143,255,.22)" stroke-width="1"/>`
         ).join('')}
 
+        <!-- next-rank target ring (dashed) -->
+        ${targetRingHTML}
+
         <!-- filled polygon for current values -->
         <polygon points="${dataPoly}" fill="url(#pentagonFill)" stroke="#4fd6ff" stroke-width="2" stroke-linejoin="round"/>
 
         <!-- grade letters -->
         ${axes.map(p => {
-          const g = gradeFor(p.ratio);
+          const g = gradeFor(p.gradeRatio);
           const s = g === 'S';
           return `<text x="${p.letterPos.x.toFixed(1)}" y="${p.letterPos.y.toFixed(1)}"
                         text-anchor="middle" dominant-baseline="middle"
@@ -3729,10 +3768,7 @@ function renderHUD(){
           <span class="value">${totalVal}</span>
         </div>
         <div class="meta">
-          Graded against <b style="color:var(--cyan)">${maxVal}</b>
-          ${maxVal > target
-            ? ` — highest stat already exceeds the ${targetLabel} target`
-            : ` · target for <b style="color:${targetColor}">${targetLabel}</b>: ${target}`}
+          ${captionLine}
         </div>
       </div>
     </div>`;
